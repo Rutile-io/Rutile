@@ -1,0 +1,15 @@
+{
+    "constant": true,
+    "inputs": [
+        {
+            "name": "Franklin",
+            "type": "string"
+        }
+    ],
+    "name": "helloWorld",
+    "outputs": [
+        {
+
+        }
+    ]
+}
