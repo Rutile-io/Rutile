@@ -1,4 +1,5 @@
 import Executable from "./Executable";
+import { ExecuteSecureResult } from "./lib/executeSecure";
 
 class Program {
     name: string;
@@ -12,10 +13,15 @@ class Program {
         this.executables.push(executable);
     }
 
-    execAll() {
+    execAll() : Promise<ExecuteSecureResult[]> {
+        const promises: Promise<ExecuteSecureResult>[] = [];
+
         this.executables.forEach((executable) => {
-            executable.exec();
+            const promise = executable.exec();
+            promises.push(promise);
         });
+
+        return Promise.all(promises);
     }
 }
 

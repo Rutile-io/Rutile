@@ -1,18 +1,18 @@
 import { secureEval } from './lib/secureEval';
-import Process from './Process';
+import { executeSecure } from './lib/executeSecure';
+import { getCommandoClassString, ICommando } from './lib/executerLib/Commando';
 
 class Executable {
     code: string;
 
-    constructor(code: (process: Process) => void) {
-        this.code = `(${code})();`;
+    constructor(code: (process: ICommando) => void) {
+        this.code = `(${code})`;
     }
 
     async exec() {
-        const result = await secureEval(this.code);
+        const result = await executeSecure(this.code);
 
-        console.log(this.code);
-        console.log(result);
+        return result;
     }
 }
 
