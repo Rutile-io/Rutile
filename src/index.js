@@ -1,16 +1,24 @@
 import Program from "./Program";
 import Executable from "./Executable";
+import Node from "./node/Node";
 
-const program = new Program('HelloWorld');
-const executable = new Executable(() => {
-    postMessage(JSON.stringify({
-        type: 'success',
-        value: 'TEST',
-    }));
-});
+// Setup a node in this instance..
+const node = new Node();
+node.connect();
 
-program.addExecutable(executable);
+console.log(node);
 
-program.execAll().then((results) => {
-    console.log(results);
-});
+// // Execute a program
+// const program = new Program('HelloWorld');
+// const executable = new Executable(() => {
+//     postMessage(JSON.stringify({
+//         type: 'success',
+//         value: 'TEST',
+//     }));
+// });
+
+// program.addExecutable(executable);
+
+// program.execAll().then((results) => {
+//     console.log(results);
+// });

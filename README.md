@@ -1,4 +1,4 @@
-# Rabbit
+# Rutile
 Small project trying to figure out secure decentralised computing
 
 The goal of the project is to execute different parts of JavaScript on different machines all done in the browser.
