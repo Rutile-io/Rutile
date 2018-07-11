@@ -1,21 +1,21 @@
 interface TransactionConstructor {
-    from: string,
+    from: string | null,
     to: string,
-    gasPrice: string,
-    gasLimit: string,
+    gasPrice: string | null,
+    gasLimit: string | null,
     nonce: string,
     value: string,
-    data: string,
+    data: string | null,
 }
 
 class Transaction {
-    from: string;
+    from: string | null;
     to: string;
     value: string;
-    gasPrice: string;
-    gasLimit: string;
+    gasPrice: string | null;
+    gasLimit: string | null;
     nonce: string;
-    data: string;
+    data: string | null;
 
     constructor({
         gasLimit,

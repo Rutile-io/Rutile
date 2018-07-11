@@ -81,6 +81,11 @@ export function executeSecure(code: string, timeLimit: number = 10000) : Promise
 
         // Put in the code once the iframe is loaded.
         secureIframe.addEventListener('load', () => {
+            if (!secureIframe.contentWindow) {
+                console.error('Could not reach contentWindow..');
+                return;
+            }
+
             secureIframe.contentWindow.postMessage(JSON.stringify({
                 type: 'code',
                 value: `${code}(${getCommandoClassString()}())`,

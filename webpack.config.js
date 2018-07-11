@@ -3,6 +3,7 @@ const path = require('path');
 const exclude = '/node_modules';
 
 module.exports = {
+    target: 'web',
     mode: process.env.NODE_ENV,
     resolve: {
         extensions: ['.js', '.jsx', '.tsx', '.ts'],
@@ -12,7 +13,7 @@ module.exports = {
     },
     output: {
         path: path.resolve(__dirname, './build/'),
-        libraryTarget: 'umd',
+        libraryTarget: 'this',
         filename: '[name].js',
         publicPath: '/build/',
     },

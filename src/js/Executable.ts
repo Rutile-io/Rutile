@@ -1,4 +1,3 @@
-import { secureEval } from './lib/secureEval';
 import { executeSecure } from './lib/executeSecure';
 import { getCommandoClassString, ICommando } from './lib/executerLib/Commando';
 
