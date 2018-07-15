@@ -14,7 +14,8 @@
         "es2015",
         "es2016",
         "dom",
-        "scripthost"
+        "scripthost",
+
     ]
   }
 }

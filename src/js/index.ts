@@ -1,26 +1,45 @@
-import Ipfs from "./services/wrappers/Ipfs";
-import Transaction from "./models/Transaction";
-import FileService from "./services/FileService";
-import getConfig from "./Configuration";
-import { Wallet, WalletConstructor } from "./models/Wallet";
+import PeerToPeer from "./models/PeerToPeer";
+import isNodeJs from "./services/isNodeJs";
 
-const ipfs = new Ipfs({
-    host: 'ipfs.infura.io',
-    port: 5001,
-    protocol: 'https',
-});
+// Peer to Peer connections
 
-async function run() {
-    const walletProvider: WalletConstructor = getConfig('walletProvider');
-    const wallet = walletProvider.getFromStorage();
 
-    const walletBalance = await wallet.getBalance();
-
-    console.log(walletBalance);
-    
+if (!isNodeJs()) {
+    // @ts-ignore
+    window.p2p = PeerToPeer;
 }
 
-run();
+const p2p = new PeerToPeer();
+p2p.open();
+
+
+
+// WALLET constructing
+// import Ipfs from "./services/wrappers/Ipfs";
+// import Transaction from "./models/Transaction";
+// import FileService from "./services/FileService";
+// import getConfig from "./Configuration";
+// import { Wallet, WalletConstructor } from "./models/Wallet";
+
+// const ipfs = new Ipfs({
+//     host: 'ipfs.infura.io',
+//     port: 5001,
+//     protocol: 'https',
+// });
+
+// async function run() {
+//     const walletProvider: WalletConstructor = getConfig('walletProvider');
+//     const wallet = walletProvider.getFromStorage();
+
+//     const walletBalance = await wallet.getBalance();
+
+//     console.log(walletBalance);
+
+// }
+
+// run();
+
+// SECOND PART
 
 // const IPFS = require('ipfs-mini');
 // const ipfs = new IPFS({ host: 'ipfs.infura.io', port: 5001, protocol: 'https' });

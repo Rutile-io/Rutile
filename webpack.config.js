@@ -3,7 +3,6 @@ const path = require('path');
 const exclude = '/node_modules';
 
 module.exports = {
-    target: 'web',
     mode: process.env.NODE_ENV,
     resolve: {
         extensions: ['.js', '.jsx', '.tsx', '.ts'],
