@@ -16,6 +16,7 @@ interface Config {
     port: number,
     iceServers: RTCIceServer[],
     isGenesisNode: boolean,
+    maximumNodes: number,
 }
 
 const developmentConfig: Config = {
@@ -30,6 +31,7 @@ const developmentConfig: Config = {
         { urls: 'stun:stun.l.google.com:19302' }
     ],
     isGenesisNode: true,
+    maximumNodes: 8,
 }
 
 const productionConfig: Config = {
@@ -44,12 +46,21 @@ const productionConfig: Config = {
         { urls: 'stun:stun.l.google.com:19302' }
     ],
     isGenesisNode: true,
+    maximumNodes: 8,
 }
 
 const config = {
     development: developmentConfig,
     production: productionConfig,
 }
+
+let envConfig: Config = config['production'];
+
+if (env) {
+    envConfig = config[env];
+}
+
+export const configuration = envConfig;
 
 export default function getConfig(key: string): any {
     if (!env) {

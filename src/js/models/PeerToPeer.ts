@@ -1,9 +1,10 @@
 import isNodeJs from "../services/isNodeJs";
-import getConfig from "../Configuration";
+import getConfig, { configuration } from "../Configuration";
 import NodesService from "../services/NodesService";
 import P2P from "./P2P";
 import PeerToPeerService from "../services/PeerToPeerService";
 import { URL } from 'url';
+import { ConnectOfferMessage } from "./types/MessageType";
 
 const uuid = require('uuid/v4');
 
@@ -67,6 +68,7 @@ class PeerToPeer {
             }
 
             peer.onClose = () => this.onPeerClose(peer.id);
+            peer.onConnect = () => this.onPeerConnected(peer.id);
             peer.open();
             peer.connect(descriptionInit)
 
@@ -78,6 +80,59 @@ class PeerToPeer {
          } else {
             res.writeHead(404, { 'Content-Type': 'text/html' });
             res.end('Page not found.');
+        }
+    }
+
+    /**
+     * Connects to more nodes through p2p.
+     *
+     * @private
+     * @returns
+     * @memberof PeerToPeer
+     */
+    private async connectToMoreNodes() {
+        console.log('[Peer] Requesting more connections');
+        // Only get connections that are actually connected and not just offers
+        const connectedNodes = this.connections.filter(connection => !!connection.nodeId);
+
+        if (connectedNodes.length >= configuration.maximumNodes) {
+            console.warn('Already connected to maximum nodes');
+            return;
+        }
+
+        if (!connectedNodes.length) {
+            console.error('No connections found, could not attach ');
+            return;
+        }
+
+        // Ask for each node a pass through offer.
+        const connectionsNeeded = configuration.maximumNodes - connectedNodes.length;
+
+        // Loop the amount of needed connections
+        // We chose already open connections at random to create an offer.
+        for (let index = 0; index < connectionsNeeded; index++) {
+            const peer = new P2P(true);
+
+            peer.onSignal = (signal) => {
+                const randomConnection = connectedNodes[Math.floor(Math.random() * connectedNodes.length)];  
+                const message: ConnectOfferMessage = {
+                    nodeId: configuration.nodeId,
+                    sdp: signal,
+                    type: 'CONNECT_OFFER',
+                };
+                
+                randomConnection.p2p.sendData(JSON.stringify(message));
+            }
+
+            peer.onData = (data) => this.onPeerData(data, peer.id);
+            peer.onClose = () => this.onPeerClose(peer.id);
+            peer.onConnect = () => this.onPeerConnected(peer.id);
+
+            peer.open();
+            
+            this.connections.push({
+                p2p: peer,
+            });
         }
     }
 
@@ -109,7 +164,7 @@ class PeerToPeer {
             // Since this is our first connection we need more nodes.
             // So we ask the node to give us a list of different nodes.
             connection.p2p.onConnect = () => {
-
+                this.connectToMoreNodes();
             }
 
             // Now completely connect to it.
@@ -118,6 +173,8 @@ class PeerToPeer {
             this.connections[connectionIndex].nodeId = response.nodeId;
         }
     }
+
+    // Peer handeling events
 
     private onPeerClose(peerId: string) {
         const disconnectedConnection = this.connections.findIndex(connection => connection.p2p.id === peerId);
@@ -128,6 +185,16 @@ class PeerToPeer {
         this.connections.splice(disconnectedConnection, 1);
 
         // Maybe some meganism to re connect to a different node?
+        this.connectToMoreNodes();
+    }
+
+    private onPeerData(data: Uint8Array, peerId: string) {
+
+    }
+
+    private onPeerConnected(peerId: string) {
+        console.log('[PeerToPeer] A peer is connected');
+        this.connectToMoreNodes();
     }
 
     /**
@@ -153,6 +220,8 @@ class PeerToPeer {
         const p2p = new P2P(true);
         p2p.onSignal = (description) => this.onSignal(description, p2p.id);
         p2p.onClose = () => this.onPeerClose(p2p.id);
+        p2p.onData = (data) => this.onPeerData(data, p2p.id);
+        p2p.onConnect = () => this.onPeerConnected(p2p.id);
         p2p.open();
 
         this.connections.push({

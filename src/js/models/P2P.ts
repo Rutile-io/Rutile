@@ -20,15 +20,19 @@ class P2P {
     }
 
     public onConnect() {
-        this.peer.send('WHATEVER :)');
+        this.sendData('Blah');
     }
 
     public onSignal(sessionDescription: RTCSessionDescriptionInit) {
         console.log(JSON.stringify(sessionDescription));
     }
 
-    public onData(data: Uint8Array) {
+    public onData(data: Uint8Array|Buffer) {
         console.log('[onData] :: data -> ', data);
+    }
+
+    sendData(data: String|Buffer|Uint8Array|ArrayBuffer|Blob) {
+        this.peer.send(data);
     }
 
     /**
