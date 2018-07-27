@@ -67,6 +67,7 @@ class PeerToPeer {
                 }));
             }
 
+            peer.onData = (data) => this.onPeerData(data, peer.id);
             peer.onClose = () => this.onPeerClose(peer.id);
             peer.onConnect = () => this.onPeerConnected(peer.id);
             peer.open();
@@ -91,7 +92,7 @@ class PeerToPeer {
      * @memberof PeerToPeer
      */
     private async connectToMoreNodes() {
-        console.log('[Peer] Requesting more connections');
+        console.log('[PeerToPeer] Requesting more connections');
         // Only get connections that are actually connected and not just offers
         const connectedNodes = this.connections.filter(connection => !!connection.nodeId);
 
@@ -116,7 +117,9 @@ class PeerToPeer {
             peer.onSignal = (signal) => {
                 const randomConnection = connectedNodes[Math.floor(Math.random() * connectedNodes.length)];  
                 const message: ConnectOfferMessage = {
-                    nodeId: configuration.nodeId,
+                    // Star means we do not care which node it connects to
+                    toNodeId: '*',
+                    fromNodeId: configuration.nodeId,
                     sdp: signal,
                     type: 'CONNECT_OFFER',
                 };
@@ -179,7 +182,7 @@ class PeerToPeer {
     private onPeerClose(peerId: string) {
         const disconnectedConnection = this.connections.findIndex(connection => connection.p2p.id === peerId);
         
-        console.log('[] Disconnected with NodeId -> ', this.connections[disconnectedConnection].nodeId);
+        console.log('[PeerToPeer] Disconnected with NodeId -> ', this.connections[disconnectedConnection].nodeId);
 
         // Remove from array
         this.connections.splice(disconnectedConnection, 1);
@@ -188,8 +191,107 @@ class PeerToPeer {
         this.connectToMoreNodes();
     }
 
-    private onPeerData(data: Uint8Array, peerId: string) {
+    createPeer(initiator = false, onSignal = (sdp: RTCSessionDescriptionInit) => {}) {
+        const peer = new P2P(initiator);
 
+        peer.onClose = () => this.onPeerClose(peer.id);
+        peer.onConnect = () => this.onPeerConnected(peer.id);
+        peer.onData = (data) => this.onPeerData(data, peer.id);
+        peer.onSignal = (sdp) => onSignal(sdp);
+
+        peer.open();
+
+        return peer;
+    }
+
+    /**
+     * Handles CONNECT_OFFER messages.
+     * It simply checks if it already has the connection and if it doesn't add it
+     * 
+     *
+     * @param {ConnectOfferMessage} connectOfferMessage
+     * @memberof PeerToPeer
+     */
+    handlePeerConnectPassthrough(connectOfferMessage: ConnectOfferMessage, fromPeerId: string) {
+        if (connectOfferMessage.toNodeId === '*') {
+            const nodeConnection = this.connections.find(connection => connection.nodeId === connectOfferMessage.fromNodeId);
+
+            // We do not have a connection with this node, we can accept it and send them an offer response.
+            if (!nodeConnection) {
+                const peer = this.createPeer(false, (sdp) => {
+                    // Find our peer that gave us this data
+                    const connection = this.connections.find(connection => connection.p2p.id === fromPeerId);
+
+                    if (!connection) {
+                        console.error('[PeerToPeer] Could not find connection that gave the offer to this node');
+                        return;
+                    }
+
+                    // Send back the message with our response to the offer.
+                    const message: ConnectOfferMessage = {
+                        fromNodeId: configuration.nodeId,
+                        toNodeId: connectOfferMessage.fromNodeId,
+                        sdp,
+                        type: 'CONNECT_OFFER',
+                    }
+
+                    connection.p2p.sendData(JSON.stringify(message));
+                });
+
+                this.connections.push({
+                    nodeId: connectOfferMessage.fromNodeId,
+                    p2p: peer,
+                });
+            } else {
+                // We already have a connection with this node.
+                // We can pass it along..
+                // Send it to every peer but not the peer we got it from.
+
+                // First get all active connections that is not the peer we got the message from.
+                const activeConnections = this.connections.filter(connection => connection.nodeId && connection.p2p.id !== fromPeerId);
+
+                console.log('[] activeConnections -> ', activeConnections);
+
+                // Pass through this message to the other connections
+                activeConnections.forEach((connection) => {
+                    connection.p2p.sendData(JSON.stringify(connectOfferMessage));
+                });
+
+                console.log('[PeerToPeer] Passing through all connections');
+            }
+        } else {
+            // We should look for an nodeId that has this id, if it doesn't redirect it through.
+            // And maybe if there where too many passthrough fail the connection, and stop passing it.
+            if (connectOfferMessage.toNodeId === configuration.nodeId) {
+                // We are the receiving end of this message. We can connect to it now.
+                console.log('WE ARE THE RECEIVING END OF THIS MESSAGE', connectOfferMessage);
+            } else {
+                console.log('LETS SEND IT TO THE RIGHT NODE!', connectOfferMessage);
+            }
+        }
+    }
+
+    /**
+     * Handles the peer data
+     * TOOD: Make sure we are not parsing huge strings.
+     *
+     * @private
+     * @param {Uint8Array} data
+     * @param {string} peerId
+     * @memberof PeerToPeer
+     */
+    private onPeerData(data: Uint8Array, peerId: string) {
+        const commando = data.toString();
+
+        try {
+            const dataParsed = JSON.parse(commando);
+
+            if (dataParsed.type === 'CONNECT_OFFER') {
+                this.handlePeerConnectPassthrough(dataParsed, peerId);
+            }
+        } catch (error) {
+            console.log('[onPeerData] error -> ', error);
+        }
     }
 
     private onPeerConnected(peerId: string) {

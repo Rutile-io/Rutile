@@ -1,5 +1,6 @@
 export interface ConnectOfferMessage {
     sdp: RTCSessionDescriptionInit,
-    nodeId: string,
+    fromNodeId: string,
+    toNodeId: string,
     type: 'CONNECT_OFFER',
 }
