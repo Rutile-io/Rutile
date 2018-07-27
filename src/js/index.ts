@@ -4,14 +4,14 @@ import isNodeJs from "./services/isNodeJs";
 // Peer to Peer connections
 
 
-if (!isNodeJs()) {
-    // @ts-ignore
-    window.p2p = PeerToPeer;
-}
 
 const p2p = new PeerToPeer();
 p2p.open();
 
+if (!isNodeJs()) {
+    // @ts-ignore
+    window.p2p = p2p;
+}
 
 
 // WALLET constructing

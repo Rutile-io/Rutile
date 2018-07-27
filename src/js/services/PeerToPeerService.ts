@@ -1,6 +1,11 @@
 import getConfig from "../Configuration";
 // import { URL } from 'url';
 
+interface InitialHttpNodeConnectResponse {
+    sdp: RTCSessionDescription,
+    nodeId: string,
+}
+
 class PeerToPeerService {
     /**
      * Connects to a node.js node for the initial connection.
@@ -11,13 +16,14 @@ class PeerToPeerService {
      * @returns {RTCSessionDescription}
      * @memberof PeerToPeerService
      */
-    static async initialHttpNodeConnect(sessionDescription: RTCSessionDescriptionInit): Promise<RTCSessionDescription | null> {
+    static async initialHttpNodeConnect(sessionDescription: RTCSessionDescriptionInit): Promise<InitialHttpNodeConnectResponse | null> {
         try {
             const url = new URL(`http://${getConfig('connectionServerUrl')}/requestSdpConnection`);
             url.searchParams.set('sdp', JSON.stringify(sessionDescription))
+            url.searchParams.set('nodeId', getConfig('nodeId'));
 
             const response = await fetch(url.toString());
-            const data: RTCSessionDescription = (await response.json()).Result;
+            const data: InitialHttpNodeConnectResponse = (await response.json()).Result;
             
             return data;
         } catch (error) {

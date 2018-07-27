@@ -1,4 +1,4 @@
-import isNodeJs from "../services/isNodeJs";
+import isNodeJs from '../services/isNodeJs';
 
 declare var __non_webpack_require__: any;
 
@@ -13,6 +13,10 @@ class P2P {
     constructor(initiator = false) {
         this.id = uuid();
         this.isInitiator = initiator;
+    }
+
+    public onClose() {
+        console.log('Closing!');
     }
 
     public onConnect() {
@@ -54,6 +58,7 @@ class P2P {
         this.peer.on('connect', this.onConnect.bind(this));
         this.peer.on('signal', this.onSignal.bind(this));
         this.peer.on('data', this.onData.bind(this));
+        this.peer.on('close', this.onClose.bind(this));
     }
 }
 

@@ -1,10 +1,14 @@
 import EthereumWallet from "./blockchains/Ethereum/EthereumWallet";
 import { WalletConstructor } from "./models/Wallet";
+const uuid = require('uuid/v4');
 
 const ethers = require('ethers');
 const env = process.env.NODE_ENV;
 
+const NODE_ID = `${uuid()}-${uuid()}-${uuid()}`;
+
 interface Config {
+    nodeId: string,
     walletProvider: WalletConstructor,
     provider: any,
     fileDatabaseAddress: string,
@@ -15,6 +19,7 @@ interface Config {
 }
 
 const developmentConfig: Config = {
+    nodeId: NODE_ID,
     walletProvider: EthereumWallet,
     provider: new ethers.providers.InfuraProvider(ethers.providers.networks.ropsten),
     fileDatabaseAddress: '0xf050e54d2b50c055c9919a4b856a195221d3db71',
@@ -28,6 +33,7 @@ const developmentConfig: Config = {
 }
 
 const productionConfig: Config = {
+    nodeId: NODE_ID,
     walletProvider: EthereumWallet,
     provider: new ethers.providers.InfuraProvider(ethers.providers.networks.ropsten),
     fileDatabaseAddress: '0xf050e54d2b50c055c9919a4b856a195221d3db71',
