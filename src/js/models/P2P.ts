@@ -27,7 +27,13 @@ class P2P {
         console.log('[onData] :: data -> ', data);
     }
 
-    addSessionDescription(sessionDescription: RTCSessionDescription) {
+    /**
+     * Connects to a different node. 
+     *
+     * @param {RTCSessionDescription} sessionDescription
+     * @memberof P2P
+     */
+    connect(sessionDescription: RTCSessionDescription) {
         this.peer.signal(sessionDescription);
     }
 
