@@ -3,4 +3,5 @@ export interface ConnectOfferMessage {
     fromNodeId: string,
     toNodeId: string,
     type: 'CONNECT_OFFER',
+    peerId: string,
 }

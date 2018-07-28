@@ -8,6 +8,7 @@ const uuid = require('uuid/v4');
 class P2P {
     private peer: any;
     private isInitiator: boolean = false;
+    public isConnected: boolean = false;
     public id: string;
 
     constructor(initiator = false) {
@@ -15,6 +16,7 @@ class P2P {
         this.isInitiator = initiator;
     }
 
+    // These can be overwritten
     public onClose() {
         console.log('Closing!');
     }
@@ -31,6 +33,16 @@ class P2P {
         console.log('[onData] :: data -> ', data);
     }
 
+    // End overwritten methods
+
+    private onConnectInternal() {
+        this.isConnected = true;
+    }
+
+    private onCloseInternal() {
+        this.isConnected = false;
+    }
+
     sendData(data: String|Buffer|Uint8Array|ArrayBuffer|Blob) {
         this.peer.send(data);
     }
@@ -41,7 +53,7 @@ class P2P {
      * @param {RTCSessionDescription} sessionDescription
      * @memberof P2P
      */
-    connect(sessionDescription: RTCSessionDescription) {
+    connect(sessionDescription: RTCSessionDescription|RTCSessionDescriptionInit) {
         this.peer.signal(sessionDescription);
     }
 
@@ -60,9 +72,11 @@ class P2P {
         this.peer = new Peer(peerConfig);
         
         this.peer.on('connect', this.onConnect.bind(this));
+        this.peer.on('connect', this.onConnectInternal.bind(this));
         this.peer.on('signal', this.onSignal.bind(this));
         this.peer.on('data', this.onData.bind(this));
         this.peer.on('close', this.onClose.bind(this));
+        this.peer.on('close', this.onCloseInternal.bind(this));
     }
 }
 

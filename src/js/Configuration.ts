@@ -17,6 +17,7 @@ interface Config {
     iceServers: RTCIceServer[],
     isGenesisNode: boolean,
     maximumNodes: number,
+    maximumNodeAskConnectTime: number,
 }
 
 const developmentConfig: Config = {
@@ -32,6 +33,7 @@ const developmentConfig: Config = {
     ],
     isGenesisNode: true,
     maximumNodes: 8,
+    maximumNodeAskConnectTime: 3000,
 }
 
 const productionConfig: Config = {
@@ -47,6 +49,7 @@ const productionConfig: Config = {
     ],
     isGenesisNode: true,
     maximumNodes: 8,
+    maximumNodeAskConnectTime: 3000,
 }
 
 const config = {
@@ -61,6 +64,8 @@ if (env) {
 }
 
 export const configuration = envConfig;
+
+console.log('[Config] configuration.nodeId -> ', configuration.nodeId);
 
 export default function getConfig(key: string): any {
     if (!env) {

@@ -17,6 +17,7 @@ interface Connection {
 class PeerToPeer {
     connections: Connection[] = [];
     isFirstConnectionMade: boolean = false;
+    lastNodesConnectBroadcastTimestamp: number = 0;
 
     /**
      * Handles the HTTP Requests (Mostly for Node)
@@ -91,10 +92,19 @@ class PeerToPeer {
      * @returns
      * @memberof PeerToPeer
      */
-    private async connectToMoreNodes() {
+    public async connectToMoreNodes() {
+        const now = Date.now();
+        const lastCheckDelta = now - this.lastNodesConnectBroadcastTimestamp;
+
+        if (lastCheckDelta <= configuration.maximumNodeAskConnectTime) {
+            return;
+        }
+
+        this.lastNodesConnectBroadcastTimestamp = Date.now();
         console.log('[PeerToPeer] Requesting more connections');
+
         // Only get connections that are actually connected and not just offers
-        const connectedNodes = this.connections.filter(connection => !!connection.nodeId);
+        const connectedNodes = this.connections.filter(connection => !!connection.nodeId && connection.p2p.isConnected);
 
         if (connectedNodes.length >= configuration.maximumNodes) {
             console.warn('Already connected to maximum nodes');
@@ -102,7 +112,7 @@ class PeerToPeer {
         }
 
         if (!connectedNodes.length) {
-            console.error('No connections found, could not attach ');
+            console.error('No connections found, could not connect to more nodes');
             return;
         }
 
@@ -114,6 +124,8 @@ class PeerToPeer {
         for (let index = 0; index < connectionsNeeded; index++) {
             const peer = new P2P(true);
 
+            console.log('[] peer.id -> ', peer.id);
+
             peer.onSignal = (signal) => {
                 const randomConnection = connectedNodes[Math.floor(Math.random() * connectedNodes.length)];  
                 const message: ConnectOfferMessage = {
@@ -122,6 +134,7 @@ class PeerToPeer {
                     fromNodeId: configuration.nodeId,
                     sdp: signal,
                     type: 'CONNECT_OFFER',
+                    peerId: peer.id,
                 };
                 
                 randomConnection.p2p.sendData(JSON.stringify(message));
@@ -167,6 +180,7 @@ class PeerToPeer {
             // Since this is our first connection we need more nodes.
             // So we ask the node to give us a list of different nodes.
             connection.p2p.onConnect = () => {
+                console.log('[PeerToPeer]: First connection has been made');
                 this.connectToMoreNodes();
             }
 
@@ -188,7 +202,7 @@ class PeerToPeer {
         this.connections.splice(disconnectedConnection, 1);
 
         // Maybe some meganism to re connect to a different node?
-        this.connectToMoreNodes();
+        setTimeout(() => this.connectToMoreNodes(), 1000);
     }
 
     createPeer(initiator = false, onSignal = (sdp: RTCSessionDescriptionInit) => {}) {
@@ -213,6 +227,7 @@ class PeerToPeer {
      * @memberof PeerToPeer
      */
     handlePeerConnectPassthrough(connectOfferMessage: ConnectOfferMessage, fromPeerId: string) {
+        // * means that every node can act upon this message.
         if (connectOfferMessage.toNodeId === '*') {
             const nodeConnection = this.connections.find(connection => connection.nodeId === connectOfferMessage.fromNodeId);
 
@@ -233,10 +248,13 @@ class PeerToPeer {
                         toNodeId: connectOfferMessage.fromNodeId,
                         sdp,
                         type: 'CONNECT_OFFER',
+                        peerId: connectOfferMessage.peerId,
                     }
 
                     connection.p2p.sendData(JSON.stringify(message));
                 });
+
+                peer.connect(connectOfferMessage.sdp);
 
                 this.connections.push({
                     nodeId: connectOfferMessage.fromNodeId,
@@ -248,25 +266,50 @@ class PeerToPeer {
                 // Send it to every peer but not the peer we got it from.
 
                 // First get all active connections that is not the peer we got the message from.
-                const activeConnections = this.connections.filter(connection => connection.nodeId && connection.p2p.id !== fromPeerId);
-
-                console.log('[] activeConnections -> ', activeConnections);
+                const activeConnections = this.connections.filter(connection => connection.nodeId && connection.p2p.id !== fromPeerId && connection.p2p.isConnected);
 
                 // Pass through this message to the other connections
                 activeConnections.forEach((connection) => {
                     connection.p2p.sendData(JSON.stringify(connectOfferMessage));
                 });
-
-                console.log('[PeerToPeer] Passing through all connections');
             }
         } else {
             // We should look for an nodeId that has this id, if it doesn't redirect it through.
-            // And maybe if there where too many passthrough fail the connection, and stop passing it.
+            // TODO: And maybe if there where too many passthrough fail the connection, and stop passing it.
             if (connectOfferMessage.toNodeId === configuration.nodeId) {
                 // We are the receiving end of this message. We can connect to it now.
+                if (connectOfferMessage.sdp.type !== 'answer') {
+                    console.error('[PeerToPeer] Could not connect to a non answer sdp message');
+                    return;
+                }
+
+                // Since it's an answer, we've created the offer. Let's find it and connect to it.
+                const connection = this.connections.find(connection => connection.p2p.id === connectOfferMessage.peerId);
+
+                if (!connection) {
+                    console.error(`[PeerToPeer] Could not find connection for node id [${connectOfferMessage.peerId}]`);
+                    return;
+                }
+
+                connection.p2p.connect(connectOfferMessage.sdp);
                 console.log('WE ARE THE RECEIVING END OF THIS MESSAGE', connectOfferMessage);
             } else {
-                console.log('LETS SEND IT TO THE RIGHT NODE!', connectOfferMessage);
+                const rightNodeConnection = this.connections.find(connection => connection.nodeId === connectOfferMessage.toNodeId);
+
+                if (!rightNodeConnection) {
+                    // First get all active connections that is not the peer we got the message from.
+                    // We should also not send it back to the node where it came from.
+                    const activeConnections = this.connections.filter(connection => connection.nodeId && connection.p2p.id !== fromPeerId && connection.p2p.isConnected && connection.p2p.id !== connectOfferMessage.fromNodeId);
+                    
+                    activeConnections.forEach((connection) => {
+                        connection.p2p.sendData(JSON.stringify(connectOfferMessage));
+                    });
+
+                    return;
+                }
+
+                // We got the right node in our list. Simply give the message to it.
+                rightNodeConnection.p2p.sendData(JSON.stringify(connectOfferMessage));
             }
         }
     }
@@ -296,7 +339,7 @@ class PeerToPeer {
 
     private onPeerConnected(peerId: string) {
         console.log('[PeerToPeer] A peer is connected');
-        this.connectToMoreNodes();
+        setTimeout(() => this.connectToMoreNodes(), 1000)
     }
 
     /**
@@ -320,6 +363,7 @@ class PeerToPeer {
 
         // Since we are just opening the node we have to create an offer.
         const p2p = new P2P(true);
+
         p2p.onSignal = (description) => this.onSignal(description, p2p.id);
         p2p.onClose = () => this.onPeerClose(p2p.id);
         p2p.onData = (data) => this.onPeerData(data, p2p.id);
