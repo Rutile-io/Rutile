@@ -33,6 +33,10 @@ class P2P {
         console.log('[onData] :: data -> ', data);
     }
 
+    public onError(error: any) {
+        console.error(error);
+    }
+
     // End overwritten methods
 
     private onConnectInternal() {
@@ -77,6 +81,7 @@ class P2P {
         this.peer.on('data', this.onData.bind(this));
         this.peer.on('close', this.onClose.bind(this));
         this.peer.on('close', this.onCloseInternal.bind(this));
+        this.peer.on('error', this.onError.bind(this));
     }
 }
 

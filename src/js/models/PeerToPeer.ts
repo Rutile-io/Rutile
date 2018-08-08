@@ -18,6 +18,24 @@ class PeerToPeer {
     connections: Connection[] = [];
     isFirstConnectionMade: boolean = false;
     lastNodesConnectBroadcastTimestamp: number = 0;
+    handledPeerConnectMessages: ConnectOfferMessage[] = [];
+
+    constructor() {
+        setInterval(this.cleanup.bind(this), configuration.timeoutBeforeCleanup);
+        setInterval(this.connectToMoreNodes.bind(this), configuration.timeoutBeforeCleanup);
+    }
+
+    private cleanup(): void {
+        const now = Date.now();
+
+        console.info('[PeerToPeer] Cleanup in progress..');
+
+        this.handledPeerConnectMessages.forEach((message, index) => {
+            if ((configuration.timeoutBeforeCleanup + message.createdTimestamp) <= now) {
+                this.handledPeerConnectMessages.splice(index, 1);
+            }
+        });
+    }
 
     /**
      * Handles the HTTP Requests (Mostly for Node)
@@ -71,6 +89,7 @@ class PeerToPeer {
             peer.onData = (data) => this.onPeerData(data, peer.id);
             peer.onClose = () => this.onPeerClose(peer.id);
             peer.onConnect = () => this.onPeerConnected(peer.id);
+            peer.onError = (error) => this.onPeerError(error, peer.id);
             peer.open();
             peer.connect(descriptionInit)
 
@@ -119,37 +138,40 @@ class PeerToPeer {
         // Ask for each node a pass through offer.
         const connectionsNeeded = configuration.maximumNodes - connectedNodes.length;
 
+        if (connectionsNeeded === 0) {
+            console.log('[PeerToPeer] Enough connections established');
+            return;
+        }
+
         // Loop the amount of needed connections
         // We chose already open connections at random to create an offer.
-        for (let index = 0; index < connectionsNeeded; index++) {
-            const peer = new P2P(true);
+        const peer = new P2P(true);
 
-            console.log('[] peer.id -> ', peer.id);
-
-            peer.onSignal = (signal) => {
-                const randomConnection = connectedNodes[Math.floor(Math.random() * connectedNodes.length)];  
-                const message: ConnectOfferMessage = {
-                    // Star means we do not care which node it connects to
-                    toNodeId: '*',
-                    fromNodeId: configuration.nodeId,
-                    sdp: signal,
-                    type: 'CONNECT_OFFER',
-                    peerId: peer.id,
-                };
-                
-                randomConnection.p2p.sendData(JSON.stringify(message));
-            }
-
-            peer.onData = (data) => this.onPeerData(data, peer.id);
-            peer.onClose = () => this.onPeerClose(peer.id);
-            peer.onConnect = () => this.onPeerConnected(peer.id);
-
-            peer.open();
+        peer.onSignal = (signal) => {
+            const randomConnection = connectedNodes[Math.floor(Math.random() * connectedNodes.length)];  
+            const message: ConnectOfferMessage = {
+                // Star means we do not care which node it connects to
+                toNodeId: '*',
+                fromNodeId: configuration.nodeId,
+                sdp: signal,
+                type: 'CONNECT_OFFER',
+                peerId: peer.id,
+                createdTimestamp: Date.now(),
+            };
             
-            this.connections.push({
-                p2p: peer,
-            });
+            randomConnection.p2p.sendData(JSON.stringify(message));
         }
+
+        peer.onData = (data) => this.onPeerData(data, peer.id);
+        peer.onClose = () => this.onPeerClose(peer.id);
+        peer.onConnect = () => this.onPeerConnected(peer.id);
+        peer.onError = (error) => this.onPeerError(error, peer.id);
+
+        peer.open();
+        
+        this.connections.push({
+            p2p: peer,
+        });
     }
 
     private async onSignal(sessionDescription: RTCSessionDescriptionInit, peerId: string) {
@@ -212,6 +234,7 @@ class PeerToPeer {
         peer.onConnect = () => this.onPeerConnected(peer.id);
         peer.onData = (data) => this.onPeerData(data, peer.id);
         peer.onSignal = (sdp) => onSignal(sdp);
+        peer.onError = (error) => this.onPeerError(error, peer.id);
 
         peer.open();
 
@@ -227,6 +250,17 @@ class PeerToPeer {
      * @memberof PeerToPeer
      */
     handlePeerConnectPassthrough(connectOfferMessage: ConnectOfferMessage, fromPeerId: string) {
+        // Make sure we did not already sent this message along
+        // Otherwise we are getting inside an infinite loop
+        const isAlreadyHandled = this.handledPeerConnectMessages.find(message => message.fromNodeId === connectOfferMessage.fromNodeId && message.toNodeId === connectOfferMessage.toNodeId);
+
+        if (isAlreadyHandled) {
+            console.log('[PeerToPeer] Message from node already handled, giving node a timeout.');
+            return;
+        }
+
+        this.handledPeerConnectMessages.push(connectOfferMessage);
+
         // * means that every node can act upon this message.
         if (connectOfferMessage.toNodeId === '*') {
             const nodeConnection = this.connections.find(connection => connection.nodeId === connectOfferMessage.fromNodeId);
@@ -249,6 +283,7 @@ class PeerToPeer {
                         sdp,
                         type: 'CONNECT_OFFER',
                         peerId: connectOfferMessage.peerId,
+                        createdTimestamp: connectOfferMessage.createdTimestamp,
                     }
 
                     connection.p2p.sendData(JSON.stringify(message));
@@ -342,6 +377,12 @@ class PeerToPeer {
         setTimeout(() => this.connectToMoreNodes(), 1000)
     }
 
+    private onPeerError(error: any, peerId: string) {
+        console.log('[OnPeerError] error -> ', error);
+        // Something went wrong with the peer, best is to try connect to more..
+        setTimeout(() => this.connectToMoreNodes(), 1000);
+    }
+
     /**
      * Opens the connection with peer to peer.
      * If it's running on node we will create a simple stung server
@@ -368,6 +409,7 @@ class PeerToPeer {
         p2p.onClose = () => this.onPeerClose(p2p.id);
         p2p.onData = (data) => this.onPeerData(data, p2p.id);
         p2p.onConnect = () => this.onPeerConnected(p2p.id);
+        p2p.onError = (error) => this.onPeerError(error, p2p.id);
         p2p.open();
 
         this.connections.push({

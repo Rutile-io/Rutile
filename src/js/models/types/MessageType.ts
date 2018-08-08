@@ -4,4 +4,5 @@ export interface ConnectOfferMessage {
     toNodeId: string,
     type: 'CONNECT_OFFER',
     peerId: string,
+    createdTimestamp: number,
 }

@@ -18,6 +18,7 @@ interface Config {
     isGenesisNode: boolean,
     maximumNodes: number,
     maximumNodeAskConnectTime: number,
+    timeoutBeforeCleanup: number,
 }
 
 const developmentConfig: Config = {
@@ -34,6 +35,7 @@ const developmentConfig: Config = {
     isGenesisNode: true,
     maximumNodes: 8,
     maximumNodeAskConnectTime: 3000,
+    timeoutBeforeCleanup: 30000,
 }
 
 const productionConfig: Config = {
@@ -50,6 +52,7 @@ const productionConfig: Config = {
     isGenesisNode: true,
     maximumNodes: 8,
     maximumNodeAskConnectTime: 3000,
+    timeoutBeforeCleanup: 30000,
 }
 
 const config = {
