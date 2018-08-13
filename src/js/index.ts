@@ -4,16 +4,6 @@ import isNodeJs from "./services/isNodeJs";
 // Peer to Peer connections
 
 
-
-const p2p = new PeerToPeer();
-p2p.open();
-
-if (!isNodeJs()) {
-    // @ts-ignore
-    window.p2p = p2p;
-}
-
-
 // WALLET constructing
 // import Ipfs from "./services/wrappers/Ipfs";
 // import Transaction from "./models/Transaction";

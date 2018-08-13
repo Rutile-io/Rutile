@@ -416,6 +416,17 @@ class PeerToPeer {
             p2p,
         });
     }
+
+    async broadcast(messageType: string, data: string) {
+        this.connections.forEach((connect) => {
+            // Make sure it's still connected
+            if (!connect.p2p.isConnected) {
+                return;
+            }
+
+            connect.p2p.sendData(JSON.stringify(data));
+        });
+    }
 }
 
 export default PeerToPeer;
