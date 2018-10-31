@@ -1,6 +1,6 @@
 const IPFS = require('ipfs-mini');
 
-interface IpfsConfig {
+export interface IpfsConfig {
     host: string,
     port: number,
     protocol: string,

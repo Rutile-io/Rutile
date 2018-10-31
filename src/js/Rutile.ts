@@ -1,21 +1,48 @@
 import { NodeType } from './models/types/NodeType';
 import PeerToPeer from './models/PeerToPeer';
-import Executable from './Executable';
+import Lamda from './Lamda';
+import Ipfs from './services/wrappers/Ipfs';
+import { configuration } from './Configuration';
+
+// These functions should actually be executed on the network. Not locally.
 
 class Rutile {
-    peerToPeer: PeerToPeer;
+    private peerToPeer: PeerToPeer;
+    private terminal: any;
+    public ipfs: Ipfs;
 
-    constructor(nodeType: NodeType) {
+    constructor() {
+        this.ipfs = new Ipfs(configuration.ipfs);
+        // this.startPeerConnections();
+    }
+
+    async start() {
         // Boot up our peer to peer network
         this.peerToPeer = new PeerToPeer();
-        this.peerToPeer.open();
+        await this.peerToPeer.open();
     }
 
-    async deployScript(script: Executable) {
-        // Deploy the script to a blockchain.
+    async deploy(lamda: Lamda): Promise<string> {
+        const compiledLamda = await lamda.compile();
+
+        // TODO: Deploy the script to a blockchain.
+        const hash = await this.ipfs.add(compiledLamda);
+
+        // Put it inside a blockchain and get the transaction id.
+        return hash;
     }
 
-    async executeScript(scriptAddress: string) {
+    async execute(scriptAddress: string, args?: string[]): Promise<any> {
         // Fetch script from blockchain and execute the script.
+        const contents = await this.ipfs.cat(scriptAddress);
+        const lamda = Lamda.fromCompiledLamdaString(contents);
+        
+        const result = await lamda.execute(args);
+
+        return result;
     }
 }
+
+export default Rutile;
+
+

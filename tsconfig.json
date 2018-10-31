@@ -9,7 +9,7 @@
     "allowJs": true,
     "experimentalDecorators": true,
     "suppressImplicitAnyIndexErrors": true,
-    "strictNullChecks": true,
+    "strictNullChecks": false,
     "lib": [
         "es2015",
         "es2016",

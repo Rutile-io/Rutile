@@ -5,7 +5,7 @@ export enum NodeType {
 
     // Web nodes can only execute small tasks. Full nodes can however pickup these tasks too
     // They can also do small database transactions
-    WEB = 'NODE',
+    WEB = 'WEB',
 
     // Light nodes are there just to store and execute their own functions
     // No programs that are extern

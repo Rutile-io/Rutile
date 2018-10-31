@@ -1,7 +1,11 @@
-class RemoteFile {
+class File {
     constructor() {
+        
+    }
+
+    save() {
         
     }
 }
 
-export default RemoteFile
+export default File

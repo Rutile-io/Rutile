@@ -1,12 +1,37 @@
 import getConfig from "../Configuration";
-// import { URL } from 'url';
+import fetch from 'node-fetch';
+import { URL } from 'url';
 
 interface InitialHttpNodeConnectResponse {
     sdp: RTCSessionDescription,
     nodeId: string,
 }
 
+interface AvailableNode {
+    nodeId: string,
+    nodeUrl: string,
+}
+
 class PeerToPeerService {
+    /**
+     * Gets all nodes from a provided service and returns one host that is possible to connect to.
+     *
+     * @static
+     * @returns {Promise<AvailableNode>}
+     * @memberof PeerToPeerService
+     */
+    static async getRandomAvailableHost(): Promise<AvailableNode> {
+        try {
+            const response = await fetch(getConfig('nodesListUrl'));
+            const availableNodes: AvailableNode[] = await response.json();
+
+            return availableNodes[Math.floor(Math.random() * availableNodes.length)];
+        } catch (error) {
+            console.error(error);
+            return null;
+        }
+    }
+
     /**
      * Connects to a node.js node for the initial connection.
      * This is only used in the beginning, nodes are expected to send everything through WebRTC.
@@ -18,7 +43,9 @@ class PeerToPeerService {
      */
     static async initialHttpNodeConnect(sessionDescription: RTCSessionDescriptionInit): Promise<InitialHttpNodeConnectResponse | null> {
         try {
-            const url = new URL(`http://${getConfig('connectionServerUrl')}/requestSdpConnection`);
+            const availableNode = await PeerToPeerService.getRandomAvailableHost();
+            const url = new URL(`${availableNode.nodeUrl}/requestSdpConnection`);
+            
             url.searchParams.set('sdp', JSON.stringify(sessionDescription))
             url.searchParams.set('nodeId', getConfig('nodeId'));
 

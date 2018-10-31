@@ -5,6 +5,7 @@ import P2P from "./P2P";
 import PeerToPeerService from "../services/PeerToPeerService";
 import { URL } from 'url';
 import { ConnectOfferMessage } from "./types/MessageType";
+import { PeerData, PeerDataType } from "./types/PeerData";
 
 const uuid = require('uuid/v4');
 
@@ -177,9 +178,8 @@ class PeerToPeer {
     private async onSignal(sessionDescription: RTCSessionDescriptionInit, peerId: string) {
         // No first connection, so we must add our session description through HTTP.
         if (!this.isFirstConnectionMade) {
-            // TODO: NodeJS should connect to a different node aswell.
-            // But for now we only let it be a stung server
-            if (isNodeJs()) {
+            if (getConfig('genesis')) {
+                console.log('[PeerToPeer] Genesis node, wait for other connections..');
                 return;
             }
 
@@ -266,7 +266,8 @@ class PeerToPeer {
             const nodeConnection = this.connections.find(connection => connection.nodeId === connectOfferMessage.fromNodeId);
 
             // We do not have a connection with this node, we can accept it and send them an offer response.
-            if (!nodeConnection) {
+            // Also make sure we do not connect with our selfs.
+            if (!nodeConnection && getConfig('nodeId') !== connectOfferMessage.fromNodeId) {
                 const peer = this.createPeer(false, (sdp) => {
                     // Find our peer that gave us this data
                     const connection = this.connections.find(connection => connection.p2p.id === fromPeerId);
@@ -327,7 +328,6 @@ class PeerToPeer {
                 }
 
                 connection.p2p.connect(connectOfferMessage.sdp);
-                console.log('WE ARE THE RECEIVING END OF THIS MESSAGE', connectOfferMessage);
             } else {
                 const rightNodeConnection = this.connections.find(connection => connection.nodeId === connectOfferMessage.toNodeId);
 
@@ -362,10 +362,12 @@ class PeerToPeer {
         const commando = data.toString();
 
         try {
-            const dataParsed = JSON.parse(commando);
+            const dataParsed: any = JSON.parse(commando);
 
             if (dataParsed.type === 'CONNECT_OFFER') {
                 this.handlePeerConnectPassthrough(dataParsed, peerId);
+            } else if (dataParsed.type === PeerDataType.EXECUTION_REQUEST) {
+                
             }
         } catch (error) {
             console.log('[onPeerData] error -> ', error);
@@ -374,6 +376,8 @@ class PeerToPeer {
 
     private onPeerConnected(peerId: string) {
         console.log('[PeerToPeer] A peer is connected');
+        console.log(`[PeerToPeer] Open connections ${this.connections.length}`);
+
         setTimeout(() => this.connectToMoreNodes(), 1000)
     }
 
@@ -391,7 +395,6 @@ class PeerToPeer {
      * @memberof PeerToPeer
      */
     async open() {
-        // NodeJS should create a 
         if (isNodeJs()) {
             // TODO: Use HTTPS here instead of HTTP
             const http = require('http');

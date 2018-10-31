@@ -1,64 +1,72 @@
-import PeerToPeer from "./models/PeerToPeer";
-import isNodeJs from "./services/isNodeJs";
+import Rutile from './Rutile';
+import createLamdaFromFile from './services/createLamdaFromFile';
+import { setConfig } from './Configuration';
+const Logger = require('js-logger');
+const yargs = require('yargs');
 
-// Peer to Peer connections
+Logger.useDefaults();
+
+const rutile = new Rutile();
+
+yargs.usage('$0 <cmd> [args]');
+
+yargs.command('deploy [file]', 'Deploys an script to the Rutile network', (yarg: any) => {
+    yarg.positional('file', {
+        type: 'string',
+        describe: 'The lambda file you want to deploy',
+    });
+}, async (argv: any) => {
+    if (!argv.file) {
+       throw new Error('Missing param file');
+    }
+
+    try {
+        Logger.info('Deploying to the Rutile network...');
+        const lamda = await createLamdaFromFile(argv.file);
+        const ipfsHash = await rutile.deploy(lamda);
+        Logger.info(`Deploy success: ${ipfsHash}`);
+    } catch (error) {
+        Logger.error('Could not deploy: ', error);
+    }
+});
+
+yargs.command('execute <hash> [args..]', 'Executes an script locally', (yarg: any) => {
+    yarg.positional('hash', {
+        type: 'string',
+        describe: 'The hash from IPFS that you want to execute',
+    });
+}, async (argv: any) => {
+    if (!argv.hash) {
+        throw new Error('Missing param hash');
+    }
+
+    try {
+        const result = await rutile.execute(argv.hash, argv.args);
+
+        if (result !== undefined) {
+            Logger.info(result);
+        }
+    } catch (error) {
+        Logger.error('Could not execute: ', error);
+    }
+});
+
+yargs.command('start', 'Starts the Rutile server and connects to the network', () => {}, async (argv: any) => {
+    try {
+        if (argv.port) {
+            setConfig('port', argv.port);
+        }
+
+        if (argv.genesis) {
+            setConfig('genesis', true);
+        }
+        
+        await rutile.start();
+    } catch (error) {
+        Logger.error('Could not execute: ', error);
+    }
+});
 
 
-// WALLET constructing
-// import Ipfs from "./services/wrappers/Ipfs";
-// import Transaction from "./models/Transaction";
-// import FileService from "./services/FileService";
-// import getConfig from "./Configuration";
-// import { Wallet, WalletConstructor } from "./models/Wallet";
-
-// const ipfs = new Ipfs({
-//     host: 'ipfs.infura.io',
-//     port: 5001,
-//     protocol: 'https',
-// });
-
-// async function run() {
-//     const walletProvider: WalletConstructor = getConfig('walletProvider');
-//     const wallet = walletProvider.getFromStorage();
-
-//     const walletBalance = await wallet.getBalance();
-
-//     console.log(walletBalance);
-
-// }
-
-// run();
-
-// SECOND PART
-
-// const IPFS = require('ipfs-mini');
-// const ipfs = new IPFS({ host: 'ipfs.infura.io', port: 5001, protocol: 'https' });
-
-// ipfs.add('HELLO WORLD BS', (error, result) => {
-//     console.log('[ADD] :: result -> ', result, error);
-// });
-
-// ipfs.cat('QmNt6Mn5wB82N81tYSgbexrfH9PUfcFH6djEa548QCFzU4', (error, result) => {
-//     console.log('[CAT] :: result -> ', result, error);
-// });
-
-// // Setup a node in this instance..
-// const node = new Node();
-// node.connect();
-
-// console.log(node);
-
-// // Execute a program
-// const program = new Program('HelloWorld');
-// const executable = new Executable(() => {
-//     postMessage(JSON.stringify({
-//         type: 'success',
-//         value: 'TEST',
-//     }));
-// });
-
-// program.addExecutable(executable);
-
-// program.execAll().then((results) => {
-//     console.log(results);
-// });
+yargs.help();
+yargs.argv;
