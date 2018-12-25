@@ -6,11 +6,18 @@ export interface IpfsConfig {
     protocol: string,
 }
 
+let ipfsInstance: Ipfs = null;
+
 class Ipfs {
     ipfsInstance: any = null;
 
     constructor(config: IpfsConfig) {
         this.ipfsInstance = new IPFS(config);
+    }
+
+    static getInstance(config: IpfsConfig): Ipfs {
+        ipfsInstance = ipfsInstance || new Ipfs(config);
+        return ipfsInstance;
     }
 
     add(content: string): Promise<string> {

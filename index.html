@@ -6,12 +6,20 @@
     </head>
     <body>
         <div id="app"></div>
-        <script src="build/index.js" charset="utf-8"></script>
+        <script src="build/rutile.js" charset="utf-8"></script>
         <script>
             const rutile = new Rutile();
             
-            rutile.createTerminalWindow(document.getElementById('app'));
+            rutile.start();
+
+
+            function click() {
+                
+            }
         </script>
+
+        <button onclick="click()">Send execution</button>
+
         <link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
     </body>
 </html>

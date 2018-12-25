@@ -1,0 +1,12 @@
+<script>
+    async function run() {
+        const response = await fetch('./main.wasm');
+        const buffer = await response.arrayBuffer();
+        const results = await WebAssembly.instantiate(buffer, {});
+        const exec = results.instance.exports.add(4, 5);
+        
+        console.log('[] results -> ', results.instance.exports.memory.buffer);
+    }
+
+    run();
+</script>

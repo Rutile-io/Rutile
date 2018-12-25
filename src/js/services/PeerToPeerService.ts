@@ -1,6 +1,7 @@
-import getConfig from "../Configuration";
+import getConfig, { configuration } from "../Configuration";
 import fetch from 'node-fetch';
-import { URL } from 'url';
+import isNodeJs from "./isNodeJs";
+// import { URL } from 'url';
 
 interface InitialHttpNodeConnectResponse {
     sdp: RTCSessionDescription,
@@ -44,7 +45,19 @@ class PeerToPeerService {
     static async initialHttpNodeConnect(sessionDescription: RTCSessionDescriptionInit): Promise<InitialHttpNodeConnectResponse | null> {
         try {
             const availableNode = await PeerToPeerService.getRandomAvailableHost();
-            const url = new URL(`${availableNode.nodeUrl}/requestSdpConnection`);
+
+            if (!availableNode) {
+                return null;
+            }
+
+            let url = null;
+
+            if (isNodeJs()) {
+                const URL = require('url').URL;
+                url = new URL(`${availableNode.nodeUrl}/requestSdpConnection`);
+            } else {
+                url = new URL(`${availableNode.nodeUrl}/requestSdpConnection`);
+            }
             
             url.searchParams.set('sdp', JSON.stringify(sessionDescription))
             url.searchParams.set('nodeId', getConfig('nodeId'));
@@ -52,6 +65,10 @@ class PeerToPeerService {
             const response = await fetch(url.toString());
             const data: InitialHttpNodeConnectResponse = (await response.json()).Result;
             
+            if (data.nodeId === configuration.nodeId) {
+                return null;
+            }
+
             return data;
         } catch (error) {
             console.error(error);

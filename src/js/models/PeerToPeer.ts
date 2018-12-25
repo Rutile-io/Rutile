@@ -121,18 +121,16 @@ class PeerToPeer {
         }
 
         this.lastNodesConnectBroadcastTimestamp = Date.now();
-        console.log('[PeerToPeer] Requesting more connections');
 
         // Only get connections that are actually connected and not just offers
         const connectedNodes = this.connections.filter(connection => !!connection.nodeId && connection.p2p.isConnected);
 
         if (connectedNodes.length >= configuration.maximumNodes) {
-            console.warn('Already connected to maximum nodes');
             return;
         }
 
         if (!connectedNodes.length) {
-            console.error('No connections found, could not connect to more nodes');
+            console.error('[PeerToPeer] No connections found, could not connect to more nodes');
             return;
         }
 
@@ -144,12 +142,14 @@ class PeerToPeer {
             return;
         }
 
+        console.log('[PeerToPeer] Requesting more connections');
+
         // Loop the amount of needed connections
         // We chose already open connections at random to create an offer.
         const peer = new P2P(true);
 
         peer.onSignal = (signal) => {
-            const randomConnection = connectedNodes[Math.floor(Math.random() * connectedNodes.length)];  
+            const randomConnection = connectedNodes[Math.floor(Math.random() * connectedNodes.length)];
             const message: ConnectOfferMessage = {
                 // Star means we do not care which node it connects to
                 toNodeId: '*',
@@ -159,7 +159,7 @@ class PeerToPeer {
                 peerId: peer.id,
                 createdTimestamp: Date.now(),
             };
-            
+
             randomConnection.p2p.sendData(JSON.stringify(message));
         }
 
@@ -169,7 +169,7 @@ class PeerToPeer {
         peer.onError = (error) => this.onPeerError(error, peer.id);
 
         peer.open();
-        
+
         this.connections.push({
             p2p: peer,
         });
@@ -217,7 +217,7 @@ class PeerToPeer {
 
     private onPeerClose(peerId: string) {
         const disconnectedConnection = this.connections.findIndex(connection => connection.p2p.id === peerId);
-        
+
         console.log('[PeerToPeer] Disconnected with NodeId -> ', this.connections[disconnectedConnection].nodeId);
 
         // Remove from array
@@ -244,7 +244,7 @@ class PeerToPeer {
     /**
      * Handles CONNECT_OFFER messages.
      * It simply checks if it already has the connection and if it doesn't add it
-     * 
+     *
      *
      * @param {ConnectOfferMessage} connectOfferMessage
      * @memberof PeerToPeer
@@ -256,6 +256,10 @@ class PeerToPeer {
 
         if (isAlreadyHandled) {
             console.log('[PeerToPeer] Message from node already handled, giving node a timeout.');
+            return;
+        }
+
+        if (fromPeerId === configuration.nodeId) {
             return;
         }
 
@@ -335,7 +339,7 @@ class PeerToPeer {
                     // First get all active connections that is not the peer we got the message from.
                     // We should also not send it back to the node where it came from.
                     const activeConnections = this.connections.filter(connection => connection.nodeId && connection.p2p.id !== fromPeerId && connection.p2p.isConnected && connection.p2p.id !== connectOfferMessage.fromNodeId);
-                    
+
                     activeConnections.forEach((connection) => {
                         connection.p2p.sendData(JSON.stringify(connectOfferMessage));
                     });
@@ -367,7 +371,7 @@ class PeerToPeer {
             if (dataParsed.type === 'CONNECT_OFFER') {
                 this.handlePeerConnectPassthrough(dataParsed, peerId);
             } else if (dataParsed.type === PeerDataType.EXECUTION_REQUEST) {
-                
+
             }
         } catch (error) {
             console.log('[onPeerData] error -> ', error);
@@ -376,6 +380,7 @@ class PeerToPeer {
 
     private onPeerConnected(peerId: string) {
         console.log('[PeerToPeer] A peer is connected');
+        console.log(this.connections.map(conn => conn.nodeId));
         console.log(`[PeerToPeer] Open connections ${this.connections.length}`);
 
         setTimeout(() => this.connectToMoreNodes(), 1000)

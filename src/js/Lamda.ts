@@ -7,10 +7,14 @@ export interface CompiledLamda {
     // cost: string,
 }
 
+interface LamdaResult {
+    gasUsed: number;
+    result: any;
+}
+
 class Lamda {
     private code?: string;
     public compiledCode?: CompiledLamda;
-    private apiDefinition: string;
 
     static fromCompiledLamdaString(compiledLamdaString: string): Lamda {
         try {
@@ -26,10 +30,6 @@ class Lamda {
         }
     }
 
-    setApiDefinition(api: any) {
-        this.apiDefinition = api;
-    }
-
     setCodeString(code: string) {
         this.code = `function () { ${code} }`;
     }
@@ -38,12 +38,15 @@ class Lamda {
         this.code = code.toString();
     }
 
-    async execute(args: string[] = ['']) {
+    async execute(args: string[] = ['']): Promise<LamdaResult> {
         try {
             const wrappedCode = `${this.code}()`;
             const result = await executeSecure(wrappedCode, args);
 
-            return result;
+            return {
+                gasUsed: 0,
+                result,
+            };
         } catch (error) {
             console.error('Script threw an error: ', error);
         }

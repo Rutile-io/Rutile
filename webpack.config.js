@@ -4,7 +4,7 @@ const exclude = '/node_modules';
 
 module.exports = {
     mode: process.env.NODE_ENV,
-    target: 'node',
+    // target: 'node',
     resolve: {
         extensions: ['.js', '.jsx', '.tsx', '.ts'],
     },

@@ -3,6 +3,7 @@ import PeerToPeer from './models/PeerToPeer';
 import Lamda from './Lamda';
 import Ipfs from './services/wrappers/Ipfs';
 import { configuration } from './Configuration';
+import Transaction from './models/Transaction';
 
 // These functions should actually be executed on the network. Not locally.
 
@@ -11,9 +12,12 @@ class Rutile {
     private terminal: any;
     public ipfs: Ipfs;
 
+    static get Transaction() {
+        return Transaction;
+    }
+
     constructor() {
-        this.ipfs = new Ipfs(configuration.ipfs);
-        // this.startPeerConnections();
+        this.ipfs = Ipfs.getInstance(configuration.ipfs);
     }
 
     async start() {

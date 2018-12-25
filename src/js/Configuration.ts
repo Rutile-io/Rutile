@@ -1,5 +1,3 @@
-// import EthereumWallet from "./blockchains/Ethereum/EthereumWallet";
-import { WalletConstructor } from "./models/Wallet";
 import { IpfsConfig } from "./services/wrappers/Ipfs";
 
 const uuid = require('uuid/v4');
@@ -10,7 +8,6 @@ const NODE_ID = `${uuid()}-${uuid()}-${uuid()}`;
 interface Config {
     genesis: boolean,
     nodeId: string,
-    // walletProvider: WalletConstructor,
     provider: any,
     fileDatabaseAddress: string,
     connectionServerUrl: string,
@@ -27,7 +24,6 @@ interface Config {
 const config: Config = {
     genesis: false,
     nodeId: NODE_ID,
-    // walletProvider: EthereumWallet,
     provider: new ethers.providers.InfuraProvider(ethers.providers.networks.ropsten),
     fileDatabaseAddress: '0xf050e54d2b50c055c9919a4b856a195221d3db71',
     connectionServerUrl: 'localhost:1337',
@@ -38,7 +34,7 @@ const config: Config = {
         { urls: 'stun:stun.l.google.com:19302' }
     ],
     isGenesisNode: true,
-    maximumNodes: 8,
+    maximumNodes: 1,
     maximumNodeAskConnectTime: 3000,
     timeoutBeforeCleanup: 30000,
     ipfs: {

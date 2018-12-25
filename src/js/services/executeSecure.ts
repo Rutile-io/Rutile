@@ -13,11 +13,12 @@ const saferEval = require('safer-eval');
  * @returns
  */
 export default async function executeSecure(code: string, scriptArgs: string[]) {
+    // TODO -> WASM
     const rutileContext = new RutileContext(scriptArgs);
 
     const result = await saferEval(`${code}`, {
         rutile: rutileContext,
     });
-    
+
     return result;
 }

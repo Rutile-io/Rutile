@@ -1,11 +1,27 @@
-const WALLET_LOCATION = 'wallet_storage';
+import { randomBytes } from 'crypto';
+import * as ethers from 'ethers';
+import KeyPair from './KeyPair';
 
-export interface WalletConstructor {
-    new (privateKey: string): Wallet;
-    getFromStorage(): Wallet;
+/**
+ * Currently we replace our own wallet implementation with the one from Ethereum
+ * This makes currently development easyer and focus more on the transaction part.
+ *
+ * @class Wallet
+ */
+class Wallet {
+    privateKey: string;
+    keyPair: KeyPair;
+
+    constructor(privateKey: string) {
+        this.privateKey = privateKey;
+        this.keyPair = new KeyPair(privateKey);
+        console.log('[] new ethers.Wallet(privateKey) -> ', new ethers.Wallet(privateKey));
+    }
+
+    static createRandom() {
+        const privateKey = ethers.Wallet.createRandom().privateKey;
+        return new Wallet(privateKey);
+    }
 }
 
-export interface Wallet {
-    getBalance(): Promise<string>;
-    sign(transaction: any): Promise<void>;
-}
+export default Wallet;
