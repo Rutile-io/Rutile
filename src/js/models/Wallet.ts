@@ -15,7 +15,6 @@ class Wallet {
     constructor(privateKey: string) {
         this.privateKey = privateKey;
         this.keyPair = new KeyPair(privateKey);
-        console.log('[] new ethers.Wallet(privateKey) -> ', new ethers.Wallet(privateKey));
     }
 
     static createRandom() {

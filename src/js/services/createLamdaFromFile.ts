@@ -9,10 +9,9 @@ export default function createLamdaFromFile(fileLocation: string): Promise<Lamda
                 return reject(error);
             }
 
-            const code = data.toString('utf8');
-            const lamda = new Lamda();
-            lamda.setCodeString(code);
-            
+            const binary = new Uint8Array(data);
+            const lamda = new Lamda(binary);
+
             resolve(lamda);
         });
     });

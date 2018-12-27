@@ -1,8 +1,11 @@
 class RutileContext {
-    public args: string[];
+    public data: any[];
+    public state: any;
+    public funcToExecute: string;
 
-    constructor(args: string[]) {
-        this.args = args; 
+    constructor(state: any, data: any[]) {
+        this.data = data;
+        this.state = state;
     }
 }
 

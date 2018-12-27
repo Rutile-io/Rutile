@@ -20,7 +20,7 @@ class Ipfs {
         return ipfsInstance;
     }
 
-    add(content: string): Promise<string> {
+    add(content: string|Uint8Array): Promise<string> {
         return new Promise((resolve, reject) => {
             this.ipfsInstance.add(content, (error: any, result: string) => {
                 if (error) {

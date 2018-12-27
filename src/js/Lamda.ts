@@ -1,13 +1,16 @@
+import { TextDecoder, TextEncoder } from 'text-encoding';
 import { NodeType } from './models/types/NodeType';
 import executeSecure from './services/executeSecure';
+import stringToByteArray from './utils/stringToByteArray';
+import byteArrayToString from './utils/byteArrayToString';
 
 export interface CompiledLamda {
-    func: string,
+    bin: number[],
     // signature: string,
     // cost: string,
 }
 
-interface LamdaResult {
+export interface LamdaResult {
     gasUsed: number;
     result: any;
 }
@@ -15,38 +18,28 @@ interface LamdaResult {
 class Lamda {
     private code?: string;
     public compiledCode?: CompiledLamda;
+    public wasmBinary?: Uint8Array;
+
+    constructor(wasmBinary: Uint8Array = null) {
+        this.wasmBinary = wasmBinary;
+    }
 
     static fromCompiledLamdaString(compiledLamdaString: string): Lamda {
         try {
-            const compiledLamda = JSON.parse(compiledLamdaString);
-            const lamda = new Lamda();
-    
-            lamda.compiledCode = compiledLamda;
-            lamda.code = compiledLamda.func;
-    
+            const byteArrayWasm = stringToByteArray(compiledLamdaString);
+            const lamda = new Lamda(byteArrayWasm);
+
             return lamda;
         } catch (error) {
             throw new Error(`Could not create lamda ${error}`);
         }
     }
 
-    setCodeString(code: string) {
-        this.code = `function () { ${code} }`;
-    }
-
-    setCode(code: Function) {
-        this.code = code.toString();
-    }
-
-    async execute(args: string[] = ['']): Promise<LamdaResult> {
+    async execute(state: any, data: any[]): Promise<LamdaResult> {
         try {
-            const wrappedCode = `${this.code}()`;
-            const result = await executeSecure(wrappedCode, args);
+            const result = await executeSecure(this, state, data);
 
-            return {
-                gasUsed: 0,
-                result,
-            };
+            return result;
         } catch (error) {
             console.error('Script threw an error: ', error);
         }
@@ -59,17 +52,16 @@ class Lamda {
      * @returns {Promise<string>}
      * @memberof Lamda
      */
-    async compile(): Promise<string> {
-        if (!this.code) {
-            throw new Error('Could not compile if there is no code set.');
-        }
+    compile(): Promise<string> {
+        return new Promise((resolve) => {
+            if (!this.wasmBinary) {
+                throw new Error('Could not compile if there is no code set.');
+            }
 
-        const result: CompiledLamda = {
-            func: this.code,
-        };
+            const result = byteArrayToString(this.wasmBinary);
 
-        this.compiledCode = result;
-        return JSON.stringify(result);
+            resolve(result);
+        });
     }
 }
 

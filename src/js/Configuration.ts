@@ -19,6 +19,7 @@ interface Config {
     maximumNodeAskConnectTime: number,
     timeoutBeforeCleanup: number,
     ipfs: IpfsConfig,
+    difficulty: number,
 }
 
 const config: Config = {
@@ -42,6 +43,7 @@ const config: Config = {
         port: 5001,
         protocol: 'https',
     },
+    difficulty: 5,
 }
 
 export const configuration = config;

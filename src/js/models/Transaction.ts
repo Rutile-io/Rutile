@@ -1,16 +1,16 @@
 import Ipfs from "../services/wrappers/Ipfs";
 import { configuration } from "../Configuration";
 import Lamda from "../Lamda";
+const createKeccakHash = require('keccak');
+
 
 interface TransactionParams {
-    lamdaAddress: string;
+    to: string;
+    data?: any[];
 }
 
-class Transaction<T> {
+class Transaction {
     details: {
-        // Filled only when function has been deployed.
-        lamdaAddress?: string;
-
         // The hash of the transaction (Not by PoW)
         hash?: string;
 
@@ -41,7 +41,7 @@ class Transaction<T> {
         branchTransaction?: string;
 
         // The nonce used to find the PoW hash
-        nonce?: string;
+        nonce?: number;
 
         // number of transaction made by the address
         transNum?: number;
@@ -50,9 +50,16 @@ class Transaction<T> {
         // Can also be a function address
         to?: string;
 
+        // From which address the tokens came
+        // When empty this means new tokens are in circulation (Milestone)
+        from?: string;
+
         // data as arguments or a message to send along with the transactions
-        data?: string;
+        data?: any[];
     }
+
+    // Contains the current state of the application
+    state: any = {};
 
     constructor(params: TransactionParams) {
         this.details = {
@@ -61,13 +68,19 @@ class Transaction<T> {
         }
     }
 
+    fillState(state: any) {
+        this.state = state;
+    }
+
     async execute() {
         try {
             const ipfs = Ipfs.getInstance(configuration.ipfs);
-            const contents = await ipfs.cat(this.details.lamdaAddress);
+
+            // "to" should represent the wasm function address or the user address.
+            const contents = await ipfs.cat(this.details.to);
             const lamda = Lamda.fromCompiledLamdaString(contents);
 
-            const result = await lamda.execute();
+            const result = await lamda.execute(this.state, this.details.data);
 
             this.details.gasUsed = result.gasUsed;
 
@@ -77,12 +90,26 @@ class Transaction<T> {
         }
     }
 
-    calculateHash() {
-
+    async validate() {
+        // Validate the hash
     }
 
-    proofOfWork() {
+    calculateHash() {
+        const dataToHash = `${this.details.to}${this.details.from}${this.details.gasUsed}${this.details.nonce}`;
+        return createKeccakHash('keccak256').update(dataToHash).digest('hex');
+    }
 
+    mine() {
+        let transactionHash = '';
+        this.details.nonce = 0;
+
+        while (transactionHash.substring(0, configuration.difficulty) !== Array(configuration.difficulty + 1).join('0')) {
+            this.details.nonce += 1;
+            transactionHash = this.calculateHash();
+        }
+
+        console.log('[] this.details.nonce -> ', this.details.nonce);
+        return transactionHash;
     }
 }
 
