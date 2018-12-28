@@ -43,7 +43,7 @@ const config: Config = {
         port: 5001,
         protocol: 'https',
     },
-    difficulty: 5,
+    difficulty: 3,
 }
 
 export const configuration = config;

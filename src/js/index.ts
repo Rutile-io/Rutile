@@ -19,8 +19,6 @@ async function run() {
         const rutile = new Rutile();
         rutile.start();
 
-
-
         const file = fs.readFileSync('./examples/hello-world/add.wasm');
         const fileArrayBuffer = new Uint8Array(file);
 
@@ -38,9 +36,10 @@ async function run() {
         });
 
         const result = await transaction.execute();
-        transaction.mine();
+        transaction.sign(wallet.keyPair);
+        transaction.proofOfWork();
 
-        console.log('[] result -> ', result);
+        console.log('[] result -> ', transaction);
     }
 }
 

@@ -15,7 +15,8 @@ const saferEval = require('safer-eval');
  * @returns
  */
 export default async function executeSecure(lamda: Lamda, state: any, data: any[]): Promise<LamdaResult> {
-    const context = new RutileContext(state, data);
+    const dataCopy = data.slice();
+    const context = new RutileContext(state, dataCopy);
 
     // Inject metering so we know what the gas cost of each operatio will be.
     const meteredWas = metering.meterWASM(lamda.wasmBinary, {
@@ -35,7 +36,7 @@ export default async function executeSecure(lamda: Lamda, state: any, data: any[
     const exports = wasm.instance.exports;
 
     // The first argument should always represent the function that is exported. Rest is arguments.
-    const functionName = data.shift();
+    const functionName = dataCopy.shift();
     context.funcToExecute = functionName;
 
     // Since we cannot trust the environment we have to sandbox the code.
