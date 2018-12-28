@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="760px" height="273px" viewBox="0 0 760 273" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 47.1 (45422) - http://www.bohemiancoding.com/sketch -->
+    <title>Group</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <linearGradient x1="100%" y1="0%" x2="0%" y2="100%" id="linearGradient-1">
+            <stop stop-color="#17EAD9" offset="0%"></stop>
+            <stop stop-color="#6078EA" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Logo-Color-Text" transform="translate(-290.000000, -120.000000)">
+            <g id="Group" transform="translate(290.000000, 120.000000)">
+                <text id="Rutile" font-family="OpenSans-Regular, Open Sans" font-size="144" font-weight="normal" fill="#3C3C3C">
+                    <tspan x="385" y="190">Rutile</tspan>
+                </text>
+                <path d="M199.474278,130.075826 L199.474278,36.0740741 C199.474278,32.5419596 197.61095,29.2718391 194.572302,27.4711587 L150.572302,1.39708466 C147.428861,-0.465694888 143.519695,-0.465694888 140.376254,1.39708466 L96.3762541,27.4711587 C93.3376059,29.2718391 91.474278,32.5419596 91.474278,36.0740741 L91.474278,130.070071 L6.6251969,177.102685 C3.53593996,178.815088 1.57918747,182.030177 1.47744278,185.560826 L0.00416703586,236.685055 C-0.101086478,240.337464 1.7941152,243.756498 4.9473091,245.602719 L49.0838314,271.445025 C52.1319079,273.229699 55.8953789,273.274017 58.9846359,271.561613 L145.469087,223.622499 L230.292263,270.640754 C233.38152,272.353157 237.144991,272.308839 240.193067,270.524165 L240.193067,270.524165 L284.32959,244.68186 C287.482784,242.835638 289.377985,239.416604 289.272732,235.764195 L287.799456,184.639966 C287.697711,181.109318 285.740959,177.894228 282.651702,176.181825 L199.474278,130.075826 Z" id="Combined-Shape" fill="url(#linearGradient-1)" transform="translate(144.638449, 136.407709) scale(1, -1) translate(-144.638449, -136.407709) "></path>
+            </g>
+        </g>
+    </g>
+</svg>
