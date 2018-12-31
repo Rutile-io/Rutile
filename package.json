@@ -25,6 +25,8 @@
         "@types/react-router": "^4.0.25",
         "@types/react-router-redux": "^5.0.14",
         "@types/text-encoding": "0.0.35",
+        "@types/node-fetch": "^2.1.2",
+        "@types/webassembly-js-api": "0.0.2",
         "babel-core": "6.26.3",
         "babel-eslint": "8.2.3",
         "babel-loader": "7.1.4",
@@ -61,8 +63,6 @@
         "webpack-dev-server": "^3.1.10"
     },
     "dependencies": {
-        "@types/node-fetch": "^2.1.2",
-        "@types/webassembly-js-api": "0.0.2",
         "babel-polyfill": "6.26.0",
         "bson": "^4.0.1",
         "crypto": "^1.0.1",

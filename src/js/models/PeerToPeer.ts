@@ -4,8 +4,9 @@ import NodesService from "../services/NodesService";
 import P2P from "./P2P";
 import PeerToPeerService from "../services/PeerToPeerService";
 import { URL } from 'url';
-import { ConnectOfferMessage } from "./types/MessageType";
+import { ConnectOfferMessage, TransactionMessage } from "./types/MessageType";
 import { PeerData, PeerDataType } from "./types/PeerData";
+import Transaction from "./Transaction";
 
 const uuid = require('uuid/v4');
 
@@ -155,13 +156,21 @@ class PeerToPeer {
      * @param {string} peerId
      * @memberof PeerToPeer
      */
-    private onPeerData(data: Uint8Array, peerId: string) {
+    private async onPeerData(data: Uint8Array, peerId: string) {
         const commando = data.toString();
 
         try {
             const dataParsed: any = JSON.parse(commando);
 
-            console.log('[] dataParsed -> ', dataParsed);
+            if (dataParsed.type === 'TRANSACTION') {
+                const transaction = Transaction.fromRaw(dataParsed.value);
+
+                if (!transaction.isProofOfWorkValid()) {
+                    return;
+                }
+
+                console.log('[] transaction -> ', transaction);
+            }
         } catch (error) {
             console.log('[onPeerData] error -> ', error);
         }
@@ -210,14 +219,24 @@ class PeerToPeer {
         });
     }
 
-    async broadcast(messageType: string, data: string) {
+    async broadcastTransaction(transaction: Transaction) {
+
+        const message: TransactionMessage = {
+            type: 'TRANSACTION',
+            value: transaction.toRaw(),
+        };
+
+        await this.broadcast(JSON.stringify(message));
+    }
+
+    async broadcast(data: string) {
         this.connections.forEach((connect) => {
             // Make sure it's still connected
             if (!connect.p2p.isConnected) {
                 return;
             }
 
-            connect.p2p.sendData(JSON.stringify(data));
+            connect.p2p.sendData(data);
         });
     }
 }

@@ -1,4 +1,5 @@
 import { IpfsConfig } from "./services/wrappers/Ipfs";
+import isNodeJs from "./services/isNodeJs";
 
 const uuid = require('uuid/v4');
 const ethers = require('ethers');
@@ -44,6 +45,12 @@ const config: Config = {
         protocol: 'https',
     },
     difficulty: 3,
+}
+
+// For testing purposes..
+
+if (!isNodeJs()) {
+    config.nodesListUrl = 'http://localhost:9001/examples/network-file/RutileNodes.json';
 }
 
 export const configuration = config;

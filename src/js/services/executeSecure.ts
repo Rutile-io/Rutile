@@ -2,7 +2,7 @@ import RutileContext from '../models/RutileContext';
 import Lamda, { LamdaResult } from '../Lamda';
 
 const metering = require('wasm-metering');
-const saferEval = require('safer-eval');
+const saferEval = require('../../../../../Rutile/SaferEval');
 
 /**
  * Executes code in a different context and vm.

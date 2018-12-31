@@ -6,3 +6,8 @@ export interface ConnectOfferMessage {
     peerId: string,
     createdTimestamp: number,
 }
+
+export interface TransactionMessage {
+    type: 'TRANSACTION',
+    value: string;
+}

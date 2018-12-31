@@ -8,6 +8,15 @@ const createKeccakHash = require('keccak');
 interface TransactionParams {
     to: string;
     data?: any[];
+    gasLimit?: number;
+    gasPrice?: number;
+    id?: string;
+    nonce?: number;
+    r?: string;
+    s?: string;
+    v?: number;
+    timestamp?: number;
+    value?: number;
 }
 
 class Transaction {
@@ -67,6 +76,15 @@ class Transaction {
     constructor(params: TransactionParams) {
         this.data = params.data;
         this.to = params.to;
+        this.gasLimit = params.gasLimit || 0;
+        this.gasPrice = params.gasPrice || 0;
+        this.id = params.id;
+        this.nonce = params.nonce;
+        this.r = params.r;
+        this.s = params.s;
+        this.v = params.v;
+        this.timestamp = params.timestamp || 0;
+        this.value = params.value || 0;
     }
 
     fillState(state: any) {
@@ -98,13 +116,15 @@ class Transaction {
      * @returns {boolean}
      * @memberof Transaction
      */
-    isValid(): boolean {
+    isProofOfWorkValid(): boolean {
         // Validate the hash
         const transactionHash = this.calculateHash();
 
         if (transactionHash.substring(0, configuration.difficulty) !== Array(configuration.difficulty + 1).join('0')) {
             return false;
         }
+
+        console.log('[] transactionHash -> ', transactionHash);
 
         return true;
     }
@@ -133,7 +153,7 @@ class Transaction {
         let transactionHash = '';
         this.nonce = 0;
 
-        while (!this.isValid()) {
+        while (!this.isProofOfWorkValid()) {
             this.nonce += 1;
             transactionHash = this.calculateHash();
         }
@@ -174,6 +194,31 @@ class Transaction {
         const transactionId: string = createKeccakHash('keccak256').update(transactionIdData).digest('hex');
 
         this.id = transactionId;
+    }
+
+    toRaw(): string {
+        return JSON.stringify({
+            id: this.id,
+            to: this.to,
+            value: this.value,
+            data: this.data,
+            nonce: this.nonce,
+            transNum: this.transNum,
+            gasPrice: this.gasPrice,
+            gasLimit: this.gasLimit,
+            timestamp: this.timestamp,
+            trunkTransaction: this.trunkTransaction,
+            branchTransaction: this.branchTransaction,
+            r: this.r,
+            s: this.s,
+            v: this.v,
+        });
+    }
+
+    static fromRaw(rawTransaction: string): Transaction {
+        const transaction: TransactionParams = JSON.parse(rawTransaction);
+
+        return new Transaction(transaction);
     }
 }
 

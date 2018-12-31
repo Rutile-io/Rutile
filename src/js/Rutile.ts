@@ -39,6 +39,10 @@ class Rutile {
         // Put it inside a blockchain and get the transaction id.
         return hash;
     }
+
+    async sendTransaction(transaction: Transaction) {
+        this.peerToPeer.broadcastTransaction(transaction);
+    }
 }
 
 export default Rutile;

@@ -1,10 +1,10 @@
 import Rutile from './Rutile';
 // import createLamdaFromFile from './services/createLamdaFromFile';
 import { setConfig } from './Configuration';
-import * as fs from 'fs';
 import isNodeJs from './services/isNodeJs';
 import Wallet from './models/Wallet';
-import RutileContext from './models/RutileContext';
+// import RutileContext from './models/RutileContext';
+// import * as fs from 'fs';
 // const Logger = require('js-logger');
 
 // const metering = require('wasm-metering');
@@ -15,14 +15,14 @@ async function run() {
     const wallet = Wallet.createRandom();
 
     // Testing..
-    if (isNodeJs()) {
+    // if (isNodeJs()) {
         const rutile = new Rutile();
-        rutile.start();
+        await rutile.start();
 
-        const file = fs.readFileSync('./examples/hello-world/add.wasm');
-        const fileArrayBuffer = new Uint8Array(file);
+        // const file = fs.readFileSync('./examples/hello-world/add.wasm');
+        // const fileArrayBuffer = new Uint8Array(file);
 
-        const lamda = new Rutile.Lamda(fileArrayBuffer);
+        // const lamda = new Rutile.Lamda(fileArrayBuffer);
 
         const hash = 'QmaRRwro76P2vgjpU8RJaxtuEKiEQg9ddBVHwgeYGiVewk'; //await rutile.deploy(lamda);
         console.log('[] hash -> ', hash);
@@ -39,8 +39,10 @@ async function run() {
         transaction.sign(wallet.keyPair);
         transaction.proofOfWork();
 
-        console.log('[] result -> ', transaction);
-    }
+        rutile.sendTransaction(transaction);
+
+        console.log('[] result -> ', transaction, result);
+    // }
 }
 
 run();

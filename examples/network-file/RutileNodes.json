@@ -1,6 +1,6 @@
 [
     {
         "nodeId": "test",
-        "nodeUrl": "http://localhost:8932"
+        "nodeUrl": "http://localhost:1337"
     }
 ]
