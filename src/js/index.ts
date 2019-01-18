@@ -3,6 +3,7 @@ import Rutile from './Rutile';
 import { setConfig } from './Configuration';
 import isNodeJs from './services/isNodeJs';
 import Wallet from './models/Wallet';
+import { saveTransaction } from './services/DatabaseService';
 // import RutileContext from './models/RutileContext';
 // import * as fs from 'fs';
 // const Logger = require('js-logger');
@@ -11,14 +12,39 @@ import Wallet from './models/Wallet';
 
 // Logger.useDefaults();
 
+function sleep(ms: number) {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            resolve();
+        }, ms);
+    });
+}
+
 async function run() {
-    const wallet = Wallet.createRandom();
+    let wallet = null;
+    if (!isNodeJs()) {
+        wallet = Wallet.fromStorage();
+
+        if (!wallet) {
+            wallet = Wallet.createRandom();
+            wallet.saveToLocalStorage();
+        }
+    } else {
+        wallet = Wallet.createRandom();
+    }
 
     // Testing..
     // if (isNodeJs()) {
         const rutile = new Rutile();
-        await rutile.start();
+        try {
+            await rutile.start();
+        } catch (e) {
+            console.error('Oh well');
+        }
 
+        if (isNodeJs()) {
+            await sleep(10000);
+        }
         // const file = fs.readFileSync('./examples/hello-world/add.wasm');
         // const fileArrayBuffer = new Uint8Array(file);
 
@@ -31,13 +57,16 @@ async function run() {
             data: [
                 'add',
                 1,
-                9504,
+                '9504',
             ],
+            value: 0,
         });
 
         const result = await transaction.execute();
+
         transaction.sign(wallet.keyPair);
         transaction.proofOfWork();
+        await saveTransaction(transaction);
 
         rutile.sendTransaction(transaction);
 

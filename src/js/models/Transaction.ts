@@ -2,6 +2,7 @@ import Ipfs from "../services/wrappers/Ipfs";
 import { configuration } from "../Configuration";
 import Lamda from "../Lamda";
 import KeyPair from "./KeyPair";
+import Account from "./Account";
 const createKeccakHash = require('keccak');
 
 
@@ -51,10 +52,10 @@ class Transaction {
     branchTransaction?: string;
 
     // The nonce used to find the PoW hash
-    nonce?: number;
+    nonce?: number = 0;
 
     // number of transaction made by the address
-    transNum?: number;
+    transIndex?: number;
 
     // To which address to send tokens to.
     // Can also be a function address
@@ -79,7 +80,7 @@ class Transaction {
         this.gasLimit = params.gasLimit || 0;
         this.gasPrice = params.gasPrice || 0;
         this.id = params.id;
-        this.nonce = params.nonce;
+        this.nonce = params.nonce || 0;
         this.r = params.r;
         this.s = params.s;
         this.v = params.v;
@@ -99,10 +100,15 @@ class Transaction {
             const contents = await ipfs.cat(this.to);
             const lamda = Lamda.fromCompiledLamdaString(contents);
 
+            // Possibly have to save the result in the transaction.
             const result = await lamda.execute(this.state, this.data);
 
             this.gasUsed = result.gasUsed;
-            this.timestamp = Date.now();
+
+            // Make sure validations can set their time.
+            if (!this.timestamp) {
+                this.timestamp = Date.now();
+            }
 
             return result;
         } catch (error) {
@@ -123,8 +129,6 @@ class Transaction {
         if (transactionHash.substring(0, configuration.difficulty) !== Array(configuration.difficulty + 1).join('0')) {
             return false;
         }
-
-        console.log('[] transactionHash -> ', transactionHash);
 
         return true;
     }
@@ -150,20 +154,16 @@ class Transaction {
      * @memberof Transaction
      */
     proofOfWork() {
-        let transactionHash = '';
-        this.nonce = 0;
-
         while (!this.isProofOfWorkValid()) {
             this.nonce += 1;
-            transactionHash = this.calculateHash();
         }
 
-        this.proofOfWorkHash = transactionHash;
+        this.proofOfWorkHash = this.calculateHash();
 
-        return transactionHash;
+        return this.proofOfWorkHash;
     }
 
-    sign(keyPair: KeyPair) {
+    sign(keyPair?: KeyPair) {
         const dataToHash = JSON.stringify({
             data: this.data,
             to: this.to,
@@ -177,18 +177,23 @@ class Transaction {
 
         const transactionDataHash: string = createKeccakHash('keccak256').update(dataToHash).digest('hex');
 
-        // Sign the transaction to get the transaction id.
-        const signature = keyPair.sign(transactionDataHash);
+        if (keyPair) {
+            // Sign the transaction to get the transaction id.
+            const signature = keyPair.sign(transactionDataHash);
 
-        this.r = signature.r;
-        this.v = signature.v;
-        this.s = signature.s;
+            this.r = signature.r;
+            this.v = signature.v;
+            this.s = signature.s;
+        } else if (!this.r || !this.s || !this.v) {
+            // The r,s,v param is available when we are validating a transaction.
+            throw new Error('No keypair or signatue given');
+        }
 
         const transactionIdData = JSON.stringify({
             hash: transactionDataHash,
-            r: signature.r,
-            v: signature.v,
-            s: signature.s,
+            r: this.r,
+            v: this.v,
+            s: this.s,
         });
 
         const transactionId: string = createKeccakHash('keccak256').update(transactionIdData).digest('hex');
@@ -203,7 +208,7 @@ class Transaction {
             value: this.value,
             data: this.data,
             nonce: this.nonce,
-            transNum: this.transNum,
+            transIndex: this.transIndex,
             gasPrice: this.gasPrice,
             gasLimit: this.gasLimit,
             timestamp: this.timestamp,
@@ -219,6 +224,66 @@ class Transaction {
         const transaction: TransactionParams = JSON.parse(rawTransaction);
 
         return new Transaction(transaction);
+    }
+
+    static async validate(transaction: Transaction) {
+        // For effeciency sake, first check the proof of work.
+        // Since we don't have to go through all the work if the transaction isn't even valid.
+        if (!transaction.isProofOfWorkValid()) {
+            throw new Error('Proof of Work is not valid');
+        }
+
+        const dataToHash = JSON.stringify({
+            data: transaction.data,
+            to: transaction.to,
+            value: transaction.value,
+            gasPrice: transaction.gasPrice,
+            gasLimit: transaction.gasLimit,
+            timestamp: transaction.timestamp,
+            trunkTransaction: transaction.trunkTransaction,
+            branchTransaction: transaction.branchTransaction,
+        });
+
+        const transactionDataHash: string = createKeccakHash('keccak256').update(dataToHash).digest('hex');
+
+        // First we need to find the account that is associated with the transaction
+        // Making sure we bind the correct user to it.
+        const pubKey = KeyPair.recoverAddress(transactionDataHash, {
+            r: transaction.r,
+            s: transaction.s,
+            v: transaction.v,
+        });
+
+        const account = await Account.findOrCreate(pubKey);
+
+        // Make sure that balance updates are possible
+        account.validateTransaction(transaction);
+
+        // Now make a copy of the transaction so we can validate it ourself.
+        const transactionCopy = new Transaction({
+            to: transaction.to,
+            data: transaction.data,
+            r: transaction.r,
+            s: transaction.s,
+            v: transaction.v,
+            timestamp: transaction.timestamp,
+            nonce: transaction.nonce,
+        });
+
+        // Execute to get to the same point as the
+        await transactionCopy.execute();
+
+        // "Sign" the transaction, since we are taking the signatures from the created transaction
+        transactionCopy.sign();
+
+        // Check the Proof of Work again to make sure all the work adds up.
+        if (!transactionCopy.isProofOfWorkValid()) {
+            throw new Error('Proof of Work after execution is not valid');
+        }
+
+        await account.applyTransaction(transaction);
+
+        return true;
     }
 }
 

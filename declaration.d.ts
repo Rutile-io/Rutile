@@ -1,3 +1,5 @@
+declare var __non_webpack_require__: any;
+
 declare module 'secure-eval' {
     const content: any;
     export = content;

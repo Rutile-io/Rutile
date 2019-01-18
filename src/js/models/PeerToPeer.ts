@@ -33,7 +33,9 @@ class PeerToPeer {
         res.setHeader('Access-Control-Allow-Origin', '*');
 
         if (req.url === '/nodes') {
-            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.writeHead(200, {
+                'Content-Type': 'application/json'
+            });
             res.end(JSON.stringify({
                 Result: this.connections,
             }));
@@ -60,7 +62,9 @@ class PeerToPeer {
             const peer = new P2P(false);
 
             peer.onSignal = (offerSignal) => {
-                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.writeHead(200, {
+                    'Content-Type': 'application/json',
+                });
                 res.end(JSON.stringify({
                     Result: {
                         sdp: offerSignal,
@@ -101,13 +105,11 @@ class PeerToPeer {
         const connection = this.connections[connectionIndex];
 
         if (!response) {
-            console.error('No session description received, not adding connection');
-            return;
+            throw new Error('No session description received, not adding connection');
         }
 
         if (!connection) {
-            console.error('Could not find connection, not adding');
-            return;
+            throw new Error('Could not find connection, not adding');
         }
 
         // Since this is our first connection we need more nodes.
@@ -157,19 +159,19 @@ class PeerToPeer {
      * @memberof PeerToPeer
      */
     private async onPeerData(data: Uint8Array, peerId: string) {
-        const commando = data.toString();
-
         try {
+            const commando = data.toString();
             const dataParsed: any = JSON.parse(commando);
 
             if (dataParsed.type === 'TRANSACTION') {
                 const transaction = Transaction.fromRaw(dataParsed.value);
 
-                if (!transaction.isProofOfWorkValid()) {
-                    return;
-                }
+                // Throws an error when transaction is not valid
+                // and disposes the transaction
+                console.log('Validating transaction');
+                await Transaction.validate(transaction);
 
-                console.log('[] transaction -> ', transaction);
+                console.log('transaction is valid! Sick, lets add it to the database');
             }
         } catch (error) {
             console.log('[onPeerData] error -> ', error);
@@ -178,7 +180,6 @@ class PeerToPeer {
 
     private onPeerConnected(peerId: string) {
         console.log('[PeerToPeer] A peer is connected');
-        console.log(this.connections.map(conn => conn.nodeId));
         console.log(`[PeerToPeer] Open connections ${this.connections.length}`);
     }
 
@@ -193,29 +194,46 @@ class PeerToPeer {
      *
      * @memberof PeerToPeer
      */
-    async open() {
-        if (isNodeJs()) {
-            // TODO: Use HTTPS here instead of HTTP
-            const http = require('http');
-            const httpServer = http.createServer(this.handleHttpRequest.bind(this));
+    open(): Promise<string> {
+        return new Promise((resolve, reject) => {
+            if (isNodeJs()) {
+                // TODO: Use HTTPS here instead of HTTP
+                const http = require('http');
+                const httpServer = http.createServer(this.handleHttpRequest.bind(this));
 
-            httpServer.listen(getConfig('port'), '0.0.0.0');
+                httpServer.listen(getConfig('port'), '0.0.0.0');
 
-            console.log(`Listening on port ${getConfig('port')}`);
-        }
+                console.log(`Listening on port ${getConfig('port')}`);
+            }
 
-        // Since we are just opening the node we have to create an offer.
-        const p2p = new P2P(true);
+            // Since we are just opening the node we have to create an offer.
+            const p2p = new P2P(true);
 
-        p2p.onSignal = (description) => this.onSignal(description, p2p.id);
-        p2p.onClose = () => this.onPeerClose(p2p.id);
-        p2p.onData = (data) => this.onPeerData(data, p2p.id);
-        p2p.onConnect = () => this.onPeerConnected(p2p.id);
-        p2p.onError = (error) => this.onPeerError(error, p2p.id);
-        p2p.open();
+            p2p.onSignal = async (description) => {
+                try {
+                    await this.onSignal(description, p2p.id);
+                } catch (error) {
+                    reject(error);
+                }
+            }
 
-        this.connections.push({
-            p2p,
+            p2p.onClose = () => this.onPeerClose(p2p.id);
+            p2p.onData = (data) => this.onPeerData(data, p2p.id);
+            p2p.onConnect = () => {
+                this.onPeerConnected(p2p.id);
+                resolve(p2p.id);
+            }
+
+            p2p.onError = (error) => {
+                this.onPeerError(error, p2p.id);
+                reject(error);
+            }
+
+            p2p.open();
+
+            this.connections.push({
+                p2p,
+            });
         });
     }
 

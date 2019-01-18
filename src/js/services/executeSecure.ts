@@ -53,8 +53,11 @@ export default async function executeSecure(lamda: Lamda, state: any, data: any[
         context,
     });
 
+    const totalGasUsed = gasUsed * 1e-4;
+
+    // Gas us
     return {
-        gasUsed,
+        gasUsed: totalGasUsed,
         result,
     };
 }

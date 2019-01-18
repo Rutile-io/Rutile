@@ -1,7 +1,5 @@
 import isNodeJs from '../services/isNodeJs';
 
-declare var __non_webpack_require__: any;
-
 const Peer = require('simple-peer');
 const uuid = require('uuid/v4');
 
@@ -52,7 +50,7 @@ class P2P {
     }
 
     /**
-     * Connects to a different node. 
+     * Connects to a different node.
      *
      * @param {RTCSessionDescription} sessionDescription
      * @memberof P2P
@@ -74,7 +72,7 @@ class P2P {
         }
 
         this.peer = new Peer(peerConfig);
-        
+
         this.peer.on('connect', this.onConnect.bind(this));
         this.peer.on('connect', this.onConnectInternal.bind(this));
         this.peer.on('signal', this.onSignal.bind(this));
