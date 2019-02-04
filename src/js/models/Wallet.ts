@@ -1,6 +1,7 @@
 import { randomBytes } from 'crypto';
 import * as ethers from 'ethers';
 import KeyPair from './KeyPair';
+import Account from './Account';
 
 const WALLET_STORAGE_KEY = 'r_wallet';
 
@@ -13,10 +14,16 @@ const WALLET_STORAGE_KEY = 'r_wallet';
 class Wallet {
     privateKey: string;
     keyPair: KeyPair;
+    account: Account;
 
     constructor(privateKey: string) {
         this.privateKey = privateKey;
         this.keyPair = new KeyPair(privateKey);
+    }
+
+    async getAccountInfo() {
+        this.account = await Account.findOrCreate(KeyPair.computeAddress(this.keyPair.publicKey));
+        return this.account;
     }
 
     saveToLocalStorage() {

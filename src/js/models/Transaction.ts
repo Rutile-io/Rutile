@@ -18,6 +18,7 @@ interface TransactionParams {
     v?: number;
     timestamp?: number;
     value?: number;
+    transIndex?: number;
 }
 
 class Transaction {
@@ -55,7 +56,7 @@ class Transaction {
     nonce?: number = 0;
 
     // number of transaction made by the address
-    transIndex?: number;
+    transIndex?: number = 0;
 
     // To which address to send tokens to.
     // Can also be a function address
@@ -86,6 +87,7 @@ class Transaction {
         this.v = params.v;
         this.timestamp = params.timestamp || 0;
         this.value = params.value || 0;
+        this.transIndex = params.transIndex || 0;
     }
 
     fillState(state: any) {
@@ -173,6 +175,8 @@ class Transaction {
             timestamp: this.timestamp,
             trunkTransaction: this.trunkTransaction,
             branchTransaction: this.branchTransaction,
+            transIndex: this.transIndex,
+            nonce: configuration.genesis.config.nonce,
         });
 
         const transactionDataHash: string = createKeccakHash('keccak256').update(dataToHash).digest('hex');
@@ -242,6 +246,8 @@ class Transaction {
             timestamp: transaction.timestamp,
             trunkTransaction: transaction.trunkTransaction,
             branchTransaction: transaction.branchTransaction,
+            transIndex: transaction.transIndex,
+            nonce: configuration.genesis.config.nonce,
         });
 
         const transactionDataHash: string = createKeccakHash('keccak256').update(dataToHash).digest('hex');
@@ -268,6 +274,7 @@ class Transaction {
             v: transaction.v,
             timestamp: transaction.timestamp,
             nonce: transaction.nonce,
+            transIndex: transaction.transIndex,
         });
 
         // Execute to get to the same point as the

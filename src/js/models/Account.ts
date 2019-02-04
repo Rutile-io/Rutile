@@ -42,6 +42,12 @@ class Account {
             throw new Error('Transaction index should not be lower than the previous transaction index');
         }
 
+        const expectedNewTransactionIndex = this.transactionIndex + 1;
+
+        if (expectedNewTransactionIndex !== transaction.transIndex) {
+            throw new Error('Missed previous transaction, either out of sync or corrupted transaction');
+        }
+
         const newBalance = this.balance - transaction.value;
 
         if (newBalance < 0) {
@@ -56,9 +62,10 @@ class Account {
             return;
         }
 
-        // Update our own balance
+        // Update our from our account
         const newBalance = this.balance - transaction.value;
         this.balance = newBalance;
+        this.transactionIndex = transaction.transIndex;
 
         // Update the account where the tokens are sent to
         const toAccount = await Account.findOrCreate(transaction.to);
@@ -72,7 +79,7 @@ class Account {
     }
 
     async save() {
-        await Database.create(this.address, {
+        await Database.createOrUpdate(this.address, {
             address: this.address,
             balance: this.balance,
             transactionIndex: this.transactionIndex,

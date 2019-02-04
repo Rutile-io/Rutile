@@ -52,9 +52,7 @@ class KeyPair {
     static recoverAddress(digest: string, signature: Signature) {
         const publicKey = KeyPair.recoverPublicKey(digest, signature);
 
-        // TODO: Figure out a small secure way to create an Address
-
-        return `$${publicKey}`;
+        return KeyPair.computeAddress(publicKey);
     }
 
     static recoverPublicKey(digest: string, signature: Signature) {
@@ -74,6 +72,11 @@ class KeyPair {
         }
 
         return getCurve().keyFromPublic(key).getPublic(true, 'hex');
+    }
+
+    static computeAddress(key: string) {
+        // TODO: Figure out a small secure way to create an Address
+        return `$${key}`;
     }
 }
 

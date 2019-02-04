@@ -7,6 +7,8 @@ import { URL } from 'url';
 import { ConnectOfferMessage, TransactionMessage } from "./types/MessageType";
 import { PeerData, PeerDataType } from "./types/PeerData";
 import Transaction from "./Transaction";
+import EventHandler from "../services/EventHandler";
+import { PEER_TO_PEER_ON_PEER_DATA } from "../core/events";
 
 const uuid = require('uuid/v4');
 
@@ -16,9 +18,20 @@ interface Connection {
     p2p: P2P,
 }
 
+export interface PeerDataMessage {
+    data: {
+        type: string;
+        value: string;
+    }
+}
+
 class PeerToPeer {
     connections: Connection[] = [];
+    eventHandler: EventHandler;
 
+    constructor(eventHandler: EventHandler) {
+        this.eventHandler = eventHandler;
+    }
 
     /**
      * Handles the HTTP Requests (Mostly for Node)
@@ -92,12 +105,6 @@ class PeerToPeer {
     }
 
     private async onSignal(sessionDescription: RTCSessionDescriptionInit, peerId: string) {
-        // No first connection, so we must add our session description through HTTP.
-        if (getConfig('genesis')) {
-            console.log('[PeerToPeer] Genesis node, wait for other connections..');
-            return;
-        }
-
         console.log('[PeerToPeer] Making first handshake with server');
 
         const response =  await PeerToPeerService.initialHttpNodeConnect(sessionDescription);
@@ -162,17 +169,11 @@ class PeerToPeer {
         try {
             const commando = data.toString();
             const dataParsed: any = JSON.parse(commando);
-
-            if (dataParsed.type === 'TRANSACTION') {
-                const transaction = Transaction.fromRaw(dataParsed.value);
-
-                // Throws an error when transaction is not valid
-                // and disposes the transaction
-                console.log('Validating transaction');
-                await Transaction.validate(transaction);
-
-                console.log('transaction is valid! Sick, lets add it to the database');
+            const peerDataMessage: PeerDataMessage = {
+                data: dataParsed,
             }
+
+            this.eventHandler.trigger(PEER_TO_PEER_ON_PEER_DATA, peerDataMessage);
         } catch (error) {
             console.log('[onPeerData] error -> ', error);
         }
@@ -256,6 +257,23 @@ class PeerToPeer {
 
             connect.p2p.sendData(data);
         });
+    }
+
+    /**
+     * Sends data to a single peer
+     *
+     * @param {string} nodeId
+     * @param {string} data
+     * @memberof PeerToPeer
+     */
+    sendDataToPeer(nodeId: string, data: string) {
+        const connection = this.connections.find(connection => connection.nodeId === nodeId);
+
+        if (!connection.p2p.isConnected) {
+            throw new Error(`Node ${nodeId} is not connected`);
+        }
+
+        connection.p2p.sendData(data);
     }
 }
 

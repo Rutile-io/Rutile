@@ -30,8 +30,12 @@ async function run() {
             wallet.saveToLocalStorage();
         }
     } else {
-        wallet = Wallet.createRandom();
+        wallet = new Wallet('0123456789012345678901234567890123456789012345678901234567890123');
     }
+
+    const ourAccount = await wallet.getAccountInfo();
+
+    console.log('[] ourAccount -> ', ourAccount);
 
     // Testing..
     // if (isNodeJs()) {
@@ -51,7 +55,6 @@ async function run() {
         // const lamda = new Rutile.Lamda(fileArrayBuffer);
 
         const hash = 'QmaRRwro76P2vgjpU8RJaxtuEKiEQg9ddBVHwgeYGiVewk'; //await rutile.deploy(lamda);
-        console.log('[] hash -> ', hash);
         const transaction = new Rutile.Transaction({
             to: hash,
             data: [
@@ -60,6 +63,7 @@ async function run() {
                 '9504',
             ],
             value: 0,
+            transIndex: wallet.account.transactionIndex + 1,
         });
 
         const result = await transaction.execute();
@@ -67,6 +71,7 @@ async function run() {
         transaction.sign(wallet.keyPair);
         transaction.proofOfWork();
         await saveTransaction(transaction);
+        wallet.account.applyTransaction(transaction);
 
         rutile.sendTransaction(transaction);
 

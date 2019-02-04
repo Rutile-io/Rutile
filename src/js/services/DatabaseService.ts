@@ -9,7 +9,10 @@ if (isNodeJs()) {
     PouchDB = require('pouchdb').default;
 }
 
-const database = new PouchDB('db_rutile');
+const database = new PouchDB('db_rutile', {
+    revs_limit: 1,
+});
+
 
 export async function saveTransaction(transaction: Transaction) {
     const rawTransaction = JSON.parse(transaction.toRaw());
@@ -21,15 +24,33 @@ export async function saveTransaction(transaction: Transaction) {
     await database.put(data);
 }
 
-export async function create(id: string, obj: any) {
+export async function createOrUpdate(id: string, obj: any) {
     const data = {
         ...obj,
         _id: id,
     };
 
-    await database.put(data);
+    const doc = await getById(id);
+
+    if (!doc) {
+        await database.put(data);
+    } else {
+        const newData = {
+            ...data,
+            _rev: doc._rev,
+        }
+
+        await database.put(newData, {
+            force: true,
+        });
+    }
 }
 
 export async function getById(id: string) {
-    return database.get(id);
+    try {
+        const doc = await database.get(id);
+        return doc;
+    } catch (error) {
+        return null;
+    }
 }
