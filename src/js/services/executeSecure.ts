@@ -4,6 +4,10 @@ import Lamda, { LamdaResult } from '../Lamda';
 const metering = require('wasm-metering');
 const saferEval = require('../../../../../Rutile/SaferEval');
 
+interface ExecuteSecureResults {
+    result: any;
+}
+
 /**
  * Executes code in a different context and vm.
  * This way the code is executed safely.
@@ -41,14 +45,21 @@ export default async function executeSecure(lamda: Lamda, state: any, data: any[
 
     // Since we cannot trust the environment we have to sandbox the code.
     // This code cannot access anything outside it's environment.
-    const sandboxInitator = () => {
+    const sandboxInitator = (): ExecuteSecureResults => {
         const chosenFunction = exports[context.funcToExecute];
+
+        if (!chosenFunction) {
+            throw new Error(`Could not find entry '${context.funcToExecute}' on WASM binary`);
+        }
+
         const result = chosenFunction(...context.data);
 
-        return result;
+        return {
+            result,
+        };
     }
 
-    const result = await saferEval(`${sandboxInitator}()`, {
+    const executeResults: ExecuteSecureResults = await saferEval(`${sandboxInitator}()`, {
         exports,
         context,
     });
@@ -58,6 +69,6 @@ export default async function executeSecure(lamda: Lamda, state: any, data: any[
     // Gas us
     return {
         gasUsed: totalGasUsed,
-        result,
+        result: executeResults.result,
     };
 }

@@ -23,13 +23,13 @@ class Dag {
                 console.log('transaction is valid! Sick, lets add it to the database');
             }
         } catch (error) {
-            console.error(error);
+            console.error('Transaction validation failed: ', error);
         }
     }
 
     /**
      * Sync should only be done on startup
-     * It asks a different node in it's pool to get the DAG.
+     * It asks a different node in it's pool to get the latest DAG.
      *
      * @memberof Dag
      */
