@@ -2,7 +2,7 @@ import RutileContext from '../models/RutileContext';
 import Lamda, { LamdaResult } from '../Lamda';
 
 const metering = require('wasm-metering');
-const saferEval = require('../../../../../Rutile/SaferEval');
+const saferEval = require('safer-eval');
 
 interface ExecuteSecureResults {
     result: any;

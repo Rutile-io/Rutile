@@ -3,6 +3,8 @@ import { configuration } from "../Configuration";
 import Lamda from "../Lamda";
 import KeyPair from "./KeyPair";
 import Account from "./Account";
+import sortObjKeysAlphabetically from "../utils/sortObjKeysAlphabetically";
+import { getUnsignedTransactionHash, getTransactionId } from "../services/TransactionService";
 const createKeccakHash = require('keccak');
 
 
@@ -166,20 +168,7 @@ class Transaction {
     }
 
     sign(keyPair?: KeyPair) {
-        const dataToHash = JSON.stringify({
-            data: this.data,
-            to: this.to,
-            value: this.value,
-            gasPrice: this.gasPrice,
-            gasLimit: this.gasLimit,
-            timestamp: this.timestamp,
-            trunkTransaction: this.trunkTransaction,
-            branchTransaction: this.branchTransaction,
-            transIndex: this.transIndex,
-            nonce: configuration.genesis.config.nonce,
-        });
-
-        const transactionDataHash: string = createKeccakHash('keccak256').update(dataToHash).digest('hex');
+        const transactionDataHash = getUnsignedTransactionHash(this);
 
         if (keyPair) {
             // Sign the transaction to get the transaction id.
@@ -193,16 +182,7 @@ class Transaction {
             throw new Error('No keypair or signatue given');
         }
 
-        const transactionIdData = JSON.stringify({
-            hash: transactionDataHash,
-            r: this.r,
-            v: this.v,
-            s: this.s,
-        });
-
-        const transactionId: string = createKeccakHash('keccak256').update(transactionIdData).digest('hex');
-
-        this.id = transactionId;
+        this.id = getTransactionId(this);
     }
 
     toRaw(): string {
@@ -237,7 +217,7 @@ class Transaction {
             throw new Error('Proof of Work is not valid');
         }
 
-        const dataToHash = JSON.stringify({
+        let dataToHash = sortObjKeysAlphabetically({
             data: transaction.data,
             to: transaction.to,
             value: transaction.value,
@@ -249,6 +229,8 @@ class Transaction {
             transIndex: transaction.transIndex,
             nonce: configuration.genesis.config.nonce,
         });
+
+        dataToHash = JSON.stringify(dataToHash);
 
         const transactionDataHash: string = createKeccakHash('keccak256').update(dataToHash).digest('hex');
 
