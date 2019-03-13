@@ -5,7 +5,7 @@ import isNodeJs from './services/isNodeJs';
 import Wallet from './models/Wallet';
 import { saveTransaction } from './services/DatabaseService';
 // import RutileContext from './models/RutileContext';
-// import * as fs from 'fs';
+import * as fs from 'fs';
 // const Logger = require('js-logger');
 
 // const metering = require('wasm-metering');
@@ -49,12 +49,15 @@ async function run() {
         if (isNodeJs()) {
             // await sleep(10000);
         }
-        // const file = fs.readFileSync('./examples/hello-world/add.wasm');
-        // const fileArrayBuffer = new Uint8Array(file);
+        const file = fs.readFileSync('./examples/storage/load.wasm');
+        const fileArrayBuffer = new Uint8Array(file);
 
-        // const lamda = new Rutile.Lamda(fileArrayBuffer);
+        const lamda = new Rutile.Lamda(fileArrayBuffer);
 
-        const hash = 'QmaRRwro76P2vgjpU8RJaxtuEKiEQg9ddBVHwgeYGiVewk'; //await rutile.deploy(lamda);
+        const hash = await rutile.deploy(lamda);
+
+        console.log('[] hash -> ', hash);
+
         const transaction = new Rutile.Transaction({
             to: hash,
             data: [

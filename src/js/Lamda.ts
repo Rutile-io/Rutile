@@ -3,6 +3,7 @@ import { NodeType } from './models/types/NodeType';
 import executeSecure from './services/executeSecure';
 import stringToByteArray from './utils/stringToByteArray';
 import byteArrayToString from './utils/byteArrayToString';
+import execute from './core/rvm/execute';
 
 export interface CompiledLamda {
     bin: number[],
@@ -37,7 +38,7 @@ class Lamda {
 
     async execute(state: any, data: any[]): Promise<LamdaResult> {
         try {
-            const result = await executeSecure(this, state, data);
+            const result = <LamdaResult>await execute('UNKNOWN', this.wasmBinary, data);
 
             return result;
         } catch (error) {
