@@ -5,8 +5,8 @@ import KeyPair from "./KeyPair";
 import Account from "./Account";
 import sortObjKeysAlphabetically from "../utils/sortObjKeysAlphabetically";
 import { getUnsignedTransactionHash, getTransactionId } from "../services/TransactionService";
+import { applyProofOfWork, isProofOfWorkValid } from "../services/transaction/ProofOfWork";
 const createKeccakHash = require('keccak');
-
 
 interface TransactionParams {
     to: string;
@@ -21,6 +21,7 @@ interface TransactionParams {
     timestamp?: number;
     value?: number;
     transIndex?: number;
+    parents?: string[];
 }
 
 class Transaction {
@@ -48,11 +49,8 @@ class Transaction {
     // Timestamp of transaction
     timestamp?: number = 0;
 
-    // Transaction hash
-    trunkTransaction?: string;
-
-    // Transaction hash
-    branchTransaction?: string;
+    // Id's of transactions that are validated
+    parents: string[];
 
     // The nonce used to find the PoW hash
     nonce?: number = 0;
@@ -71,12 +69,6 @@ class Transaction {
     // data as arguments or a message to send along with the transactions
     data?: any[];
 
-    // Contains the current state of the application
-    state: any = {};
-
-    // The hash calculated by proof of work
-    proofOfWorkHash: string;
-
     constructor(params: TransactionParams) {
         this.data = params.data;
         this.to = params.to;
@@ -90,10 +82,7 @@ class Transaction {
         this.timestamp = params.timestamp || 0;
         this.value = params.value || 0;
         this.transIndex = params.transIndex || 0;
-    }
-
-    fillState(state: any) {
-        this.state = state;
+        this.parents = params.parents || [];
     }
 
     async execute() {
@@ -105,7 +94,7 @@ class Transaction {
             const lamda = Lamda.fromCompiledLamdaString(contents);
 
             // Possibly have to save the result in the transaction.
-            const result = await lamda.execute(this.state, this.data);
+            const result = await lamda.execute({}, this.data);
 
             this.gasUsed = result.gasUsed;
 
@@ -121,50 +110,17 @@ class Transaction {
     }
 
     /**
-     * Checks if Proof of Work is valid.
-     *
-     * @returns {boolean}
-     * @memberof Transaction
-     */
-    isProofOfWorkValid(): boolean {
-        // Validate the hash
-        const transactionHash = this.calculateHash();
-
-        if (transactionHash.substring(0, configuration.difficulty) !== Array(configuration.difficulty + 1).join('0')) {
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * Calculates the hash for Proof of Work.
-     *
-     * @returns {string}
-     * @memberof Transaction
-     */
-    calculateHash(): string {
-        if (!this.id) {
-            throw new Error('Cannot calculate hash if transaction has not been signed');
-        }
-
-        return createKeccakHash('keccak256').update(`${this.id}${this.nonce}`).digest('hex');
-    }
-
-    /**
      * Applyies the Proof of Work algorythm to find a nonce that complies to the configuration.
      *
      * @returns
      * @memberof Transaction
      */
-    proofOfWork() {
-        while (!this.isProofOfWorkValid()) {
-            this.nonce += 1;
+    proofOfWork(): void {
+        if (!this.id) {
+            throw new Error('Proof of Work requires the transaction to be signed');
         }
 
-        this.proofOfWorkHash = this.calculateHash();
-
-        return this.proofOfWorkHash;
+        this.nonce = applyProofOfWork(this.id);
     }
 
     sign(keyPair?: KeyPair) {
@@ -196,8 +152,7 @@ class Transaction {
             gasPrice: this.gasPrice,
             gasLimit: this.gasLimit,
             timestamp: this.timestamp,
-            trunkTransaction: this.trunkTransaction,
-            branchTransaction: this.branchTransaction,
+            parents: this.parents,
             r: this.r,
             s: this.s,
             v: this.v,
@@ -208,71 +163,6 @@ class Transaction {
         const transaction: TransactionParams = JSON.parse(rawTransaction);
 
         return new Transaction(transaction);
-    }
-
-    static async validate(transaction: Transaction) {
-        // For effeciency sake, first check the proof of work.
-        // Since we don't have to go through all the work if the transaction isn't even valid.
-        if (!transaction.isProofOfWorkValid()) {
-            throw new Error('Proof of Work is not valid');
-        }
-
-        let dataToHash = sortObjKeysAlphabetically({
-            data: transaction.data,
-            to: transaction.to,
-            value: transaction.value,
-            gasPrice: transaction.gasPrice,
-            gasLimit: transaction.gasLimit,
-            timestamp: transaction.timestamp,
-            trunkTransaction: transaction.trunkTransaction,
-            branchTransaction: transaction.branchTransaction,
-            transIndex: transaction.transIndex,
-            nonce: configuration.genesis.config.nonce,
-        });
-
-        dataToHash = JSON.stringify(dataToHash);
-
-        const transactionDataHash: string = createKeccakHash('keccak256').update(dataToHash).digest('hex');
-
-        // First we need to find the account that is associated with the transaction
-        // Making sure we bind the correct user to it.
-        const pubKey = KeyPair.recoverAddress(transactionDataHash, {
-            r: transaction.r,
-            s: transaction.s,
-            v: transaction.v,
-        });
-
-        const account = await Account.findOrCreate(pubKey);
-
-        // Make sure that balance updates are possible
-        account.validateTransaction(transaction);
-
-        // Now make a copy of the transaction so we can validate it ourself.
-        const transactionCopy = new Transaction({
-            to: transaction.to,
-            data: transaction.data,
-            r: transaction.r,
-            s: transaction.s,
-            v: transaction.v,
-            timestamp: transaction.timestamp,
-            nonce: transaction.nonce,
-            transIndex: transaction.transIndex,
-        });
-
-        // Execute to get to the same point as the
-        await transactionCopy.execute();
-
-        // "Sign" the transaction, since we are taking the signatures from the created transaction
-        transactionCopy.sign();
-
-        // Check the Proof of Work again to make sure all the work adds up.
-        if (!transactionCopy.isProofOfWorkValid()) {
-            throw new Error('Proof of Work after execution is not valid');
-        }
-
-        await account.applyTransaction(transaction);
-
-        return true;
     }
 }
 

@@ -47,7 +47,7 @@ async function run() {
         }
 
         if (isNodeJs()) {
-            await sleep(10000);
+            // await sleep(10000);
         }
         // const file = fs.readFileSync('./examples/hello-world/add.wasm');
         // const fileArrayBuffer = new Uint8Array(file);

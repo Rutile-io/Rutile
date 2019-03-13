@@ -2,6 +2,7 @@ import EventHandler from '../services/EventHandler';
 import { PEER_TO_PEER_ON_PEER_DATA } from '../core/events';
 import { PeerDataMessage } from './PeerToPeer';
 import Transaction from './Transaction';
+import { validateTransaction } from '../services/TransactionService';
 
 class Dag {
     eventHandler: EventHandler;
@@ -18,7 +19,7 @@ class Dag {
 
                 // Throws an error when transaction is not valid
                 // and disposes the transaction
-                await Transaction.validate(transaction);
+                await validateTransaction(transaction);
 
                 console.log('transaction is valid! Sick, lets add it to the database');
             }

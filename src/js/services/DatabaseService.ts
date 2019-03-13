@@ -5,8 +5,10 @@ let PouchDB: PouchDB.Static = null;
 
 if (isNodeJs()) {
     PouchDB = __non_webpack_require__('pouchdb');
+    PouchDB.plugin(__non_webpack_require__('pouchdb-find'))
 } else {
     PouchDB = require('pouchdb').default;
+    PouchDB.plugin(require('pouchdb-find'));
 }
 
 const database = new PouchDB('db_rutile', {
