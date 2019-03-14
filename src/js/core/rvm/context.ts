@@ -1,4 +1,3 @@
-import { storageStore } from "./lib/storage";
 import { memoryGet, loadMemory } from "./lib/memory";
 import { toHex, hexStringToByte } from "./utils/hexUtils";
 

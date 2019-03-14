@@ -71,6 +71,7 @@
         "ipfs-mini": "^1.1.2",
         "js-logger": "^1.6.0",
         "js-sha3": "^0.8.0",
+        "keccak": "^2.0.0",
         "keypair": "^1.0.1",
         "node-fetch": "^2.2.0",
         "pouchdb": "^7.0.0",

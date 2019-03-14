@@ -1,6 +1,5 @@
 import { TextDecoder, TextEncoder } from 'text-encoding';
 import { NodeType } from './models/types/NodeType';
-import executeSecure from './services/executeSecure';
 import stringToByteArray from './utils/stringToByteArray';
 import byteArrayToString from './utils/byteArrayToString';
 import execute from './core/rvm/execute';

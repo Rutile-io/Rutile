@@ -15,7 +15,9 @@
         "es2016",
         "dom",
         "scripthost",
-
-    ]
-  }
+    ],
+  },
+  "exclude": [
+    "./examples"
+  ]
 }

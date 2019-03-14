@@ -27,7 +27,10 @@ module.exports = {
             {
                 test: /\.tsx?$/,
                 use: 'ts-loader',
-                exclude: /node_modules/,
+                exclude: [
+                    path.resolve(__dirname, './examples'),
+                    path.resolve(__dirname, './node_modules'),
+                ],
             },
             {
                 test: /\.(jpe?g|png|gif|svg)$/i,
