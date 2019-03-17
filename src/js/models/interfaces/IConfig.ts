@@ -4,7 +4,6 @@ import Transaction from "../Transaction";
 interface GenesisConfig {
     transaction: {
         to: string;
-        id: string;
         timestamp: number;
         value: number;
     };
@@ -31,6 +30,8 @@ interface IConfig {
     maximumNodeAskConnectTime: number,
     timeoutBeforeCleanup: number,
     ipfs: IpfsConfig,
+    couchdbUrl: string,
+    databaseName: string,
     difficulty: number,
     genesis: GenesisConfig,
 }

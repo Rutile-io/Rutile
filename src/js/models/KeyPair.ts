@@ -63,7 +63,9 @@ class KeyPair {
             s: signature.s,
         }
 
-        return getCurve().recoverPubKey(arrayify(digest), rs, recoveryParam).encode('hex', false);
+        const publicKey = getCurve().recoverPubKey(arrayify(digest), rs, recoveryParam).encode('hex', false);
+
+        return KeyPair.computePublicKey(publicKey, true);
     }
 
     static computePublicKey(key: string, compressed?: boolean) {
@@ -71,12 +73,13 @@ class KeyPair {
             return key;
         }
 
-        return getCurve().keyFromPublic(key).getPublic(true, 'hex');
+        return getCurve().keyFromPublic(key, 'hex').getPublic(true, 'hex');
     }
 
     static computeAddress(key: string) {
-        // TODO: Figure out a small secure way to create an Address
-        return `$${key}`;
+        const strippedKey = ('0000000000000000000000000000000000000000000000000000000000000000' + key).slice(-64);
+
+        return 'rut_0x' + strippedKey;
     }
 }
 

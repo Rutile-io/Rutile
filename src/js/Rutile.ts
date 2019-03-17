@@ -30,9 +30,14 @@ class Rutile {
     }
 
     async start() {
-        // Boot up our peer to peer network
-        this.peerToPeer = new PeerToPeer(this.eventHandler);
-        await this.peerToPeer.open();
+        try {
+            // Boot up our peer to peer network
+            this.peerToPeer = new PeerToPeer(this.eventHandler);
+            await this.peerToPeer.open();
+        } catch (error) {
+            console.error('Could not connect to peers: ', error);
+        }
+
         this.dag = new Dag(this.eventHandler);
     }
 

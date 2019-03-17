@@ -21,6 +21,8 @@ Rutile is developed in TypeScript and requires node.js.
 npm install
 ```
 
+Make sure you have downloaded CouchDB: http://couchdb.apache.org/ and start the server. Couchdb should run on port `5984`. If not you can change the port in `src/js/Configuration.ts` using the property `couchdbUrl`
+
 For testing the node server:
 ```JavaScript
 npm run start:node

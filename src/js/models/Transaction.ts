@@ -22,6 +22,7 @@ interface TransactionParams {
     value?: number;
     transIndex?: number;
     parents?: string[];
+    milestoneIndex?: number;
 }
 
 class Transaction {
@@ -58,6 +59,9 @@ class Transaction {
     // number of transaction made by the address
     transIndex?: number = 0;
 
+    // The milestone index. Only apply's to milestone creators.
+    milestoneIndex?: number = null;
+
     // To which address to send tokens to.
     // Can also be a function address
     to?: string;
@@ -79,6 +83,7 @@ class Transaction {
         this.r = params.r;
         this.s = params.s;
         this.v = params.v;
+        this.milestoneIndex = params.milestoneIndex || null;
         this.timestamp = params.timestamp || 0;
         this.value = params.value || 0;
         this.transIndex = params.transIndex || 0;
@@ -152,6 +157,7 @@ class Transaction {
             gasPrice: this.gasPrice,
             gasLimit: this.gasLimit,
             timestamp: this.timestamp,
+            milestoneIndex: this.milestoneIndex,
             parents: this.parents,
             r: this.r,
             s: this.s,

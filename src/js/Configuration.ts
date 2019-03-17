@@ -1,5 +1,6 @@
 import isNodeJs from "./services/isNodeJs";
 import IConfig from "./models/interfaces/IConfig";
+import getArguments from "./utils/getArguments";
 
 const uuid = require('uuid/v4');
 const ethers = require('ethers');
@@ -26,11 +27,12 @@ const config: IConfig = {
         protocol: 'https',
     },
     difficulty: 3,
+    couchdbUrl: 'http://127.0.0.1:5984/',
+    databaseName: 'db_rutile',
     genesis: {
         transaction: {
             // Address is a test address.
-            to: '$046655feed4d214c261e0a6b554395596f1f1476a77d999560e5a8df9b8a1a3515217e88dd05e938efdd71b2cce322bf01da96cd42087b236e8f5043157a9c068e',
-            id: '00000000000000000000000000000000',
+            to: 'rut_0x6655feed4d214c261e0a6b554395596f1f1476a77d999560e5a8df9b8a1a3515',
             timestamp: 0,
             value: 150000000,
         },
@@ -52,6 +54,15 @@ export default function getConfig(key: string): any {
     return config[key];
 }
 
-export function setConfig(key: string, value: any) {
-    config[key] = value;
+/**
+ * Applys arguments passed in the console
+ *
+ * @export
+ */
+export function applyArgv() {
+    const args = getArguments(process.argv);
+
+    Object.keys(args).forEach((key) => {
+        config[key] = args[key];
+    });
 }

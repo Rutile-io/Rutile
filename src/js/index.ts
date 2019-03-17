@@ -1,11 +1,12 @@
 import Rutile from './Rutile';
 // import createLamdaFromFile from './services/createLamdaFromFile';
-import { setConfig } from './Configuration';
+import { applyArgv } from './Configuration';
 import isNodeJs from './services/isNodeJs';
 import Wallet from './models/Wallet';
-import { saveTransaction } from './services/DatabaseService';
+import { saveTransaction, startDatabase } from './services/DatabaseService';
 // import RutileContext from './models/RutileContext';
-import * as fs from 'fs';
+// import * as fs from 'fs';
+import { validateTransaction } from './services/TransactionService';
 // const Logger = require('js-logger');
 
 // const metering = require('wasm-metering');
@@ -21,6 +22,9 @@ function sleep(ms: number) {
 }
 
 async function run() {
+    applyArgv();
+    startDatabase();
+
     let wallet = null;
     if (!isNodeJs()) {
         wallet = Wallet.fromStorage();
@@ -35,28 +39,24 @@ async function run() {
 
     const ourAccount = await wallet.getAccountInfo();
 
-    console.log('[] ourAccount -> ', ourAccount);
-
     // Testing..
     // if (isNodeJs()) {
         const rutile = new Rutile();
         try {
             await rutile.start();
         } catch (e) {
-            console.error('Oh well');
+            console.error('Oh well', e);
         }
 
         if (isNodeJs()) {
             // await sleep(10000);
         }
-        const file = fs.readFileSync('./examples/storage/load.wasm');
-        const fileArrayBuffer = new Uint8Array(file);
+        // const file = fs.readFileSync('./examples/storage/load.wasm');
+        // const fileArrayBuffer = new Uint8Array(file);
 
-        const lamda = new Rutile.Lamda(fileArrayBuffer);
+        // const lamda = new Rutile.Lamda(fileArrayBuffer);
 
-        const hash = await rutile.deploy(lamda);
-
-        console.log('[] hash -> ', hash);
+        const hash = 'QmZobbzavMniWQv8oXyLnZJF2tmea3wEXKYKpLryHWKweZ'; //await rutile.deploy(lamda);
 
         const transaction = new Rutile.Transaction({
             to: hash,
@@ -76,9 +76,8 @@ async function run() {
         await saveTransaction(transaction);
         wallet.account.applyTransaction(transaction);
 
+        validateTransaction(transaction);
         rutile.sendTransaction(transaction);
-
-        console.log('[] result -> ', transaction, result);
     // }
 }
 

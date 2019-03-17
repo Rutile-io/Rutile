@@ -1,21 +1,45 @@
 import Transaction from '../models/Transaction';
 import isNodeJs from './isNodeJs';
+import { configuration } from '../Configuration';
 
 let PouchDB: PouchDB.Static = null;
+let database: PouchDB.Database = null;
+let databaseTarget: string = null;
 
-if (isNodeJs()) {
-    PouchDB = __non_webpack_require__('pouchdb');
-    PouchDB.plugin(__non_webpack_require__('pouchdb-find'))
-} else {
-    PouchDB = require('pouchdb').default;
-    PouchDB.plugin(require('pouchdb-find'));
+/**
+ * Starts the database
+ *
+ * @export
+ */
+export function startDatabase() {
+    if (database) {
+        throw new Error('Database has already been started');
+    }
+
+    // The biggest difference in node and the browser is that
+    // node doesn't have a IndexDB pre-installed
+    // This is why we need to configure it differently.
+    if (isNodeJs()) {
+        PouchDB = __non_webpack_require__('pouchdb');
+        PouchDB.plugin(__non_webpack_require__('pouchdb-find'))
+        databaseTarget = `${configuration.couchdbUrl}/${configuration.databaseName}`;
+    } else {
+        PouchDB = require('pouchdb').default;
+        PouchDB.plugin(require('pouchdb-find'));
+        databaseTarget = configuration.databaseName;
+    }
+
+    database = new PouchDB(databaseTarget, {
+        revs_limit: 1,
+    });
 }
 
-const database = new PouchDB('db_rutile', {
-    revs_limit: 1,
-});
-
-
+/**
+ * Saves a transaction in the database
+ *
+ * @export
+ * @param {Transaction} transaction
+ */
 export async function saveTransaction(transaction: Transaction) {
     const rawTransaction = JSON.parse(transaction.toRaw());
     const data = {
@@ -26,6 +50,13 @@ export async function saveTransaction(transaction: Transaction) {
     await database.put(data);
 }
 
+/**
+ * Creates or updates an entry in the database
+ *
+ * @export
+ * @param {string} id
+ * @param {*} obj
+ */
 export async function createOrUpdate(id: string, obj: any) {
     const data = {
         ...obj,
@@ -48,6 +79,13 @@ export async function createOrUpdate(id: string, obj: any) {
     }
 }
 
+/**
+ * Get a document from the database
+ *
+ * @export
+ * @param {string} id
+ * @returns
+ */
 export async function getById(id: string) {
     try {
         const doc = await database.get(id);
@@ -55,4 +93,13 @@ export async function getById(id: string) {
     } catch (error) {
         return null;
     }
+}
+
+export async function synchroniseDatabase(src: string) {
+    // TODO: Figure out if we want to live update..
+    const replication = PouchDB.replicate(src, databaseTarget);
+
+    replication.on('complete', () => {
+
+    })
 }

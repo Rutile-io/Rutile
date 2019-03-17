@@ -4,6 +4,7 @@ import { configuration } from "../Configuration";
 import KeyPair from "../models/KeyPair";
 import Account from "../models/Account";
 import { isProofOfWorkValid } from "./transaction/ProofOfWork";
+import { getById, createOrUpdate } from "./DatabaseService";
 
 const createKeccakHash = require("keccak");
 
@@ -27,7 +28,8 @@ export function getUnsignedTransactionHash(transaction: Transaction): string {
         gasUsed: transaction.gasUsed,
         timestamp: transaction.timestamp,
         transIndex: transaction.transIndex,
-        nonce: configuration.genesis.config.nonce,
+        milestoneIndex: transaction.milestoneIndex,
+        gnonce: configuration.genesis.config.nonce,
         parents: transaction.parents
     });
 
@@ -95,11 +97,15 @@ export async function validateTransaction(transaction: Transaction) {
         timestamp: transaction.timestamp,
         nonce: transaction.nonce,
         transIndex: transaction.transIndex,
-        parents: transaction.parents
+        parents: transaction.parents,
+        milestoneIndex: transaction.milestoneIndex,
     });
 
+    // TODO: Check if transaction is a milestone transaction
+    // If it is we need to revalidate depending on the model.
+
     // Execute to get to the same point as the transaction
-    await transaction.execute();
+    await transactionCopy.execute();
 
     // "Sign" the transaction, since we are taking the signatures from the created transaction
     transactionCopy.sign();
@@ -133,4 +139,12 @@ export async function getTransactionsToValidate(amount: number = 2): Promise<Tra
  */
 export async function calculateTransactionWeight(transaction: Transaction): Promise<number> {
     return 0;
+}
+
+export async function getTransactionById(id: string) {
+    const result = await getById(id);
+}
+
+export async function createOrUpdateTransaction(transaction: Transaction) {
+    await createOrUpdate(transaction.id, transaction);
 }

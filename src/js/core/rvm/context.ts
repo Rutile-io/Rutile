@@ -22,15 +22,8 @@ class Context {
         // TODO: Some safety checks for poking in memory that might nog exists..
         const path = memoryGet(this.memory, pathOffset);
         const value = memoryGet(this.memory, valueOffset);
-
         const hex = toHex(path);
-
-        console.log('[STORAGE] value -> ', path);
-        console.log('VAL', hex);
-        const r = hexStringToByte(hex);
-
-        console.log('[] r -> ', r);
-
+        
         //TODO: Store the actual value in the database
     }
 
