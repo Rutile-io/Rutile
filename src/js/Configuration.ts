@@ -12,7 +12,7 @@ const config: IConfig = {
     provider: new ethers.providers.InfuraProvider(ethers.providers.networks.ropsten),
     fileDatabaseAddress: '0xf050e54d2b50c055c9919a4b856a195221d3db71',
     connectionServerUrl: 'localhost:1337',
-    nodesListUrl: 'http://localhost:1234/RutileNodes.json',
+    nodesListUrl: 'http://localhost:8903/',
     port: 1337,
     iceServers: [
         { urls: 'stun:stun.stunprotocol.org:3478' },
@@ -32,7 +32,7 @@ const config: IConfig = {
     genesis: {
         transaction: {
             // Address is a test address.
-            to: 'rut_0x6655feed4d214c261e0a6b554395596f1f1476a77d999560e5a8df9b8a1a3515',
+            to: '0x6655feed4d214c261e0a6b554395596f1f1476a77d999560e5a8df9b8a1a3515',
             timestamp: 0,
             value: 150000000,
         },

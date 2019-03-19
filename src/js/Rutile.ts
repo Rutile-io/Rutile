@@ -38,7 +38,7 @@ class Rutile {
             console.error('Could not connect to peers: ', error);
         }
 
-        this.dag = new Dag(this.eventHandler);
+        this.dag = new Dag(this.eventHandler, this.peerToPeer);
     }
 
     async deploy(lamda: Lamda): Promise<string> {

@@ -67,6 +67,26 @@ class EventHandler {
         return newHandles;
     }
 
+    /**
+     * Listens for the event only once.
+     *
+     * @param {(string|string[])} hooks
+     * @param {Function} method
+     * @param {string} [caller='Anonymous']
+     * @returns {HookInfo[]}
+     * @memberof EventHandler
+     */
+    one(hooks: string|string[], method: Function, caller: string = 'Anonymous'): HookInfo[] {
+        let eventId: HookInfo[] = null;
+
+        eventId = this.on(hooks, (data: any) => {
+            method(data);
+            this.remove(eventId);
+        }, caller);
+
+        return eventId;
+    }
+
     _createHandler(caller: string, method: Function, block = false) {
         const newHandle = {
             id: this.counter,
@@ -124,7 +144,7 @@ class EventHandler {
                 this.protectedHandles[hook](data);
             }
 
-            console.debug(`EventHandler: '${hook}' is disabled, skipping trigger`);
+            console.log(`EventHandler: '${hook}' is disabled, skipping trigger`);
             return;
         }
 

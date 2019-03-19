@@ -11,6 +11,7 @@ interface InitialHttpNodeConnectResponse {
 interface AvailableNode {
     nodeId: string,
     nodeUrl: string,
+    dbUrl: string,
 }
 
 class PeerToPeerService {
@@ -58,13 +59,13 @@ class PeerToPeerService {
             } else {
                 url = new URL(`${availableNode.nodeUrl}/requestSdpConnection`);
             }
-            
+
             url.searchParams.set('sdp', JSON.stringify(sessionDescription))
             url.searchParams.set('nodeId', getConfig('nodeId'));
 
             const response = await fetch(url.toString());
             const data: InitialHttpNodeConnectResponse = (await response.json()).Result;
-            
+
             if (data.nodeId === configuration.nodeId) {
                 return null;
             }

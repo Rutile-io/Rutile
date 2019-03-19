@@ -1,4 +1,5 @@
 const { spawn } = require('child_process');
+const http = require('http');
 /**
  * Pool testing script
  *
@@ -45,12 +46,35 @@ function spawnNode(port, dbName) {
     node.stdout.on('data', (data) => {
         console.log(`Node[${port}] -> ${data}`);
     });
+
+    node.stderr.on('data', (data) => {
+        console.error(`Node[${port}] -> ${data}`);
+    });
 }
 
 async function startPool() {
     configs.forEach((config) => {
         spawnNode(config.port, config.databaseName);
     });
+
+    const httpServer = http.createServer((req, res) => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.writeHead(200, {
+            'Content-Type': 'application/json',
+        });
+
+        const result = configs.map((config) => {
+            return {
+                nodeId: config.databaseName,
+                nodeUrl: `http://localhost:${config.port}`,
+                dbUrl: `http://localhost:5984/${config.databaseName}`,
+            };
+        });
+
+        res.end(JSON.stringify(result));
+    });
+
+    httpServer.listen(8903, '0.0.0.0');
 }
 
 

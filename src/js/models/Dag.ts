@@ -1,15 +1,19 @@
 import EventHandler from '../services/EventHandler';
 import { PEER_TO_PEER_ON_PEER_DATA } from '../core/events';
-import { PeerDataMessage } from './PeerToPeer';
+import PeerToPeer, { PeerDataMessage } from './PeerToPeer';
 import Transaction from './Transaction';
-import { validateTransaction, getTransactionById, createOrUpdateTransaction } from '../services/TransactionService';
+import { validateTransaction, applyTransaction, getTransactionById } from '../services/TransactionService';
 import createGenesisTransaction from '../services/transaction/createGenesisTransaction';
 import { configuration } from '../Configuration';
+import { synchroniseDatabase } from '../services/DatabaseService';
+import PeerToPeerService from '../services/PeerToPeerService';
 
 class Dag {
     eventHandler: EventHandler;
+    peerToPeer: PeerToPeer;
 
-    constructor(eventHandler: EventHandler) {
+    constructor(eventHandler: EventHandler, peerToPeer: PeerToPeer) {
+        this.peerToPeer = peerToPeer;
         this.eventHandler = eventHandler;
         this.eventHandler.on(PEER_TO_PEER_ON_PEER_DATA, this.onPeerData.bind(this));
 
@@ -35,14 +39,24 @@ class Dag {
     /**
      * Sync should only be done on startup
      * It asks a different node in it's pool to get the latest DAG.
+     * This is a temp implementation. The real implementation should not use couchDB.
      *
      * @memberof Dag
      */
     async sync() {
-        const genesisTransaction = createGenesisTransaction();
-        await createOrUpdateTransaction(genesisTransaction);
+        try {
+            const genesisTransaction = createGenesisTransaction();
+            const isTransactionInDatabase = !!await getTransactionById(genesisTransaction.id);
+
+            // We should not apply twice the genesis milestone
+            if (!isTransactionInDatabase) {
+                await applyTransaction(genesisTransaction);
+            }
 
 
+        } catch (error) {
+            console.error('Oh noes -> ', error);
+        }
     }
 }
 

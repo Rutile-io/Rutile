@@ -56,28 +56,28 @@ async function run() {
 
         // const lamda = new Rutile.Lamda(fileArrayBuffer);
 
-        const hash = 'QmZobbzavMniWQv8oXyLnZJF2tmea3wEXKYKpLryHWKweZ'; //await rutile.deploy(lamda);
+        // const hash = 'QmZobbzavMniWQv8oXyLnZJF2tmea3wEXKYKpLryHWKweZ'; //await rutile.deploy(lamda);
 
-        const transaction = new Rutile.Transaction({
-            to: hash,
-            data: [
-                'add',
-                1,
-                '9504',
-            ],
-            value: 0,
-            transIndex: wallet.account.transactionIndex + 1,
-        });
+        // const transaction = new Rutile.Transaction({
+        //     to: hash,
+        //     data: [
+        //         'add',
+        //         1,
+        //         '9504',
+        //     ],
+        //     value: 0,
+        //     transIndex: wallet.account.transactionIndex + 1,
+        // });
 
-        const result = await transaction.execute();
+        // const result = await transaction.execute();
 
-        transaction.sign(wallet.keyPair);
-        transaction.proofOfWork();
-        await saveTransaction(transaction);
-        wallet.account.applyTransaction(transaction);
+        // transaction.sign(wallet.keyPair);
+        // transaction.proofOfWork();
+        // await saveTransaction(transaction);
+        // wallet.account.applyTransaction(transaction);
 
-        validateTransaction(transaction);
-        rutile.sendTransaction(transaction);
+        // validateTransaction(transaction);
+        // rutile.sendTransaction(transaction);
     // }
 }
 

@@ -4,9 +4,10 @@ import { configuration } from "../Configuration";
 import KeyPair from "../models/KeyPair";
 import Account from "../models/Account";
 import { isProofOfWorkValid } from "./transaction/ProofOfWork";
-import { getById, createOrUpdate } from "./DatabaseService";
+import { getById, createOrUpdate, databaseCreate } from "./DatabaseService";
 
 const createKeccakHash = require("keccak");
+const GENESIS_MILESTONE = 1;
 
 /**
  * Gets a unsigned transaction hash
@@ -71,17 +72,8 @@ export async function validateTransaction(transaction: Transaction) {
         throw new Error("Proof of work is not valid");
     }
 
-    const unsignedTransactionHash = getUnsignedTransactionHash(transaction);
-
-    // We need to find the account that is associated with the transaction
-    // making sure we bind the correct user to it.
-    const pubKey = KeyPair.recoverAddress(unsignedTransactionHash, {
-        r: transaction.r,
-        s: transaction.s,
-        v: transaction.v
-    });
-
-    const account = await Account.findOrCreate(pubKey);
+    const addresses = getAddress(transaction);
+    const account = await Account.findOrCreate(addresses.from);
 
     // Make sure that balance updates are possible
     account.validateTransaction(transaction);
@@ -120,6 +112,61 @@ export async function validateTransaction(transaction: Transaction) {
     return true;
 }
 
+export function getAddress(transaction: Transaction) {
+
+    console.log('[AWESOME] transaction -> ', transaction);
+    // Genesis milestones don't have a from
+    if (transaction.milestoneIndex === GENESIS_MILESTONE) {
+        console.log('return fast');
+        return {
+            to: transaction.to,
+            from: null,
+        }
+    }
+
+    const unsignedTransactionHash = getUnsignedTransactionHash(transaction);
+    const pubKey = KeyPair.recoverAddress(unsignedTransactionHash, {
+        r: transaction.r,
+        s: transaction.s,
+        v: transaction.v
+    });
+
+    return {
+        to: transaction.to,
+        from: pubKey,
+    };
+}
+
+/**
+ * Apply's the transaction and put it's in the database.
+ * Also modifies the state of the database to represent the transaction
+ * It does not validate the transaction it self.
+ *
+ * @export
+ * @param {Transaction} transaction
+ */
+export async function applyTransaction(transaction: Transaction) {
+    const addresses = getAddress(transaction);
+    const toAccount = await Account.findOrCreate(addresses.to);
+    const results = [];
+
+    // There is no from in a genesis milestone
+    if (transaction.milestoneIndex !== GENESIS_MILESTONE) {
+        const fromAccount = await Account.findOrCreate(addresses.from);
+
+        fromAccount.balance = fromAccount.balance - transaction.value;
+        fromAccount.transactionIndex = transaction.transIndex;
+
+        results.push(fromAccount.save());
+    }
+
+    toAccount.balance = toAccount.balance + transaction.value;
+    results.push(toAccount.save());
+    results.push(saveTransaction(transaction));
+
+    await Promise.all(results);
+}
+
 /**
  * Searches the database for transactions that have a low weight that
  * needs to be validated.
@@ -141,8 +188,33 @@ export async function calculateTransactionWeight(transaction: Transaction): Prom
     return 0;
 }
 
-export async function getTransactionById(id: string) {
-    const result = await getById(id);
+export async function getTransactionById(id: string): Promise<Transaction> {
+    try {
+        const result = await getById(id);
+
+        console.log('[] result -> ', result);
+
+        if (!result) {
+            return null;
+        }
+
+        const transaction = Transaction.fromRaw(JSON.stringify(result));
+
+        return transaction;
+    } catch (error) {
+        console.error('getTransactionById: ', error);
+        return null;
+    }
+}
+
+export async function saveTransaction(transaction: Transaction) {
+    const rawTransaction = JSON.parse(transaction.toRaw());
+    const data = {
+        ...rawTransaction,
+        _id: rawTransaction.id,
+    }
+
+    await databaseCreate(rawTransaction.id, data);
 }
 
 export async function createOrUpdateTransaction(transaction: Transaction) {

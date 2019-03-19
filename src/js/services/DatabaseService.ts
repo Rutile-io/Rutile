@@ -50,6 +50,15 @@ export async function saveTransaction(transaction: Transaction) {
     await database.put(data);
 }
 
+export async function databaseCreate(id: string, obj: any) {
+    const data = {
+        ...obj,
+        _id: id,
+    };
+
+    await database.put(data);
+}
+
 /**
  * Creates or updates an entry in the database
  *
@@ -100,6 +109,6 @@ export async function synchroniseDatabase(src: string) {
     const replication = PouchDB.replicate(src, databaseTarget);
 
     replication.on('complete', () => {
-
+        console.log('Sync complete');
     })
 }

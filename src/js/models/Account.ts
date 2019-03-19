@@ -69,7 +69,7 @@ class Account {
 
         // Update the account where the tokens are sent to
         const toAccount = await Account.findOrCreate(transaction.to);
-        toAccount.balance = transaction.value;
+        toAccount.balance = toAccount.balance + transaction.value;
 
         // TODO: For a lamda address we should update the state of the address
         // TODO: Also include the transaction as part of a merkle tree
@@ -91,8 +91,14 @@ class Account {
     static async getFromAddress(address: string): Promise<Account> {
         try {
             const data: any = await Database.getById(address);
+
+            if (!data) {
+                return null;
+            }
+
             return new Account(data);
         } catch (error) {
+            console.error(error);
             return null;
         }
     }

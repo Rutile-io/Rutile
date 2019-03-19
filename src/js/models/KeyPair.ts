@@ -79,7 +79,7 @@ class KeyPair {
     static computeAddress(key: string) {
         const strippedKey = ('0000000000000000000000000000000000000000000000000000000000000000' + key).slice(-64);
 
-        return 'rut_0x' + strippedKey;
+        return '0x' + strippedKey;
     }
 }
 

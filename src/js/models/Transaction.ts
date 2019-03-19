@@ -66,10 +66,6 @@ class Transaction {
     // Can also be a function address
     to?: string;
 
-    // From which address the tokens came
-    // When empty this means new tokens are in circulation (Milestone)
-    from?: string;
-
     // data as arguments or a message to send along with the transactions
     data?: any[];
 

@@ -18,7 +18,5 @@ export default function createGenesisTransaction() {
     transaction.sign();
     transaction.proofOfWork();
 
-    console.log('[Genesis] transaction -> ', transaction);
-
     return transaction;
 }
