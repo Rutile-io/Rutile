@@ -35,7 +35,7 @@ class Lamda {
         }
     }
 
-    async execute(state: any, data: any[]): Promise<LamdaResult> {
+    async execute(state: any, data: string): Promise<LamdaResult> {
         try {
             const result = <LamdaResult>await execute('UNKNOWN', this.wasmBinary, data);
 

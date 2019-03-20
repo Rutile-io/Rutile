@@ -20,14 +20,14 @@ interface ExecuteSecureResults {
  * @param {string[]} scriptArgs
  * @returns
  */
-export default async function execute(id: string, wasmBinary: Uint8Array, data: Uint32Array[]): Promise<ExecuteSecureResults> {
+export default async function execute(id: string, wasmBinary: Uint8Array, data: string): Promise<ExecuteSecureResults> {
     // Inject metering so we know what the gas cost of each operatio will be.
     const meteredWas = metering.meterWASM(wasmBinary, {
         meterType: 'i32',
     });
 
     // TODO: replace 03c074e7992389c7b5403c35fe01b1fa with actual data
-    const context = new Context(id, '03c074e7992389c7b5403c35fe01b1fa');
+    const context = new Context(id, '03c074e7992389c7b5403c35fe01b1fa', data);
     let gasUsed = 0;
 
     const wasm = await WebAssembly.instantiate(meteredWas, {

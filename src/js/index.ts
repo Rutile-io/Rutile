@@ -51,12 +51,23 @@ async function run() {
         if (isNodeJs()) {
             // await sleep(10000);
         }
-        // const file = fs.readFileSync('./examples/storage/load.wasm');
-        // const fileArrayBuffer = new Uint8Array(file);
+        // const file = fs.readFileSync('./examples/wrc20/wrc20-non-debug.wasm');
+        // require('/Users/franklinwaller/Desktop/EVM.wasm-master/build/untouched.wasm');
+        const file = fs.readFileSync('/Users/franklinwaller/Desktop/EVM.wasm-master/build/untouched.wasm');
+        const fileArrayBuffer = new Uint8Array(file);
+
+        const lamda = new Rutile.Lamda(fileArrayBuffer);
+
+        const hash = await rutile.deploy(lamda);
 
         // const lamda = new Rutile.Lamda(fileArrayBuffer);
 
-        // const hash = 'QmZobbzavMniWQv8oXyLnZJF2tmea3wEXKYKpLryHWKweZ'; //await rutile.deploy(lamda);
+        const transaction = new Rutile.Transaction({
+            to: hash,
+            data: '9993021a',
+            value: 0,
+            transIndex: wallet.account.transactionIndex + 1,
+        });
 
         // const transaction = new Rutile.Transaction({
         //     to: hash,

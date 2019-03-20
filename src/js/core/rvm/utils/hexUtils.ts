@@ -13,6 +13,7 @@ export function toHex(byteArray: Uint32Array): string {
 
 export function hexStringToByte(str: string) {
     var a = [];
+
     for (var i = 0, len = str.length; i < len; i+=2) {
       a.push(parseInt(str.substr(i,2),16));
     }

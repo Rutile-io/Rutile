@@ -10,7 +10,7 @@ const createKeccakHash = require('keccak');
 
 interface TransactionParams {
     to: string;
-    data?: any[];
+    data?: string;
     gasLimit?: number;
     gasPrice?: number;
     id?: string;
@@ -67,7 +67,7 @@ class Transaction {
     to?: string;
 
     // data as arguments or a message to send along with the transactions
-    data?: any[];
+    data?: string;
 
     constructor(params: TransactionParams) {
         this.data = params.data;
