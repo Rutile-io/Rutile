@@ -31,13 +31,13 @@ export function memoryGet(memory: Uint32Array, addressPtr: number, length: numbe
 }
 
 export class Memory {
-    _raw: any = null;
+    _raw: WebAssembly.Memory = null;
 
-    constructor(raw: any) {
+    constructor(raw: WebAssembly.Memory) {
         this._raw = raw;
     }
 
-    write(offset: any, length: any, value: any) {
+    write(offset: number, length: number, value: ArrayLike<number>) {
         // Grow if needed
         if (this._raw.buffer.byteLength < length) {
             const diff = length - this._raw.buffer.byteLength
@@ -49,7 +49,7 @@ export class Memory {
         m.set(value);
     }
 
-    read(offset: any, length: any) {
+    read(offset: number, length: number) {
         return new Uint8Array(this._raw.buffer, offset, length);
     }
 }

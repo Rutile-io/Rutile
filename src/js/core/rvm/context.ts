@@ -34,6 +34,11 @@ class Context {
         //TODO: Store the actual value in the database
     }
 
+    private storageLoad(pathOffset: number, resultOffset: number) {
+        console.log('[storageLoad] pathOffset -> ', pathOffset);
+        console.log('[storageLoad] resultOffset -> ', resultOffset);
+    }
+
     private getAddress(resultOffset: number) {
         // this.updateMemory();
 
@@ -42,8 +47,20 @@ class Context {
         loadMemory(this.memory, resultOffset, addressInBytes);
     }
 
+    /**
+     * Copies the input data in current environment to memory.
+     * This pertains to the input data passed with the message call instruction or transaction.
+     *
+     * @private
+     * @param {number} resultOffset the memory offset to load data into
+     * @param {number} dataOffset the offset in the input data
+     * @param {number} length the length of data to copy
+     * @returns
+     * @memberof Context
+     */
     private callDataCopy(resultOffset: number, dataOffset: number, length: number) {
         if (length === 0) {
+            // TODO: Throw some sort of exception
             return;
         }
 
@@ -71,6 +88,10 @@ class Context {
         throw new Error('Reverted');
     }
 
+    private finish(dataOffset: number, dataLength: number) {
+        console.log('Finishing..', dataOffset, dataLength);
+    }
+
     private log(dataOffset: number, length: number) {
         this.updateMemory();
 
@@ -93,7 +114,7 @@ class Context {
             rut_callDelegate: () => {},
             rut_callStatic: () => {},
             rut_storageStore: this.storageStore.bind(this),
-            rut_storageLoad: () => {},
+            rut_storageLoad: this.storageLoad.bind(this),
             rut_getCaller: () => {},
             rut_getCallValue: () => {},
             rut_codeCopy: () => {},
@@ -109,7 +130,7 @@ class Context {
             rut_log: this.log.bind(this),
             rut_getMilestoneNumber: () => {},
             rut_getTxOrigin: () => {},
-            rut_finish: () => {},
+            rut_finish: this.finish.bind(this),
             rut_revert: this.revert.bind(this),
             rut_getReturnDataSize: () => {},
             rut_returnDataCopy: () => {},
