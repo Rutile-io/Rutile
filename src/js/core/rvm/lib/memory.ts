@@ -8,9 +8,7 @@
  * @returns
  */
 export function loadMemory(memory: Uint32Array, addressPtr: number, value: Uint32Array, length: number = 32) {
-    for (let i = 0; i < length; i++) {
-        memory[i + addressPtr] = value[i];
-    }
+    memory.set(value, addressPtr);
 }
 
 /**
@@ -30,4 +28,28 @@ export function memoryGet(memory: Uint32Array, addressPtr: number, length: numbe
     }
 
     return result;
+}
+
+export class Memory {
+    _raw: any = null;
+
+    constructor(raw: any) {
+        this._raw = raw;
+    }
+
+    write(offset: any, length: any, value: any) {
+        // Grow if needed
+        if (this._raw.buffer.byteLength < length) {
+            const diff = length - this._raw.buffer.byteLength
+            const pageSize = 64 * 1024
+            this._raw.grow(Math.ceil(diff / pageSize))
+        }
+
+        const m = new Uint8Array(this._raw.buffer, offset, length)
+        m.set(value);
+    }
+
+    read(offset: any, length: any) {
+        return new Uint8Array(this._raw.buffer, offset, length);
+    }
 }

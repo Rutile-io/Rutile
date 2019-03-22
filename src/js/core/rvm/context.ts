@@ -1,28 +1,31 @@
-import { memoryGet, loadMemory } from "./lib/memory";
+import { memoryGet, loadMemory, Memory } from "./lib/memory";
 import { toHex, hexStringToByte } from "./utils/hexUtils";
+const ethUtil = require('ethereumjs-util')
 
 class Context {
     id: string;
     fromAddress: string;
     data: string;
-    dataParsed: Uint32Array;
+    dataParsed: any;
 
     memory: Uint32Array;
+    mem: Memory;
     wasmInstance: WebAssembly.ResultObject;
 
     constructor(id: string, fromAddress: string, data: string) {
         this.id = id;
         this.fromAddress = fromAddress;
         this.data = data;
-        this.dataParsed = hexStringToByte(data);
+        this.dataParsed = ethUtil.toBuffer(data);
     }
 
-    updateMemory() {
-        this.memory = new Uint32Array(this.wasmInstance.instance.exports.memory.buffer);
+    public updateMemory() {
+        // this.memory = new Uint32Array(this.wasmInstance.instance.exports.memory.buffer);
+        this.mem = new Memory(this.wasmInstance.instance.exports.memory);
     }
 
-    storageStore(pathOffset: number, valueOffset: number) {
-        this.updateMemory();
+    private storageStore(pathOffset: number, valueOffset: number) {
+        // this.updateMemory();
         // TODO: Some safety checks for poking in memory that might nog exists..
         const path = memoryGet(this.memory, pathOffset);
         const value = memoryGet(this.memory, valueOffset);
@@ -31,23 +34,26 @@ class Context {
         //TODO: Store the actual value in the database
     }
 
-    getAddress(resultOffset: number) {
-        this.updateMemory();
+    private getAddress(resultOffset: number) {
+        // this.updateMemory();
 
         //@ts-ignore
         const addressInBytes = hexStringToByte(this.fromAddress);
         loadMemory(this.memory, resultOffset, addressInBytes);
     }
 
-    callDataCopy(resultOffset: number, dataOffset: number, length: number) {
-        this.updateMemory();
-        const off = resultOffset;
+    private callDataCopy(resultOffset: number, dataOffset: number, length: number) {
+        if (length === 0) {
+            return;
+        }
 
-        // Mis using the memory get function to extract our data.. :)
-        const result = memoryGet(this.dataParsed, dataOffset, length);
-        loadMemory(this.memory, off, result, length);
+        const data = this.dataParsed.slice(dataOffset, dataOffset + length);
 
-        console.log(resultOffset);
+        // TODO: Double check this one..
+        const ui8a = new Uint8Array(data);
+        const result = Array.from(ui8a).reverse();
+
+        this.mem.write(resultOffset, length, result);
     }
 
     /**
@@ -56,15 +62,16 @@ class Context {
      * @returns
      * @memberof Context
      */
-    getCallDataSize(): number {
+    private getCallDataSize(): number {
         return this.dataParsed.length;
     }
 
-    revert(offset: number, size: number) {
+    private revert(offset: number, size: number) {
         console.log('Reverting..', offset, size);
+        throw new Error('Reverted');
     }
 
-    log(dataOffset: number, length: number) {
+    private log(dataOffset: number, length: number) {
         this.updateMemory();
 
         console.log('[] dataOffset -> ', dataOffset);

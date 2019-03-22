@@ -42,6 +42,7 @@ export default async function execute(id: string, wasmBinary: Uint8Array, data: 
     });
 
     context.wasmInstance = wasm;
+    context.updateMemory();
 
     const exports = wasm.instance.exports;
 

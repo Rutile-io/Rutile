@@ -57,14 +57,13 @@ async function run() {
         const fileArrayBuffer = new Uint8Array(file);
 
         const lamda = new Rutile.Lamda(fileArrayBuffer);
-
         const hash = await rutile.deploy(lamda);
 
-        // const lamda = new Rutile.Lamda(fileArrayBuffer);
 
         const transaction = new Rutile.Transaction({
             to: hash,
-            data: '9993021a',
+            // data: '0x1A029399ed09375dc6b20050d242d1611af97ee4a6e93cad',
+            data: '0x9993021aed09375dc6b20050d242d1611af97ee4a6e93cad',
             value: 0,
             transIndex: wallet.account.transactionIndex + 1,
         });
