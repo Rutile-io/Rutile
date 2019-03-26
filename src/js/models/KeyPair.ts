@@ -51,6 +51,10 @@ class KeyPair {
         }
     }
 
+    getAddress() {
+        return KeyPair.computeAddress(this.compressedPublicKey);
+    }
+
     static recoverAddress(digest: string, signature: Signature) {
         const publicKey = KeyPair.recoverPublicKey(digest, signature);
 

@@ -34,6 +34,8 @@ export function getUnsignedTransactionHash(transaction: Transaction): string {
         parents: transaction.parents
     });
 
+    console.log('[] dataToHash -> ', dataToHash);
+
     return createKeccakHash("keccak256")
         .update(JSON.stringify(dataToHash))
         .digest("hex");
@@ -102,19 +104,19 @@ export async function validateTransaction(transaction: Transaction) {
     // "Sign" the transaction, since we are taking the signatures from the created transaction
     transactionCopy.sign();
 
+    console.log(transactionCopy);
+
     // Check the Proof of Work again to make sure all the work adds up.
     if (!isProofOfWorkValid(transactionCopy.id, transactionCopy.nonce)) {
         throw new Error("Proof of Work after execution is not valid");
     }
 
-    await account.applyTransaction(transaction);
+    await applyTransaction(transaction);
 
     return true;
 }
 
 export function getAddress(transaction: Transaction) {
-
-    console.log('[AWESOME] transaction -> ', transaction);
     // Genesis milestones don't have a from
     if (transaction.milestoneIndex === GENESIS_MILESTONE) {
         console.log('return fast');

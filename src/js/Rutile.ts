@@ -6,6 +6,8 @@ import { configuration } from './Configuration';
 import Transaction from './models/Transaction';
 import Dag from './models/Dag';
 import EventHandler from './services/EventHandler';
+import KeyPair from './models/KeyPair';
+import Account from './models/Account';
 
 // These functions should actually be executed on the network. Not locally.
 
@@ -22,6 +24,14 @@ class Rutile {
 
     static get Transaction() {
         return Transaction;
+    }
+
+    static get KeyPair() {
+        return KeyPair;
+    }
+
+    static get Account() {
+        return Account;
     }
 
     constructor() {

@@ -5,8 +5,8 @@ import isNodeJs from './services/isNodeJs';
 import Wallet from './models/Wallet';
 import { saveTransaction, startDatabase } from './services/DatabaseService';
 // import RutileContext from './models/RutileContext';
-import * as fs from 'fs';
-import { validateTransaction } from './services/TransactionService';
+// import * as fs from 'fs';
+import { validateTransaction, applyTransaction } from './services/TransactionService';
 // const Logger = require('js-logger');
 
 // const metering = require('wasm-metering');
@@ -42,7 +42,7 @@ async function run() {
     console.log('[] ourAccount -> ', ourAccount);
 
     // Testing..
-    // if (isNodeJs()) {
+    if (isNodeJs()) {
         const rutile = new Rutile();
         try {
             await rutile.start();
@@ -74,27 +74,24 @@ async function run() {
             transIndex: wallet.account.transactionIndex + 1,
         });
 
-        // const transaction = new Rutile.Transaction({
-        //     to: hash,
-        //     data: [
-        //         'add',
-        //         1,
-        //         '9504',
-        //     ],
-        //     value: 0,
-        //     transIndex: wallet.account.transactionIndex + 1,
-        // });
+        const transaction = new Rutile.Transaction({
+            to: '0x53278f6b1d462832ab4007078ca332730e1e92982fdd5cd3c1dfa5a953b1e1c3',
+            data: [],
+            value: 1050,
+            transIndex: wallet.account.transactionIndex + 1,
+        });
 
-        const result = await transaction.execute();
+        // const result = await transaction.execute();
+        await transaction.execute();
+        transaction.sign(wallet.keyPair);
+        transaction.proofOfWork();
 
-        // transaction.sign(wallet.keyPair);
-        // transaction.proofOfWork();
-        // await saveTransaction(transaction);
-        // wallet.account.applyTransaction(transaction);
+        console.log('[POw] transaction -> ', transaction);
 
-        // validateTransaction(transaction);
+        await validateTransaction(transaction);
+        await applyTransaction(transaction);
         // rutile.sendTransaction(transaction);
-    // }
+    }
 }
 
 run();

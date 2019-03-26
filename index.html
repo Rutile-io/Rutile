@@ -5,8 +5,79 @@
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     </head>
     <body>
+        <h1>Rutile testing environment</h1>
+        <section>
+            <div>
+                <label>Private Key:</label>
+                <input type="text" id="privateKey" value="a463e8b27888fba8dd332fa85d6d25def1809a89483e53e8b133cf266c7a1787" />
+            </div>
+            <div>
+                <label>Address:</label>
+                <span id="address">0x0000000000000000000000000000</span>
+            </div>
+            <div>
+                Is Rutile active? <span id="isRutileActive">No</span>
+            </div>
+            <button onclick="setPrivateKey()">Set private key</button>
+        </section>
+
+        <h2>RUT sending</h2>
+        <section>
+            <div>
+                <label>Address</label>
+                <input type="text" id="valueAddressTo" />
+            </div>
+            <div>
+                <label>Value</label>
+                <input type="number" id="valueAddress" />RUT
+            </div>
+            <button onclick="sendValue()">Send transaction</button>
+        </section>
+
         <div id="app"></div>
         <script src="build/rutile.js" charset="utf-8"></script>
+        <script>
+            let rutile = null;
+            let keyPair = null;
+            setPrivateKey();
+
+            async function run() {
+                try {
+                    rutile = new Rutile();
+                    await rutile.start();
+                    document.getElementById('isRutileActive').innerHTML = 'Yes';
+                } catch (error) {
+                    console.error(error);
+                    document.getElementById('isRutileActive').innerHTML = 'Error';
+                }
+            }
+
+            async function setPrivateKey() {
+                keyPair = new Rutile.KeyPair(document.getElementById('privateKey').value);
+                document.getElementById('address').innerHTML = keyPair.getAddress();
+            }
+
+            async function sendValue() {
+                const privateKey = document.getElementById('privateKey').value;
+                const toAddress = document.getElementById('valueAddressTo').value;
+                const value = document.getElementById('valueAddress').value;
+
+                const keyPair = new Rutile.KeyPair(privateKey);
+                const account = await Rutile.Account.getFromAddress(keyPair.getAddress());
+                const transaction = new Rutile.Transaction({
+                    to: toAddress,
+                    value,
+                    data: [],
+                });
+
+                transaction.sign(keyPair);
+
+                console.log(rutile);
+            }
+
+            run();
+
+        </script>
         <link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
     </body>
 </html>
