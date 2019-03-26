@@ -74,6 +74,7 @@
         "js-sha3": "^0.8.0",
         "keccak": "^1.4.0",
         "keypair": "^1.0.1",
+        "merkle-patricia-tree": "^3.0.0",
         "node-fetch": "^2.2.0",
         "pouchdb": "^7.0.0",
         "pouchdb-find": "^7.0.0",
