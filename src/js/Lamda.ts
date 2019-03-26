@@ -35,16 +35,6 @@ class Lamda {
         }
     }
 
-    async execute(state: any, data: string): Promise<LamdaResult> {
-        try {
-            const result = <LamdaResult>await execute('UNKNOWN', this.wasmBinary, data);
-
-            return result;
-        } catch (error) {
-            console.error('Script threw an error: ', error);
-        }
-    }
-
     /**
      * Compiles the code to a deployable friendly string.
      * TODO: Minify the file

@@ -6,6 +6,7 @@ import Account from "./Account";
 import sortObjKeysAlphabetically from "../utils/sortObjKeysAlphabetically";
 import { getUnsignedTransactionHash, getTransactionId } from "../services/TransactionService";
 import { applyProofOfWork, isProofOfWorkValid } from "../services/transaction/ProofOfWork";
+import execute from "../core/rvm/execute";
 const createKeccakHash = require('keccak');
 
 interface TransactionParams {
@@ -94,17 +95,18 @@ class Transaction {
             const contents = await ipfs.cat(this.to);
             const lamda = Lamda.fromCompiledLamdaString(contents);
 
-            // Possibly have to save the result in the transaction.
-            const result = await lamda.execute({}, this.data);
-
-            this.gasUsed = result.gasUsed;
-
             // Make sure validations can set their time.
             if (!this.timestamp) {
                 this.timestamp = Date.now();
             }
 
-            return result;
+            // Possibly have to save the result in the transaction.
+            const executionResults = await execute(this, lamda.wasmBinary);
+            this.gasUsed = executionResults.result.gasUsed;
+
+            console.log('[] executionResults.state -> ', executionResults.state);
+
+            return executionResults.result;
         } catch (error) {
             console.error('Executing transaction failed', error);
         }

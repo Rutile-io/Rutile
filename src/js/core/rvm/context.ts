@@ -1,22 +1,52 @@
 import { memoryGet, loadMemory, Memory } from "./lib/memory";
-import { toHex, hexStringToByte } from "./utils/hexUtils";
+import { toHex, hexStringToByte, createZerosArray } from "./utils/hexUtils";
+import { VmError, VM_ERROR, FinishExecution } from "./lib/exceptions";
 const ethUtil = require('ethereumjs-util')
+
+interface ContextOptions {
+    id: string;
+    fromAddress: string;
+    toAddress: string;
+    data: string;
+}
+
+interface Results {
+    exception: number;
+    exceptionError?: VM_ERROR;
+    gasUsed: number;
+    return: Uint8Array;
+}
+
+interface AccountStorageMap {
+    storage: Map<string, Uint8Array>;
+}
 
 class Context {
     id: string;
     fromAddress: string;
+    toAddress: string;
+
+    results: Results = {
+        exception: 0,
+        gasUsed: 0,
+        return: new Uint8Array([]),
+    };
+
     data: string;
+    state: Map<string, AccountStorageMap>;
     dataParsed: any;
 
     memory: Uint32Array;
     mem: Memory;
     wasmInstance: WebAssembly.ResultObject;
 
-    constructor(id: string, fromAddress: string, data: string) {
-        this.id = id;
-        this.fromAddress = fromAddress;
-        this.data = data;
-        this.dataParsed = ethUtil.toBuffer(data);
+    constructor(options: ContextOptions) {
+        this.id = options.id;
+        this.fromAddress = options.fromAddress;
+        this.toAddress = options.toAddress;
+        this.data = options.data;
+        this.dataParsed = ethUtil.toBuffer(options.data);
+        this.state = new Map();
     }
 
     public updateMemory() {
@@ -24,27 +54,56 @@ class Context {
         this.mem = new Memory(this.wasmInstance.instance.exports.memory);
     }
 
+    public useGas(amount: number) {
+        this.results.gasUsed += amount;
+    }
+
     private storageStore(pathOffset: number, valueOffset: number) {
         // this.updateMemory();
         // TODO: Some safety checks for poking in memory that might nog exists..
-        const path = memoryGet(this.memory, pathOffset);
-        const value = memoryGet(this.memory, valueOffset);
-        const hex = toHex(path);
+        const path = this.mem.read(pathOffset, 32);
+        const value = this.mem.read(valueOffset, 32);
+        let account = this.state.get(this.toAddress);
 
-        //TODO: Store the actual value in the database
+        if (typeof account === 'undefined') {
+            account = {
+                storage: new Map(),
+            }
+
+            this.state.set(this.toAddress, account);
+        }
+
+        account.storage.set(toHex(path), value);
     }
 
     private storageLoad(pathOffset: number, resultOffset: number) {
-        console.log('[storageLoad] pathOffset -> ', pathOffset);
-        console.log('[storageLoad] resultOffset -> ', resultOffset);
+        const path = this.mem.read(pathOffset, 32);
+        let account = this.state.get(this.toAddress);
+
+        if (typeof account === 'undefined') {
+            account = {
+                storage: new Map(),
+            }
+
+            this.state.set(this.toAddress, account);
+        }
+
+        let value = account.storage.get(toHex(path));
+        if (typeof value === 'undefined') {
+            value = createZerosArray(32);
+        }
+
+        this.mem.write(resultOffset, 32, value);
     }
 
     private getAddress(resultOffset: number) {
-        // this.updateMemory();
+        const addressInBytes = hexStringToByte(this.toAddress);
+        this.mem.write(resultOffset, 20, addressInBytes)
+    }
 
-        //@ts-ignore
+    private getCaller(resultOffset: number) {
         const addressInBytes = hexStringToByte(this.fromAddress);
-        loadMemory(this.memory, resultOffset, addressInBytes);
+        this.mem.write(resultOffset, 20, addressInBytes)
     }
 
     /**
@@ -65,12 +124,7 @@ class Context {
         }
 
         const data = this.dataParsed.slice(dataOffset, dataOffset + length);
-
-        // TODO: Double check this one..
-        const ui8a = new Uint8Array(data);
-        const result = Array.from(ui8a).reverse();
-
-        this.mem.write(resultOffset, length, result);
+        this.mem.write(resultOffset, length, data);
     }
 
     /**
@@ -83,39 +137,53 @@ class Context {
         return this.dataParsed.length;
     }
 
-    private revert(offset: number, size: number) {
-        console.log('Reverting..', offset, size);
-        throw new Error('Reverted');
+    private revert(dataOffset: number, dataLength: number) {
+        let ret = new Uint8Array([]);
+
+        if (dataLength) {
+            ret = this.mem.read(dataOffset, dataLength);
+        }
+
+        this.results.exception = 0;
+        this.results.exceptionError = VM_ERROR.REVERT;
+        this.results.return = ret;
+
+        throw new VmError(VM_ERROR.REVERT);
     }
 
     private finish(dataOffset: number, dataLength: number) {
-        console.log('Finishing..', dataOffset, dataLength);
+        let ret = new Uint8Array([]);
+        if (dataLength) {
+            ret = this.mem.read(dataOffset, dataLength);
+        }
+
+        this.results.exception = 0;
+        this.results.return = ret;
+
+        throw new FinishExecution('Finished execution');
     }
 
     private log(dataOffset: number, length: number) {
         this.updateMemory();
 
-        console.log('[] dataOffset -> ', dataOffset);
-
-        // const result = memoryGet(this.memory, dataOffset, length);
-
-        // console.log('[LOG] offset:', dataOffset, ' length: ', length, ' value: ', result);
+        const result = this.mem.read(dataOffset, length);
+        console.log('[LOG]: ', result);
     }
 
     getExposedFunctions() {
         return {
-            rut_getAddress: this.getAddress.bind(this),
+            getAddress: this.getAddress.bind(this),
             rut_getExternalBalance: () => {},
             rut_getMilestoneHash: () => {},
             rut_call: () => {},
-            rut_callDataCopy: this.callDataCopy.bind(this),
-            rut_getCallDataSize: this.getCallDataSize.bind(this),
+            callDataCopy: this.callDataCopy.bind(this),
+            getCallDataSize: this.getCallDataSize.bind(this),
             rut_callCode: () => {},
             rut_callDelegate: () => {},
             rut_callStatic: () => {},
-            rut_storageStore: this.storageStore.bind(this),
-            rut_storageLoad: this.storageLoad.bind(this),
-            rut_getCaller: () => {},
+            storageStore: this.storageStore.bind(this),
+            storageLoad: this.storageLoad.bind(this),
+            getCaller: this.getCaller.bind(this),
             rut_getCallValue: () => {},
             rut_codeCopy: () => {},
             rut_getCodeSize: () => {},
@@ -127,11 +195,11 @@ class Context {
             rut_getGasLeft: () => {},
             rut_getTransactionGasLimit: () => {},
             rut_getTxGasPrice: () => {},
-            rut_log: this.log.bind(this),
+            log: this.log.bind(this),
             rut_getMilestoneNumber: () => {},
             rut_getTxOrigin: () => {},
-            rut_finish: this.finish.bind(this),
-            rut_revert: this.revert.bind(this),
+            finish: this.finish.bind(this),
+            revert: this.revert.bind(this),
             rut_getReturnDataSize: () => {},
             rut_returnDataCopy: () => {},
             rut_selfDestruct: () => {},

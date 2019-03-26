@@ -5,7 +5,7 @@
  * @param {Uint32Array} byteArray
  * @returns {string}
  */
-export function toHex(byteArray: Uint32Array): string {
+export function toHex(byteArray: ArrayLike<number>): string {
     return Array.prototype.map.call(byteArray, function(byte: number) {
         return ('0' + (byte & 0xFF).toString(16)).slice(-2);
     }).join('');
@@ -20,3 +20,7 @@ export function hexStringToByte(str: string) {
 
     return new Uint32Array(a);
   }
+
+export function createZerosArray(length: number) {
+    return new Uint8Array(length).fill(0);
+}
