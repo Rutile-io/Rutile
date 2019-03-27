@@ -44,21 +44,6 @@ module.exports = {
                 exclude,
                 loader: 'babel-loader',
             },
-            {
-                test: /\.(scss|css)$/,
-                loaders: [
-                    {
-                        loader: 'style-loader?sourceMap',
-                    }, {
-                        loader: 'css-loader',
-                        options: {
-                            localIdentName: '[path][name]__[local]--[hash:base64:5]',
-                        },
-                    }, {
-                        loader: 'sass-loader',
-                    },
-                ],
-            },
         ],
     },
 };

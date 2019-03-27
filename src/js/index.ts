@@ -5,7 +5,7 @@ import isNodeJs from './services/isNodeJs';
 import Wallet from './models/Wallet';
 import { saveTransaction, startDatabase } from './services/DatabaseService';
 // import RutileContext from './models/RutileContext';
-// import * as fs from 'fs';
+import * as fs from 'fs';
 import { validateTransaction } from './services/TransactionService';
 // const Logger = require('js-logger');
 
@@ -34,10 +34,12 @@ async function run() {
             wallet.saveToLocalStorage();
         }
     } else {
-        wallet = new Wallet('0123456789012345678901234567890123456789012345678901234567890123');
+        wallet = new Wallet('C0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE');
     }
 
     const ourAccount = await wallet.getAccountInfo();
+
+    console.log('[] ourAccount -> ', ourAccount);
 
     // Testing..
     // if (isNodeJs()) {
@@ -53,12 +55,12 @@ async function run() {
         }
         // const file = fs.readFileSync('./examples/wrc20/wrc20-non-debug.wasm');
         // require('/Users/franklinwaller/Desktop/EVM.wasm-master/build/untouched.wasm');
-        // const file = fs.readFileSync('/Users/franklinwaller/Desktop/EVM.wasm-master/build/Cwrc20.wasm');
+        const file = fs.readFileSync('/Users/franklinwaller/Desktop/EVM.wasm-master/build/untouched.wasm');
         // const file = fs.readFileSync('/Users/franklinwaller/Desktop/EVM.wasm-master/build/ewasm_token.wasm');
-        // const fileArrayBuffer = new Uint8Array(file);
+        const fileArrayBuffer = new Uint8Array(file);
 
-        // const lamda = new Rutile.Lamda(fileArrayBuffer);
-        const hash = 'QmS1sCjAaBaiLzWSwx8kRnCJCBAw7F11Nf6M5RiqBfLzRu'; //await rutile.deploy(lamda);
+        const lamda = new Rutile.Lamda(fileArrayBuffer);
+        const hash = await rutile.deploy(lamda);
 
         console.log('[] hash -> ', hash);
 
@@ -66,7 +68,8 @@ async function run() {
             to: hash,
             // data: '0x1A029399ed09375dc6b20050d242d1611af97ee4a6e93cad',
             // data: '0x9993021aed09375dc6b20050d242d1611af97ee4a6e93cad',
-            data: '0x5d359fbde929cf2544363bdcee4a976515d5f97758ef476c000000000007a120',
+            data: '0x00000000',
+            // data: '0x5d359fbde929cf2544363bdcee4a976515d5f97758ef476c000000000007a120',
             value: 0,
             transIndex: wallet.account.transactionIndex + 1,
         });
@@ -82,7 +85,7 @@ async function run() {
         //     transIndex: wallet.account.transactionIndex + 1,
         // });
 
-        // const result = await transaction.execute();
+        const result = await transaction.execute();
 
         // transaction.sign(wallet.keyPair);
         // transaction.proofOfWork();

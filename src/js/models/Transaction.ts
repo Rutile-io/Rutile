@@ -104,8 +104,6 @@ class Transaction {
             const executionResults = await execute(this, lamda.wasmBinary);
             this.gasUsed = executionResults.result.gasUsed;
 
-            console.log('[] executionResults.state -> ', executionResults.state);
-
             return executionResults.result;
         } catch (error) {
             console.error('Executing transaction failed', error);

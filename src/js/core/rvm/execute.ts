@@ -1,6 +1,8 @@
 import './context';
 import Context from './context';
 import Transaction from '../../models/Transaction';
+import MerkleTree from './lib/merkletree';
+import { startDatabase } from '../../services/DatabaseService';
 
 const metering = require('wasm-metering');
 const saferEval = require('safer-eval');
@@ -45,7 +47,7 @@ export default async function execute(transaction: Transaction, wasmBinary: Uint
     });
 
     context.wasmInstance = wasm;
-    context.updateMemory();
+    await context.init();
 
     const exports = wasm.instance.exports;
 
@@ -68,16 +70,22 @@ export default async function execute(transaction: Transaction, wasmBinary: Uint
         await saferEval(`${sandboxInitator}()`, {
             exports,
         });
+
+
     } catch (error) {
         if (error.errorType !== 'VmError' && error.errorType !== 'FinishExecution') {
             throw error;
         }
     }
 
+    await context.close();
+
     const totalGasUsed = Math.round(context.results.gasUsed * 1e-4);
+
+    console.log('[Results] context.results -> ', context.results);
 
     return {
         result: context.results,
-        state: context.state,
+        // state: context.state,
     };
 }

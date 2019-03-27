@@ -1,0 +1,116 @@
+import { toHex } from "../utils/hexUtils";
+
+const Trie = require('merkle-patricia-tree');
+
+class MerkleTree {
+    private trie: any;
+    private cache: Map<string | Buffer, Uint8Array | Buffer>;
+    private storagePromises: Array<Promise<any>>;
+
+    constructor(db?: any, root?: string | Buffer) {
+        this.trie = new Trie(db, root);
+        this.cache = new Map();
+        this.storagePromises = [];
+    }
+
+    /**
+     * Puts the data in cache so it can be accessed synchronously
+     * It does however puts it in the database async.
+     *
+     * @param {(string | Buffer)} key
+     * @param {(string | Buffer)} value
+     * @memberof MerkleTree
+     */
+    putSync(key: string | Buffer, value: Uint8Array) {
+        this.cache.set(key, value);
+        this.put(key, value);
+    }
+
+    /**
+     * Puts the key value pair inside the database
+     * Changing the merkle root
+     *
+     * @param {(string | Buffer)} key
+     * @param {(string | Buffer)} value
+     * @returns
+     * @memberof MerkleTree
+     */
+    async put(key: string | Buffer, value: Uint8Array) {
+        let valueArr = Array.from(value);
+
+        const promise = new Promise((resolve, reject) => {
+            this.trie.put(key, valueArr, (err: any) => {
+                if (err) return reject(err);
+                resolve();
+            });
+        });
+
+        this.storagePromises.push(promise);
+
+        return promise;
+    }
+
+    /**
+     * Gets data synchronously from the cache.
+     *
+     * @param {(string | Buffer)} key
+     * @returns
+     * @memberof MerkleTree
+     */
+    getSync(key: string | Buffer) {
+        return this.cache.get(key);
+    }
+
+    /**
+     * Asynchronously gets data from the database
+     *
+     * @param {(string | Buffer)} key
+     * @returns
+     * @memberof MerkleTree
+     */
+    async get(key: string | Buffer) {
+        return new Promise((resolve, reject) => {
+            this.trie.get(key, (err: any, value: string | Buffer) => {
+                if (err) return reject(err);
+
+                resolve(value);
+            });
+        });
+    }
+
+    /**
+     * Finishes all promises and gets the merkle root.
+     *
+     * @returns {Promise<string>}
+     * @memberof MerkleTree
+     */
+    async getMerkleRoot(): Promise<string> {
+        await Promise.all(this.storagePromises);
+
+        return '0x' + this.trie.root.toString('hex');
+    }
+
+
+    /**
+     * Fills the cache based on the merkle root
+     * This is currently needed for WASM execution on JavaScript.
+     *
+     * @returns
+     * @memberof MerkleTree
+     */
+    async fill() {
+        return new Promise((resolve) => {
+            this.createReadStream().on('data', (data: any) => {
+                this.cache.set(data.key.toString(), data.value);
+            }).on('end', () => {
+                resolve();
+            })
+        });
+    }
+
+    createReadStream() {
+        return this.trie.createReadStream();
+    }
+}
+
+export default MerkleTree;

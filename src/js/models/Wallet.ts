@@ -22,7 +22,7 @@ class Wallet {
     }
 
     async getAccountInfo() {
-        this.account = await Account.findOrCreate(KeyPair.computeAddress(this.keyPair.compressedPublicKey));
+        this.account = await Account.findOrCreate(KeyPair.computeAddress(this.keyPair.publicKey));
         return this.account;
     }
 

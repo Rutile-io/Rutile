@@ -1,5 +1,7 @@
 import { ec as Ec } from 'elliptic';
 import { arrayify } from '../utils/arrayify';
+import keccak256 from '../utils/keccak256';
+import { toHex } from '../core/rvm/utils/hexUtils';
 
 interface Signature {
     recoveryParam?: number,
@@ -65,7 +67,7 @@ class KeyPair {
 
         const publicKey = getCurve().recoverPubKey(arrayify(digest), rs, recoveryParam).encode('hex', false);
 
-        return KeyPair.computePublicKey(publicKey, true);
+        return KeyPair.computePublicKey(publicKey, false);
     }
 
     static computePublicKey(key: string, compressed?: boolean) {
@@ -77,9 +79,8 @@ class KeyPair {
     }
 
     static computeAddress(key: string) {
-        const strippedKey = ('0000000000000000000000000000000000000000000000000000000000000000' + key).slice(-64);
-
-        return '0x' + strippedKey;
+        const keyBuffer = Buffer.from(arrayify(key.substring(2)));
+        return '0x' + keccak256(keyBuffer).slice(24);
     }
 }
 

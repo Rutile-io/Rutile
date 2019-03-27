@@ -2,9 +2,14 @@ import Transaction from '../models/Transaction';
 import isNodeJs from './isNodeJs';
 import { configuration } from '../Configuration';
 
+const levelup = __non_webpack_require__('levelup');
+const leveldown = __non_webpack_require__('leveldown')
+
 let PouchDB: PouchDB.Static = null;
 let database: PouchDB.Database = null;
 let databaseTarget: string = null;
+let lvldb: any = null;
+
 
 /**
  * Starts the database
@@ -12,9 +17,12 @@ let databaseTarget: string = null;
  * @export
  */
 export function startDatabase() {
-    if (database) {
-        throw new Error('Database has already been started');
+    if (lvldb) {
+        return lvldb;
     }
+
+    const lvldwn = leveldown('./mydbb');
+    lvldb = levelup(lvldwn);
 
     // The biggest difference in node and the browser is that
     // node doesn't have a IndexDB pre-installed
@@ -22,7 +30,7 @@ export function startDatabase() {
     if (isNodeJs()) {
         PouchDB = __non_webpack_require__('pouchdb');
         PouchDB.plugin(__non_webpack_require__('pouchdb-find'))
-        databaseTarget = `${configuration.couchdbUrl}/${configuration.databaseName}`;
+        databaseTarget = configuration.databaseName; //`${configuration.couchdbUrl}/${configuration.databaseName}`;
     } else {
         PouchDB = require('pouchdb').default;
         PouchDB.plugin(require('pouchdb-find'));
@@ -32,6 +40,8 @@ export function startDatabase() {
     database = new PouchDB(databaseTarget, {
         revs_limit: 1,
     });
+
+    return lvldb;
 }
 
 /**

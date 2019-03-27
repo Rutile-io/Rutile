@@ -192,8 +192,6 @@ export async function getTransactionById(id: string): Promise<Transaction> {
     try {
         const result = await getById(id);
 
-        console.log('[] result -> ', result);
-
         if (!result) {
             return null;
         }
