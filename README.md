@@ -5,8 +5,16 @@ Rutile is not based on blockchain but rather on a Directed Acyclic Graph. This a
 
 Rutile is currently in development but is actively worked on.
 
-Running Rutile
----
+## Features of Rutile:
+
+- Create and run smart contracts (using WebAssembly) & be compatible with Ethereum smart contracts
+- Paralize execution (DAG)
+- RUT Token transfer
+- Store files in the Rutile network using IPFS
+- Re-use your Ethereum private keys & addresses in Rutile
+
+## Running Rutile
+
 Rutile is developed in TypeScript and requires node.js.
 
 ```JavaScript
@@ -24,8 +32,8 @@ npm start
 
 Currently testing is done in `src/js/index.ts`.
 
-Contributing to Rutile
----
+## Contributing to Rutile
+
 
 For contributing create a PR or contact Franklin Waller: f.waller@rutile.io
 
