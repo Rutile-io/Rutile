@@ -1,5 +1,3 @@
-import { toHex } from "../utils/hexUtils";
-
 const Trie = require('merkle-patricia-tree');
 
 class MerkleTree {

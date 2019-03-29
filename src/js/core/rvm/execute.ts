@@ -1,12 +1,9 @@
 import './context';
 import Context from './context';
 import Transaction from '../../models/Transaction';
-import MerkleTree from './lib/merkletree';
-import { startDatabase } from '../../services/DatabaseService';
 
 const metering = require('wasm-metering');
 const saferEval = require('safer-eval');
-
 
 interface ExecuteSecureResults {
     gasUsed?: number;
@@ -81,8 +78,6 @@ export default async function execute(transaction: Transaction, wasmBinary: Uint
     await context.close();
 
     const totalGasUsed = Math.round(context.results.gasUsed * 1e-4);
-
-    console.log('[Results] context.results -> ', context.results);
 
     return {
         result: context.results,

@@ -20,8 +20,6 @@ interface GenesisConfig {
 
 interface IConfig {
     nodeId: string,
-    provider: any,
-    fileDatabaseAddress: string,
     connectionServerUrl: string,
     nodesListUrl: string,
     port: number,
@@ -30,7 +28,6 @@ interface IConfig {
     maximumNodeAskConnectTime: number,
     timeoutBeforeCleanup: number,
     ipfs: IpfsConfig,
-    couchdbUrl: string,
     databaseName: string,
     difficulty: number,
     genesis: GenesisConfig,

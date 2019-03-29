@@ -79,13 +79,13 @@ class Account {
     }
 
     async save() {
-        await Database.createOrUpdate(this.address, {
+        await Database.createOrUpdate(this.address, JSON.stringify({
             address: this.address,
             balance: this.balance,
             transactionIndex: this.transactionIndex,
             codeHash: this.codeHash,
             storageRoot: this.storageRoot,
-        });
+        }));
     }
 
     static async getFromAddress(address: string): Promise<Account> {
@@ -96,7 +96,7 @@ class Account {
                 return null;
             }
 
-            return new Account(data);
+            return new Account(JSON.parse(data));
         } catch (error) {
             console.error(error);
             return null;

@@ -9,8 +9,6 @@ const NODE_ID = `${uuid()}-${uuid()}-${uuid()}`;
 
 const config: IConfig = {
     nodeId: NODE_ID,
-    provider: new ethers.providers.InfuraProvider(ethers.providers.networks.ropsten),
-    fileDatabaseAddress: '0xf050e54d2b50c055c9919a4b856a195221d3db71',
     connectionServerUrl: 'localhost:1337',
     nodesListUrl: 'http://localhost:8903/',
     port: 1337,
@@ -27,7 +25,6 @@ const config: IConfig = {
         protocol: 'https',
     },
     difficulty: 3,
-    couchdbUrl: 'http://127.0.0.1:5984/',
     databaseName: 'db_rutile',
     genesis: {
         transaction: {
@@ -40,12 +37,6 @@ const config: IConfig = {
             nonce: 'rutile-public-network',
         }
     }
-}
-
-// For testing purposes..
-
-if (!isNodeJs()) {
-    config.nodesListUrl = 'http://localhost:9001/examples/network-file/RutileNodes.json';
 }
 
 export const configuration = config;

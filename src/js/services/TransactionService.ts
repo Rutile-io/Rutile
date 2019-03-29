@@ -34,8 +34,6 @@ export function getUnsignedTransactionHash(transaction: Transaction): string {
         parents: transaction.parents
     });
 
-    console.log('[] dataToHash -> ', dataToHash);
-
     return createKeccakHash("keccak256")
         .update(JSON.stringify(dataToHash))
         .digest("hex");
@@ -104,8 +102,6 @@ export async function validateTransaction(transaction: Transaction) {
     // "Sign" the transaction, since we are taking the signatures from the created transaction
     transactionCopy.sign();
 
-    console.log(transactionCopy);
-
     // Check the Proof of Work again to make sure all the work adds up.
     if (!isProofOfWorkValid(transactionCopy.id, transactionCopy.nonce)) {
         throw new Error("Proof of Work after execution is not valid");
@@ -119,7 +115,6 @@ export async function validateTransaction(transaction: Transaction) {
 export function getAddress(transaction: Transaction) {
     // Genesis milestones don't have a from
     if (transaction.milestoneIndex === GENESIS_MILESTONE) {
-        console.log('return fast');
         return {
             to: transaction.to,
             from: null,
@@ -198,7 +193,7 @@ export async function getTransactionById(id: string): Promise<Transaction> {
             return null;
         }
 
-        const transaction = Transaction.fromRaw(JSON.stringify(result));
+        const transaction = Transaction.fromRaw(result.toString());
 
         return transaction;
     } catch (error) {
@@ -208,15 +203,10 @@ export async function getTransactionById(id: string): Promise<Transaction> {
 }
 
 export async function saveTransaction(transaction: Transaction) {
-    const rawTransaction = JSON.parse(transaction.toRaw());
-    const data = {
-        ...rawTransaction,
-        _id: rawTransaction.id,
-    }
-
-    await databaseCreate(rawTransaction.id, data);
+    const rawTransaction = transaction.toRaw();
+    await databaseCreate(transaction.id, rawTransaction);
 }
 
 export async function createOrUpdateTransaction(transaction: Transaction) {
-    await createOrUpdate(transaction.id, transaction);
+    await createOrUpdate(transaction.id, transaction.toRaw());
 }

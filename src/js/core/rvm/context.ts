@@ -2,7 +2,7 @@ import { Memory } from "./lib/memory";
 import { toHex, hexStringToByte, createZerosArray } from "./utils/hexUtils";
 import { VmError, VM_ERROR, FinishExecution } from "./lib/exceptions";
 import Account from "../../models/Account";
-import MerkleTree from "./lib/merkletree";
+import MerkleTree from "../../models/MerkleTree";
 import { startDatabase } from "../../services/DatabaseService";
 const ethUtil = require('ethereumjs-util')
 
@@ -216,7 +216,6 @@ class Context {
     private log(dataOffset: number, length: number) {
         this.updateMemory();
 
-        console.log('DO: ', dataOffset);
         const result = this.mem.read(dataOffset, length);
         console.log('[LOG]: ', result);
     }

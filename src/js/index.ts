@@ -25,18 +25,7 @@ async function run() {
     applyArgv();
     startDatabase();
 
-    let wallet = null;
-    if (!isNodeJs()) {
-        wallet = Wallet.fromStorage();
-
-        if (!wallet) {
-            wallet = Wallet.createRandom();
-            wallet.saveToLocalStorage();
-        }
-    } else {
-        wallet = new Wallet('C0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE');
-    }
-
+    const wallet = new Wallet('C0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE');
     const ourAccount = await wallet.getAccountInfo();
 
     console.log('[] ourAccount -> ', ourAccount);
@@ -55,12 +44,12 @@ async function run() {
         }
         // const file = fs.readFileSync('./examples/wrc20/wrc20-non-debug.wasm');
         // require('/Users/franklinwaller/Desktop/EVM.wasm-master/build/untouched.wasm');
-        const file = fs.readFileSync('/Users/franklinwaller/Desktop/EVM.wasm-master/build/untouched.wasm');
+        // const file = fs.readFileSync('/Users/franklinwaller/Desktop/EVM.wasm-master/build/untouched.wasm');
         // const file = fs.readFileSync('/Users/franklinwaller/Desktop/EVM.wasm-master/build/ewasm_token.wasm');
-        const fileArrayBuffer = new Uint8Array(file);
+        // const fileArrayBuffer = new Uint8Array(file);
 
-        const lamda = new Rutile.Lamda(fileArrayBuffer);
-        const hash = await rutile.deploy(lamda);
+        // const lamda = new Rutile.Lamda(fileArrayBuffer);
+        const hash = 'QmTBj5Y79RQz82asMSQf1EF4xpGtcZumsn7XHyxkxgEaLV'; //await rutile.deploy(lamda);
 
         console.log('[] hash -> ', hash);
 
@@ -74,23 +63,19 @@ async function run() {
             transIndex: wallet.account.transactionIndex + 1,
         });
 
-        const transaction = new Rutile.Transaction({
-            to: '0x53278f6b1d462832ab4007078ca332730e1e92982fdd5cd3c1dfa5a953b1e1c3',
-            data: [],
-            value: 1050,
-            transIndex: wallet.account.transactionIndex + 1,
-        });
+        const result = await transaction.execute();
 
-        // const result = await transaction.execute();
-        await transaction.execute();
         transaction.sign(wallet.keyPair);
         transaction.proofOfWork();
 
-        console.log('[POw] transaction -> ', transaction);
+        try {
+            await validateTransaction(transaction);
+            await applyTransaction(transaction);
+        } catch (err) {
+            console.error(err);
+        }
 
-        await validateTransaction(transaction);
-        await applyTransaction(transaction);
-        // rutile.sendTransaction(transaction);
+        rutile.sendTransaction(transaction);
     }
 }
 

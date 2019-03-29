@@ -1,14 +1,9 @@
 import Transaction from '../models/Transaction';
 import isNodeJs from './isNodeJs';
 import { configuration } from '../Configuration';
+import levelup, { LevelUp } from 'levelup';
 
-const levelup = __non_webpack_require__('levelup');
-const leveldown = __non_webpack_require__('leveldown')
-
-let PouchDB: PouchDB.Static = null;
-let database: PouchDB.Database = null;
-let databaseTarget: string = null;
-let lvldb: any = null;
+let levelDb: LevelUp = null;
 
 
 /**
@@ -17,31 +12,25 @@ let lvldb: any = null;
  * @export
  */
 export function startDatabase() {
-    if (lvldb) {
-        return lvldb;
+    if (levelDb) {
+        return levelDb;
     }
 
-    const lvldwn = leveldown('./mydbb');
-    lvldb = levelup(lvldwn);
+    let lvlDown: any = null;
 
-    // The biggest difference in node and the browser is that
-    // node doesn't have a IndexDB pre-installed
-    // This is why we need to configure it differently.
+    // For nodejs we use the standard file db
+    // and for browsers we use indexedDB
     if (isNodeJs()) {
-        PouchDB = __non_webpack_require__('pouchdb');
-        PouchDB.plugin(__non_webpack_require__('pouchdb-find'))
-        databaseTarget = configuration.databaseName; //`${configuration.couchdbUrl}/${configuration.databaseName}`;
+        const leveldown = __non_webpack_require__('leveldown');
+        lvlDown = leveldown(`./${configuration.databaseName}`);
     } else {
-        PouchDB = require('pouchdb').default;
-        PouchDB.plugin(require('pouchdb-find'));
-        databaseTarget = configuration.databaseName;
+        const leveljs = require('level-js');
+        lvlDown = leveljs(configuration.databaseName);
     }
 
-    database = new PouchDB(databaseTarget, {
-        revs_limit: 1,
-    });
+    levelDb = levelup(lvlDown);
 
-    return lvldb;
+    return levelDb;
 }
 
 /**
@@ -52,21 +41,12 @@ export function startDatabase() {
  */
 export async function saveTransaction(transaction: Transaction) {
     const rawTransaction = JSON.parse(transaction.toRaw());
-    const data = {
-        ...rawTransaction,
-        _id: rawTransaction.id,
-    }
 
-    await database.put(data);
+    await databaseCreate(transaction.id, rawTransaction);
 }
 
-export async function databaseCreate(id: string, obj: any) {
-    const data = {
-        ...obj,
-        _id: id,
-    };
-
-    await database.put(data);
+export async function databaseCreate(id: string, obj: Buffer | string) {
+    return levelDb.put(id, obj);
 }
 
 /**
@@ -76,26 +56,8 @@ export async function databaseCreate(id: string, obj: any) {
  * @param {string} id
  * @param {*} obj
  */
-export async function createOrUpdate(id: string, obj: any) {
-    const data = {
-        ...obj,
-        _id: id,
-    };
-
-    const doc = await getById(id);
-
-    if (!doc) {
-        await database.put(data);
-    } else {
-        const newData = {
-            ...data,
-            _rev: doc._rev,
-        }
-
-        await database.put(newData, {
-            force: true,
-        });
-    }
+export async function createOrUpdate(id: string, obj: Buffer | string) {
+    await databaseCreate(id, obj);
 }
 
 /**
@@ -105,20 +67,22 @@ export async function createOrUpdate(id: string, obj: any) {
  * @param {string} id
  * @returns
  */
-export async function getById(id: string) {
+export async function getById(id: string): Promise<any> {
     try {
-        const doc = await database.get(id);
-        return doc;
+        const val = await levelDb.get(id);
+
+        return val;
     } catch (error) {
+        console.error(error);
         return null;
     }
 }
 
 export async function synchroniseDatabase(src: string) {
-    // TODO: Figure out if we want to live update..
-    const replication = PouchDB.replicate(src, databaseTarget);
+    // // TODO: Figure out if we want to live update..
+    // const replication = PouchDB.replicate(src, databaseTarget);
 
-    replication.on('complete', () => {
-        console.log('Sync complete');
-    })
+    // replication.on('complete', () => {
+    //     console.log('Sync complete');
+    // })
 }
