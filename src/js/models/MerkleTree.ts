@@ -1,3 +1,5 @@
+import { LevelUp } from "levelup";
+
 const Trie = require('merkle-patricia-tree');
 
 class MerkleTree {
@@ -5,7 +7,7 @@ class MerkleTree {
     private cache: Map<string | Buffer, Uint8Array | Buffer>;
     private storagePromises: Array<Promise<any>>;
 
-    constructor(db?: any, root?: string | Buffer) {
+    constructor(db?: LevelUp, root?: string | Buffer) {
         this.trie = new Trie(db, root);
         this.cache = new Map();
         this.storagePromises = [];
@@ -96,14 +98,18 @@ class MerkleTree {
      * @returns
      * @memberof MerkleTree
      */
-    async fill() {
+    async fill(): Promise<Map<string | Buffer, Uint8Array | Buffer>> {
         return new Promise((resolve) => {
             this.createReadStream().on('data', (data: any) => {
                 this.cache.set(data.key.toString(), data.value);
             }).on('end', () => {
-                resolve();
+                resolve(this.cache);
             })
         });
+    }
+
+    flushCache() {
+        this.cache = new Map();
     }
 
     createReadStream() {

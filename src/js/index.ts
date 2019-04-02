@@ -7,6 +7,8 @@ import { saveTransaction, startDatabase } from './services/DatabaseService';
 // import RutileContext from './models/RutileContext';
 import * as fs from 'fs';
 import { validateTransaction, applyTransaction } from './services/TransactionService';
+import MerkleTree from './models/MerkleTree';
+const ethUtil = require('ethereumjs-util')
 // const Logger = require('js-logger');
 
 // const metering = require('wasm-metering');
@@ -26,9 +28,7 @@ async function run() {
     startDatabase();
 
     const wallet = new Wallet('C0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE');
-    const ourAccount = await wallet.getAccountInfo();
-
-    console.log('[] ourAccount -> ', ourAccount);
+    await wallet.getAccountInfo();
 
     // Testing..
     if (isNodeJs()) {

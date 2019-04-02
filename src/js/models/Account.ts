@@ -1,5 +1,10 @@
 import * as Database from "../services/DatabaseService";
 import Transaction from "./Transaction";
+import MerkleTree from "./MerkleTree";
+import keccak256 from "../utils/keccak256";
+import hexZeroPad from "../utils/hexZeroPad";
+import { toHex } from "../core/rvm/utils/hexUtils";
+import { numberToHex, hexStringToBuffer } from "../utils/hexUtils";
 
 interface AccountParams {
     address: string;
@@ -16,6 +21,7 @@ class Account {
     transactionIndex: number = 0;
     codeHash: string;
     storageRoot: string;
+    storage: MerkleTree;
     alias: string;
 
     constructor(params: AccountParams) {
@@ -23,8 +29,40 @@ class Account {
         this.balance = params.balance || 0;
         this.transactionIndex = params.transactionIndex || 0;
         this.codeHash = params.codeHash || '';
-        this.storageRoot = params.storageRoot || '';
+        this.storageRoot = params.storageRoot;
         this.alias = params.alias || '';
+        this.storage = new MerkleTree(Database.startDatabase(), this.storageRoot);
+    }
+
+    /**
+     * Maps all data from storage to the account
+     *
+     * @memberof Account
+     */
+    async fill() {
+        const storageData = await this.storage.fill();
+        const hexBalance = '0x' + toHex(storageData.get('balance'));
+        const hexTransactionIndex = '0x' + toHex(storageData.get('transactionIndex'));
+
+        this.address = '0x' + toHex(storageData.get('address'));
+        this.balance = parseInt(hexBalance, 16);
+        this.transactionIndex = parseInt(hexTransactionIndex, 16);
+
+        this.storage.flushCache();
+    }
+
+    async setBalance(balance: number) {
+        const buffer = hexStringToBuffer(numberToHex(balance));
+        await this.storage.put('balance', buffer);
+
+        this.storageRoot = await this.storage.getMerkleRoot();
+    }
+
+    async setTransactionIndex(index: number) {
+        const buffer = hexStringToBuffer(numberToHex(index));
+        await this.storage.put('transactionIndex', buffer);
+
+        this.storageRoot = await this.storage.getMerkleRoot();
     }
 
     /**
@@ -107,11 +145,26 @@ class Account {
         const account = await Account.getFromAddress(address);
 
         if (account) {
+            await account.fill();
             return account;
         }
 
+        return Account.create(address);
+    }
+
+    static async create(address: string) {
+        const merkleTree = new MerkleTree(Database.startDatabase());
+        const zeroBuffer = hexStringToBuffer('0x00');
+
+        await merkleTree.put('address', hexStringToBuffer(address));
+        await merkleTree.put('balance', zeroBuffer);
+        await merkleTree.put('transactionIndex', zeroBuffer);
+
+        const storageRoot = await merkleTree.getMerkleRoot();
+
         const newAccount = new Account({
             address,
+            storageRoot,
         });
 
         await newAccount.save();
