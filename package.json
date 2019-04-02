@@ -13,7 +13,7 @@
         "test": "jest",
         "lint": "eslint ./src/ --cache --ignore-pattern .gitignore",
         "build:watch:node": "cross-env NODE_ENV=development webpack --watch --target node --config ./webpack.config.js",
-        "start:node": "npm run build:watch:node & nodemon ./build/rutile.js localhost 8932 --watch ./build/"
+        "start:node": "npm run build:watch:node & nodemon --experimental-worker ./build/rutile.js localhost 8932 --watch ./build/"
     },
     "author": "Franklin Waller",
     "license": "MIT",

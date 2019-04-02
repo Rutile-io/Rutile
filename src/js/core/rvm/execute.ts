@@ -2,6 +2,8 @@ import './context';
 import Context from './context';
 import { configuration } from '../../Configuration'
 import Transaction from '../../models/Transaction';
+import { createWorker } from './utils/workerUtils';
+import { configuration } from '../../Configuration';
 
 const metering = require('wasm-metering');
 const saferEval = require('safer-eval');
@@ -26,7 +28,6 @@ export default async function execute(transaction: Transaction, wasmBinary: Uint
     const meteredWas = metering.meterWASM(wasmBinary, {
         meterType: 'i32',
     });
-
 
     // TODO: replace 03c074e7992389c7b5403c35fe01b1fa with actual data
     const context = new Context({

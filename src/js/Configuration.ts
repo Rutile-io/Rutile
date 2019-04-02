@@ -11,6 +11,7 @@ const config: IConfig = {
     nodeId: NODE_ID,
     connectionServerUrl: 'localhost:1337',
     nodesListUrl: 'http://localhost:8903/',
+    vmUrl: './build/vm.js',
     port: 1337,
     iceServers: [
         { urls: 'stun:stun.stunprotocol.org:3478' },
