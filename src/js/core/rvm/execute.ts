@@ -32,6 +32,7 @@ export default async function execute(transaction: Transaction, wasmBinary: Uint
         fromAddress: '03c074e7992389c7b5403c35fe01b1fa',
         toAddress: '02c074e7992389c7b5403c35fe01b1fa',
         data: transaction.data,
+        value: transaction.value
     });
 
     const wasm = await WebAssembly.instantiate(meteredWas, {
