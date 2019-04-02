@@ -11,6 +11,7 @@ interface ContextOptions {
     fromAddress: string;
     toAddress: string;
     data: string;
+    value: number;
 }
 
 interface Results {
@@ -25,6 +26,7 @@ class Context {
     fromAddress: string;
     toAddress: string;
     toAccount: Account;
+    value: number;
 
     results: Results = {
         exception: 0,
@@ -44,6 +46,7 @@ class Context {
         this.fromAddress = options.fromAddress;
         this.toAddress = options.toAddress;
         this.data = options.data;
+        this.value = options.value;
         this.dataParsed = ethUtil.toBuffer(options.data);
     }
 
@@ -162,6 +165,17 @@ class Context {
     }
 
     /**
+     * Gets the deposited value by the instruction/transaction responsible for this execution and loads it into memory at the given location. 
+     * @todo Should change 32 to 128
+     * @param resultOffset i32ptr the memory offset to load the value into (u128)
+     */
+    private getCallValue(resultOffset: number){
+        const valueHex = "0x" + this.value.toString(16);
+        const valueBytes = hexStringToByte(valueHex);
+        this.mem.write(resultOffset, 32, valueBytes);
+    }
+
+    /**
      * Retrieves the data length of the transaction
      *
      * @returns
@@ -234,7 +248,7 @@ class Context {
             storageStore: this.storageStore.bind(this),
             storageLoad: this.storageLoad.bind(this),
             getCaller: this.getCaller.bind(this),
-            getCallValue: () => {},
+            getCallValue: this.getCallValue.bind(this),
             codeCopy: () => {},
             getCodeSize: () => {},
             getMilestoneCoinbase: () => {},
