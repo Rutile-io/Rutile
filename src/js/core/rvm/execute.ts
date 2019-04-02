@@ -1,5 +1,6 @@
 import './context';
 import Context from './context';
+import { configuration } from '../../Configuration'
 import Transaction from '../../models/Transaction';
 
 const metering = require('wasm-metering');
@@ -26,13 +27,15 @@ export default async function execute(transaction: Transaction, wasmBinary: Uint
         meterType: 'i32',
     });
 
+
     // TODO: replace 03c074e7992389c7b5403c35fe01b1fa with actual data
     const context = new Context({
         id: transaction.id,
         fromAddress: '53ae893e4b22d707943299a8d0c844df0e3d5557',
         toAddress: '52ae893e4b22d707943299a8d0c844df0e3d5557',
         data: transaction.data,
-        value: transaction.value
+        value: transaction.value,
+        transactionDifficulty: configuration.difficulty
     });
 
     const wasm = await WebAssembly.instantiate(meteredWas, {

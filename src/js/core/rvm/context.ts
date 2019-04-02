@@ -13,6 +13,7 @@ interface ContextOptions {
     toAddress: string;
     data: string;
     value: number;
+    transactionDifficulty: number;
 }
 
 interface Results {
@@ -28,6 +29,7 @@ class Context {
     toAddress: string;
     toAccount: Account;
     value: number;
+    transactionDifficulty: number;
 
     results: Results = {
         exception: 0,
@@ -48,6 +50,7 @@ class Context {
         this.toAddress = options.toAddress;
         this.data = options.data;
         this.value = options.value;
+        this.transactionDifficulty = options.transactionDifficulty;
         this.dataParsed = ethUtil.toBuffer(options.data);
     }
 
@@ -199,6 +202,13 @@ class Context {
         return this.dataParsed.length;
     }
 
+    private getTransactionDifficulty(resultOffset: number){
+        const difficultyHex = "0x" + this.transactionDifficulty.toString(16)
+        console.log(difficultyHex, 'difficulty HEXx');
+        const difficultyBytes = hexStringToByte(difficultyHex);
+        this.mem.write(resultOffset, 32, difficultyBytes);
+    }
+
     /**
      * Reverts the changes that where done and quits the program
      *
@@ -267,7 +277,7 @@ class Context {
             getCodeSize: () => {},
             getMilestoneCoinbase: () => {},
             create: () => {},
-            getTransactionDifficulty: () => {},
+            getTransactionDifficulty: this.getTransactionDifficulty.bind(this),
             getExternalCodeCopy: () => {},
             getExternalCodeSize: () => {},
             getGasLeft: () => {},
