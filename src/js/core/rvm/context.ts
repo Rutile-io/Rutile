@@ -4,6 +4,7 @@ import { VmError, VM_ERROR, FinishExecution } from "./lib/exceptions";
 import Account from "../../models/Account";
 import MerkleTree from "../../models/MerkleTree";
 import { startDatabase } from "../../services/DatabaseService";
+import { number } from "prop-types";
 const ethUtil = require('ethereumjs-util')
 
 interface ContextOptions {
@@ -131,6 +132,19 @@ class Context {
         this.mem.write(resultOffset, 20, addressInBytes)
     }
 
+    private getExternalBalance(addressOffset: number, resultOffset: number){
+
+        const address = this.mem.read(addressOffset, 20);
+        
+        // TODO: Get an account sync from db
+        // const toAccount = Account.getFromAddress(toHex(address));
+        // console.log(toAccount)
+
+        // this.mem.write(resultOffset, 32, data);
+
+    }        
+
+
     /**
      * Gets the address of the contract caller and stores it in memory
      *
@@ -237,7 +251,7 @@ class Context {
     getExposedFunctions() {
         return {
             getAddress: this.getAddress.bind(this),
-            getExternalBalance: () => {},
+            getExternalBalance: this.getExternalBalance.bind(this),
             getMilestoneHash: () => {},
             call: () => {},
             callDataCopy: this.callDataCopy.bind(this),
