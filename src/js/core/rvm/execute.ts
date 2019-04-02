@@ -29,8 +29,8 @@ export default async function execute(transaction: Transaction, wasmBinary: Uint
     // TODO: replace 03c074e7992389c7b5403c35fe01b1fa with actual data
     const context = new Context({
         id: transaction.id,
-        fromAddress: '03c074e7992389c7b5403c35fe01b1fa',
-        toAddress: '02c074e7992389c7b5403c35fe01b1fa',
+        fromAddress: '53ae893e4b22d707943299a8d0c844df0e3d5557',
+        toAddress: '52ae893e4b22d707943299a8d0c844df0e3d5557',
         data: transaction.data,
         value: transaction.value
     });
