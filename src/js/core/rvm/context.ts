@@ -204,7 +204,6 @@ class Context {
 
     private getTransactionDifficulty(resultOffset: number){
         const difficultyHex = "0x" + this.transactionDifficulty.toString(16)
-        console.log(difficultyHex, 'difficulty HEXx');
         const difficultyBytes = hexStringToByte(difficultyHex);
         this.mem.write(resultOffset, 32, difficultyBytes);
     }
