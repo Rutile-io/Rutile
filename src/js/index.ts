@@ -5,7 +5,7 @@ import isNodeJs from './services/isNodeJs';
 import Wallet from './models/Wallet';
 import { saveTransaction, startDatabase } from './services/DatabaseService';
 // import RutileContext from './models/RutileContext';
-// import * as fs from 'fs';
+import * as fs from 'fs';
 import { validateTransaction, applyTransaction } from './services/TransactionService';
 // const Logger = require('js-logger');
 
@@ -51,7 +51,7 @@ async function run() {
         // const lamda = new Rutile.Lamda(fileArrayBuffer);
         const hash = 'QmTBj5Y79RQz82asMSQf1EF4xpGtcZumsn7XHyxkxgEaLV'; //await rutile.deploy(lamda);
 
-        console.log('[] hash -> ', hash);
+        console.log('[Lamda] hash -> ', hash);
 
         const transaction = new Rutile.Transaction({
             to: hash,

@@ -4,7 +4,7 @@ import { VmError, VM_ERROR, FinishExecution } from "./lib/exceptions";
 import Account from "../../models/Account";
 import MerkleTree from "../../models/MerkleTree";
 import { startDatabase } from "../../services/DatabaseService";
-import { number } from "prop-types";
+import { storeAndNotify } from "./utils/sharedBufferUtils";
 const ethUtil = require('ethereumjs-util')
 
 interface ContextOptions {
@@ -16,7 +16,7 @@ interface ContextOptions {
     transactionDifficulty: number;
 }
 
-interface Results {
+export interface Results {
     exception: number;
     exceptionError?: VM_ERROR;
     gasUsed: number;
@@ -42,6 +42,7 @@ class Context {
     dataParsed: any;
 
     mem: Memory;
+    notifierBuffer: SharedArrayBuffer;
     wasmInstance: WebAssembly.ResultObject;
 
     constructor(options: ContextOptions) {
@@ -52,16 +53,30 @@ class Context {
         this.value = options.value;
         this.transactionDifficulty = options.transactionDifficulty;
         this.dataParsed = ethUtil.toBuffer(options.data);
+        this.notifierBuffer = new SharedArrayBuffer(1000);
     }
 
-    public async init() {
+    public async init(memory: ArrayBuffer) {
         const database = startDatabase();
 
         this.toAccount = await Account.findOrCreate(this.toAddress);
         this.state = new MerkleTree(database, this.toAccount.storageRoot);
 
         await this.state.fill();
-        this.updateMemory();
+
+        return {
+            notifier: this.notifierBuffer,
+            memory: this.updateMemory(memory)
+        }
+    }
+
+    public updateMemory(memory: ArrayBuffer) {
+        const length = Uint8Array.BYTES_PER_ELEMENT * memory.byteLength;
+        const sharedArrayBuffer = new SharedArrayBuffer(length);
+
+        this.mem = new Memory(sharedArrayBuffer);
+
+        return sharedArrayBuffer;
     }
 
     public async close() {
@@ -70,22 +85,17 @@ class Context {
     }
 
     /**
-     * Updates the memory instance. Should only be called once.
-     *
-     * @memberof Context
-     */
-    public updateMemory() {
-        this.mem = new Memory(this.wasmInstance.instance.exports.memory);
-    }
-
-    /**
      * Consumes gas
      *
      * @param {number} amount
      * @memberof Context
      */
-    public useGas(amount: number) {
+    public useGas(notifierIndex: number, amount: number) {
+        console.log('Using that gas pff');
         this.results.gasUsed += amount;
+
+        storeAndNotify(this.notifierBuffer, notifierIndex, 1);
+        console.log('Done with gassss');
     }
 
     /**
@@ -138,14 +148,14 @@ class Context {
     private getExternalBalance(addressOffset: number, resultOffset: number){
 
         const address = this.mem.read(addressOffset, 20);
-        
+
         // TODO: Get an account sync from db
         // const toAccount = Account.getFromAddress(toHex(address));
         // console.log(toAccount)
 
         // this.mem.write(resultOffset, 32, data);
 
-    }        
+    }
 
 
     /**
@@ -155,9 +165,11 @@ class Context {
      * @param {number} resultOffset
      * @memberof Context
      */
-    private getCaller(resultOffset: number) {
+    private getCaller(notifierIndex: number, resultOffset: number) {
         const addressInBytes = hexStringToByte(this.fromAddress);
-        this.mem.write(resultOffset, 20, addressInBytes)
+        this.mem.write(resultOffset, 20, addressInBytes);
+
+        storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }
 
     /**
@@ -171,7 +183,7 @@ class Context {
      * @returns
      * @memberof Context
      */
-    private callDataCopy(resultOffset: number, dataOffset: number, length: number) {
+    private callDataCopy(notifierIndex: number, resultOffset: number, dataOffset: number, length: number) {
         if (length === 0) {
             // TODO: Throw some sort of exception
             return;
@@ -179,10 +191,12 @@ class Context {
 
         const data = this.dataParsed.slice(dataOffset, dataOffset + length);
         this.mem.write(resultOffset, length, data);
+
+        storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }
 
     /**
-     * Gets the deposited value by the instruction/transaction responsible for this execution and loads it into memory at the given location. 
+     * Gets the deposited value by the instruction/transaction responsible for this execution and loads it into memory at the given location.
      * @todo Should change 32 to 128
      * @param resultOffset i32ptr the memory offset to load the value into (u128)
      */
@@ -198,8 +212,8 @@ class Context {
      * @returns
      * @memberof Context
      */
-    private getCallDataSize(): number {
-        return this.dataParsed.length;
+    private getCallDataSize(notifierIndex: number): void {
+        storeAndNotify(this.notifierBuffer, notifierIndex, this.dataParsed.length)
     }
 
     private getTransactionDifficulty(resultOffset: number){
@@ -251,8 +265,6 @@ class Context {
     }
 
     private log(dataOffset: number, length: number) {
-        this.updateMemory();
-
         const result = this.mem.read(dataOffset, length);
         console.log('[LOG]: ', result);
     }
@@ -291,6 +303,7 @@ class Context {
             returnDataCopy: () => {},
             selfDestruct: () => {},
             getTransactionTimestamp: () => {},
+            useGas: this.useGas.bind(this),
         }
     }
 }
