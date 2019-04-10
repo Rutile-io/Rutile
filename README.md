@@ -13,6 +13,10 @@ Rutile is currently in development but is actively worked on.
 - Store files in the Rutile network using IPFS
 - Re-use your Ethereum private keys & addresses in Rutile
 
+## More info
+
+- [Rutile Virtual Machine](https://github.com/Rutile-io/Rutile/tree/develop/src/js/core/rvm)
+
 ## Running Rutile
 
 Rutile is developed in TypeScript and requires node.js.
