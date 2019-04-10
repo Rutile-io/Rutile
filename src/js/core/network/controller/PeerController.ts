@@ -1,17 +1,16 @@
-import isNodeJs from "../services/isNodeJs";
-import getConfig, { configuration } from "../Configuration";
-import P2P from "./P2P";
 import PeerToPeerService from "../services/PeerToPeerService";
 import { URL } from 'url';
-import { ConnectOfferMessage, TransactionMessage } from "./types/MessageType";
-import Transaction from "./Transaction";
-import EventHandler from "../services/EventHandler";
-import { PEER_TO_PEER_ON_PEER_DATA } from "../core/events";
+import { TransactionMessage } from "../lib/types/MessageType";
+import Transaction from "../../../models/Transaction";
+import Peer from '../lib/peer';
+import { configuration } from "../../../Configuration";
+import isNodeJs from "../../../services/isNodeJs";
+
 
 interface Connection {
     // Offers don't have yet a filled in nodeId,
     nodeId?: string,
-    p2p: P2P,
+    peer: Peer,
 }
 
 export interface PeerDataMessage {
@@ -21,13 +20,8 @@ export interface PeerDataMessage {
     }
 }
 
-class PeerToPeer {
+class PeerController {
     connections: Connection[] = [];
-    eventHandler: EventHandler;
-
-    constructor(eventHandler: EventHandler) {
-        this.eventHandler = eventHandler;
-    }
 
     /**
      * Handles the HTTP Requests (Mostly for Node)
@@ -36,7 +30,7 @@ class PeerToPeer {
      * @param {*} req
      * @param {*} res
      * @returns
-     * @memberof PeerToPeer
+     * @memberof PeerController
      */
     private handleHttpRequest(req: any, res: any) {
         res.setHeader('Access-Control-Allow-Origin', '*');
@@ -68,7 +62,7 @@ class PeerToPeer {
             }
 
             // Create a response signal and send it as response.
-            const peer = new P2P(false);
+            const peer = new Peer(false);
 
             peer.onSignal = (offerSignal) => {
                 res.writeHead(200, {
@@ -77,7 +71,7 @@ class PeerToPeer {
                 res.end(JSON.stringify({
                     Result: {
                         sdp: offerSignal,
-                        nodeId: getConfig('nodeId'),
+                        nodeId: configuration.nodeId,
                     }
                 }));
             }
@@ -91,7 +85,7 @@ class PeerToPeer {
 
             // Now use the offer that was given and connect to that node.
             this.connections.push({
-                p2p: peer,
+                peer,
                 nodeId,
             });
          } else {
@@ -101,10 +95,8 @@ class PeerToPeer {
     }
 
     private async onSignal(sessionDescription: RTCSessionDescriptionInit, peerId: string) {
-        console.log('[PeerToPeer] Making first handshake with server');
-
         const response =  await PeerToPeerService.initialHttpNodeConnect(sessionDescription);
-        const connectionIndex = this.connections.findIndex(connection => connection.p2p.id === peerId);
+        const connectionIndex = this.connections.findIndex(connection => connection.peer.id === peerId);
         const connection = this.connections[connectionIndex];
 
         if (!response) {
@@ -117,20 +109,20 @@ class PeerToPeer {
 
         // Since this is our first connection we need more nodes.
         // So we ask the node to give us a list of different nodes.
-        connection.p2p.onConnect = () => {
+        connection.peer.onConnect = () => {
             console.log('[PeerToPeer]: First connection has been made');
         }
 
         // Now completely connect to it.
         // And remember the node Id.
-        connection.p2p.connect(response.sdp);
+        connection.peer.connect(response.sdp);
         this.connections[connectionIndex].nodeId = response.nodeId;
     }
 
     // Peer handeling events
 
     private onPeerClose(peerId: string) {
-        const disconnectedConnection = this.connections.findIndex(connection => connection.p2p.id === peerId);
+        const disconnectedConnection = this.connections.findIndex(connection => connection.peer.id === peerId);
 
         console.log('[PeerToPeer] Disconnected with NodeId -> ', this.connections[disconnectedConnection].nodeId);
 
@@ -139,7 +131,7 @@ class PeerToPeer {
     }
 
     createPeer(initiator = false, onSignal = (sdp: RTCSessionDescriptionInit) => {}) {
-        const peer = new P2P(initiator);
+        const peer = new Peer(initiator);
 
         peer.onClose = () => this.onPeerClose(peer.id);
         peer.onConnect = () => this.onPeerConnected(peer.id);
@@ -169,15 +161,14 @@ class PeerToPeer {
                 data: dataParsed,
             }
 
-            this.eventHandler.trigger(PEER_TO_PEER_ON_PEER_DATA, peerDataMessage);
+            // this.eventHandler.trigger(PEER_TO_PEER_ON_PEER_DATA, peerDataMessage);
         } catch (error) {
             console.log('[onPeerData] error -> ', error);
         }
     }
 
     private onPeerConnected(peerId: string) {
-        console.log('[PeerToPeer] A peer is connected');
-        console.log(`[PeerToPeer] Open connections ${this.connections.length}`);
+        console.log(`[PeerToPeer] A peer is connected (Connected: ${this.connections.length})`);
     }
 
     private onPeerError(error: any, peerId: string) {
@@ -198,38 +189,38 @@ class PeerToPeer {
                 const http = require('http');
                 const httpServer = http.createServer(this.handleHttpRequest.bind(this));
 
-                httpServer.listen(getConfig('port'), '0.0.0.0');
+                httpServer.listen(configuration.port, '0.0.0.0');
 
-                console.log(`Listening on port ${getConfig('port')}`);
+                console.log(`[Peer]Listening on port ${configuration.port}`);
             }
 
             // Since we are just opening the node we have to create an offer.
-            const p2p = new P2P(true);
+            const peer = new Peer(true);
 
-            p2p.onSignal = async (description) => {
+            peer.onSignal = async (description) => {
                 try {
-                    await this.onSignal(description, p2p.id);
+                    await this.onSignal(description, peer.id);
                 } catch (error) {
                     reject(error);
                 }
             }
 
-            p2p.onClose = () => this.onPeerClose(p2p.id);
-            p2p.onData = (data) => this.onPeerData(data, p2p.id);
-            p2p.onConnect = () => {
-                this.onPeerConnected(p2p.id);
-                resolve(p2p.id);
+            peer.onClose = () => this.onPeerClose(peer.id);
+            peer.onData = (data) => this.onPeerData(data, peer.id);
+            peer.onConnect = () => {
+                this.onPeerConnected(peer.id);
+                resolve(peer.id);
             }
 
-            p2p.onError = (error) => {
-                this.onPeerError(error, p2p.id);
+            peer.onError = (error) => {
+                this.onPeerError(error, peer.id);
                 reject(error);
             }
 
-            p2p.open();
+            peer.open();
 
             this.connections.push({
-                p2p,
+                peer,
             });
         });
     }
@@ -247,11 +238,11 @@ class PeerToPeer {
     async broadcast(data: string) {
         this.connections.forEach((connect) => {
             // Make sure it's still connected
-            if (!connect.p2p.isConnected) {
+            if (!connect.peer.isConnected) {
                 return;
             }
 
-            connect.p2p.sendData(data);
+            connect.peer.sendData(data);
         });
     }
 
@@ -265,12 +256,12 @@ class PeerToPeer {
     sendDataToPeer(nodeId: string, data: string) {
         const connection = this.connections.find(connection => connection.nodeId === nodeId);
 
-        if (!connection.p2p.isConnected) {
+        if (!connection.peer.isConnected) {
             throw new Error(`Node ${nodeId} is not connected`);
         }
 
-        connection.p2p.sendData(data);
+        connection.peer.sendData(data);
     }
 }
 
-export default PeerToPeer;
+export default PeerController;

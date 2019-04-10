@@ -98,7 +98,7 @@ class MerkleTree {
      * @returns
      * @memberof MerkleTree
      */
-    async fill(): Promise<Map<string | Buffer, Uint8Array | Buffer>> {
+    async fill(): Promise<any> {
         return new Promise((resolve) => {
             this.createReadStream().on('data', (data: any) => {
                 this.cache.set(data.key.toString(), data.value);

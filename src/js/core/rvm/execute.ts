@@ -5,9 +5,6 @@ import Transaction from '../../models/Transaction';
 import { createWorker } from './utils/workerUtils';
 import WorkerMessageController from './controller/WorkerMessageController';
 
-const metering = require('wasm-metering');
-const saferEval = require('safer-eval');
-
 interface ExecuteSecureResults {
     gasUsed?: number;
     result: any;
@@ -50,54 +47,4 @@ export default async function execute(transaction: Transaction, wasmBinary: Uint
             gasUsed: 100,
         },
     }
-
-
-
-    // const wasm = await WebAssembly.instantiate(meteredWas, {
-    //     metering: {
-    //         usegas: (gas: number) => {
-    //             context.useGas(gas);
-    //         }
-    //     },
-    //     env: context.getExposedFunctions(),
-    // });
-
-    // context.wasmInstance = wasm;
-    // await context.init();
-
-    // const exports = wasm.instance.exports;
-
-    // // Since we cannot trust the environment we have to sandbox the code.
-    // // This code cannot access anything outside it's environment.
-    // const sandboxInitator = (): ExecuteSecureResults => {
-    //     if (!exports.main && !exports._main) {
-    //         throw new Error(`Could not find entry 'main' on WASM binary`);
-    //     }
-
-    //     const mainFunc = exports.main || exports._main;
-    //     const result = mainFunc();
-
-    //     return {
-    //         result,
-    //     };
-    // }
-
-    // try {
-    //     await saferEval(`${sandboxInitator}()`, {
-    //         exports,
-    //     });
-    // } catch (error) {
-    //     if (error.errorType !== 'VmError' && error.errorType !== 'FinishExecution') {
-    //         throw error;
-    //     }
-    // }
-
-    // await context.close();
-
-    // const totalGasUsed = Math.round(context.results.gasUsed * 1e-4);
-
-    // return {
-    //     result: context.results,
-    //     // state: context.state,
-    // };
 }

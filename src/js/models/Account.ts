@@ -1,8 +1,6 @@
 import * as Database from "../services/DatabaseService";
 import Transaction from "./Transaction";
 import MerkleTree from "./MerkleTree";
-import keccak256 from "../utils/keccak256";
-import hexZeroPad from "../utils/hexZeroPad";
 import { toHex } from "../core/rvm/utils/hexUtils";
 import { numberToHex, hexStringToBuffer } from "../utils/hexUtils";
 
@@ -41,10 +39,15 @@ class Account {
      */
     async fill() {
         const storageData = await this.storage.fill();
-        const hexBalance = '0x' + toHex(storageData.get('balance'));
-        const hexTransactionIndex = '0x' + toHex(storageData.get('transactionIndex'));
 
-        this.address = '0x' + toHex(storageData.get('address'));
+        const balance = storageData.get('balance') || [0];
+        const transactionIndex = storageData.get('transactionIndex') || [0];
+        const address = storageData.get('address') || [0];
+
+        const hexBalance = '0x' + toHex(balance);
+        const hexTransactionIndex = '0x' + toHex(transactionIndex);
+
+        this.address = '0x' + toHex(address);
         this.balance = parseInt(hexBalance, 16);
         this.transactionIndex = parseInt(hexTransactionIndex, 16);
 
@@ -109,7 +112,7 @@ class Account {
         const toAccount = await Account.findOrCreate(transaction.to);
         toAccount.balance = toAccount.balance + transaction.value;
 
-        // TODO: For a lamda address we should update the state of the address
+        // TODO: For a Contract address we should update the state of the address
         // TODO: Also include the transaction as part of a merkle tree
 
         // Save our changes

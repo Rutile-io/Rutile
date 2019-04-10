@@ -7,7 +7,6 @@ import { saveTransaction, startDatabase } from './services/DatabaseService';
 // import RutileContext from './models/RutileContext';
 import * as fs from 'fs';
 import { validateTransaction, applyTransaction } from './services/TransactionService';
-import MerkleTree from './models/MerkleTree';
 const ethUtil = require('ethereumjs-util')
 // const Logger = require('js-logger');
 
@@ -47,12 +46,10 @@ async function run() {
         const file = fs.readFileSync('/Volumes/Mac Space/Workspace/Rutile/EVM.wasm/build/untouched.wasm');
         // const file = fs.readFileSync('/Users/franklinwaller/Projects/RustWASM/wrc20/pkg/wrc20_bg.wasm');
         // const file = fs.readFileSync('/Users/franklinwaller/Desktop/EVM.wasm-master/build/ewasm_token.wasm');
-        const fileArrayBuffer = new Uint8Array(file);
+        const wasm = new Uint8Array(file);
+        const hash = await rutile.deploy(wasm);
 
-        const lamda = new Rutile.Lamda(fileArrayBuffer);
-        const hash = await rutile.deploy(lamda);
-
-        console.log('[Lamda] hash -> ', hash);
+        console.log('[WASM] hash -> ', hash);
 
         const transaction = new Rutile.Transaction({
             to: hash,

@@ -1,9 +1,7 @@
-import isNodeJs from "./services/isNodeJs";
 import IConfig from "./models/interfaces/IConfig";
 import getArguments from "./utils/getArguments";
 
 const uuid = require('uuid/v4');
-const ethers = require('ethers');
 
 const NODE_ID = `${uuid()}-${uuid()}-${uuid()}`;
 
