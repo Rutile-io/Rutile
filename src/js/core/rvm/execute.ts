@@ -3,7 +3,6 @@ import Context from './context';
 import { configuration } from '../../Configuration'
 import Transaction from '../../models/Transaction';
 import { createWorker } from './utils/workerUtils';
-import { configuration } from '../../Configuration';
 import WorkerMessageController from './controller/WorkerMessageController';
 
 const metering = require('wasm-metering');

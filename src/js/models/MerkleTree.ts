@@ -66,9 +66,9 @@ class MerkleTree {
      * @returns
      * @memberof MerkleTree
      */
-    async get(key: string | Buffer) {
+    async get(key: string | Buffer): Promise<any> {
         return new Promise((resolve, reject) => {
-            this.trie.get(key, (err: any, value: string | Buffer) => {
+            this.trie.get(key, (err: any, value: Buffer | Uint8Array) => {
                 if (err) return reject(err);
 
                 resolve(value);

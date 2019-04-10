@@ -1,6 +1,7 @@
 import { workerRequest } from "../utils/workerUtils";
 import Transaction from "../../../models/Transaction";
 import { waitAndLoad, reset } from "../utils/sharedBufferUtils";
+import { Memory, synchroniseBufferToMemory, synchroniseMemoryToBuffer } from "./memory";
 
 /**
  * Virtual Context is meant as a way to expose functions to WASM while posting requests
@@ -11,19 +12,28 @@ import { waitAndLoad, reset } from "../utils/sharedBufferUtils";
 class VirtualContext {
     sharedMemory: SharedArrayBuffer;
     sharedNotifier: SharedArrayBuffer;
-    memoryU8: Uint8Array;
+    wasm: WebAssembly.ResultObject;
+
+    constructor() {
+        this.sharedNotifier = new SharedArrayBuffer(4);
+    }
 
     async init(wasm: WebAssembly.ResultObject) {
-         // Ask the main thread to init the context and create a shared buffer.
-         const contextInitResults = await workerRequest({
+        const length = Uint8Array.BYTES_PER_ELEMENT * wasm.instance.exports.memory.buffer.byteLength;
+        const sharedMemory = new SharedArrayBuffer(length);
+
+        this.wasm = wasm;
+        // Ask the main thread to init the context
+        // and wait till it's completed
+        await workerRequest({
             type: 'CONTEXT_INIT',
             value: {
-                memoryBuffer: wasm.instance.exports.memory.buffer,
+                memory: sharedMemory,
+                notifier: this.sharedNotifier,
             },
         });
 
-        this.sharedMemory = contextInitResults.value.sharedMemory;
-        this.sharedNotifier = contextInitResults.value.sharedNotifier;
+        this.sharedMemory = sharedMemory;
     }
 
     /**
@@ -35,7 +45,8 @@ class VirtualContext {
      * @memberof VirtualContext
      */
     callContext(method: string, args?: any[]) {
-        this.refreshMemory();
+        // First synchronise the WebAssembly Memory with the SharedBuffer memory
+        synchroniseMemoryToBuffer(this.wasm.instance.exports.memory, this.sharedMemory);
 
         workerRequest({
             type: 'context::' + method,
@@ -46,76 +57,41 @@ class VirtualContext {
         const value = waitAndLoad(this.sharedNotifier, 0);
         reset(this.sharedNotifier, 0);
 
+        // Now synchronise the changes made to the shared buffer back to memory
+        synchroniseBufferToMemory(this.wasm.instance.exports.memory, this.sharedMemory);
+
         return value;
     }
 
-    refreshMemory() {
-        this.memoryU8 = new Uint8Array(this.sharedMemory);
-    }
-
-    getCallDataSize() {
-        return this.callContext('getCallDataSize');
+    useGas(gas: number) {
+        // We allow gas to be async called
+        // Since useGas is at init time called while notifierBuffer is not
+        // available. Resulting in a crash
+        workerRequest({
+            type: 'context::useGas',
+            value: [gas],
+            bufferIndex: 0,
+        });
     }
 
     /**
-     * Gets the address of the contract caller and stores it in memory
+     * Passes all arguments to the this.callContext function
+     * All functions will be handled on the main thread.
      *
-     * @private
-     * @param {number} resultOffset
-     * @memberof Context
+     * @returns
+     * @memberof VirtualContext
      */
-    getCaller(resultOffset: number) {
-        this.callContext('getCaller', [
-            resultOffset,
-        ]);
-    }
-
-    revert(dataOffset: number, dataLength: number) {
-        this.callContext('revert', [
-            dataOffset,
-            dataLength,
-        ]);
-    }
-
-    useGas(gas: number) {
-        // TODO: This does not translate well
-        // since useGas is called before the sharedBuffer is send along
-        // Maybe create the sharedBuffer on the worker side?
-        // this.callContext('useGas', [
-        //     gas,
-        // ]);
-    }
-
-    callDataCopy(resultOffset: number, dataOffset: number, length: number) {
-        this.callContext('callDataCopy', [
-            resultOffset,
-            dataOffset,
-            length,
-        ]);
-    }
-
-    storageLoad() {
-        console.log('STorage load');
-    }
-
-    storageStore() {
-        console.log('Storage store');
-    }
-
-    finish() {
-        console.log('Finish!');
-    }
-
     getExposedFunctions() {
         return {
             useGas: this.useGas.bind(this),
-            revert: this.revert.bind(this),
-            getCallDataSize: this.getCallDataSize.bind(this),
-            callDataCopy: this.callDataCopy.bind(this),
-            storageLoad: this.storageLoad.bind(this),
-            storageStore: this.storageStore.bind(this),
-            finish: this.finish.bind(this),
-            getCaller: this.getCaller.bind(this),
+            revert: (...args: any[]) => this.callContext('revert', args),
+            getCallDataSize: (...args: any[]) => this.callContext('getCallDataSize', args),
+            callDataCopy: (...args: any[]) => this.callContext('callDataCopy', args),
+            storageLoad: (...args: any[]) => this.callContext('storageLoad', args),
+            storageStore: (...args: any[]) => this.callContext('storageStore', args),
+            finish: (...args: any[]) => this.callContext('finish', args),
+            getCaller: (...args: any[]) => this.callContext('getCaller', args),
+            log: (...args: any[]) => this.callContext('log', args),
         }
     }
 }

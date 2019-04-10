@@ -5,7 +5,6 @@ import Transaction from "../../../models/Transaction";
 class WorkerMessageController {
     context: Context;
     worker: Worker;
-    sharedNotifier: SharedArrayBuffer;
     executionResultResolve: (value: any) => void;
 
     constructor(worker: Worker, context: Context) {
@@ -30,18 +29,20 @@ class WorkerMessageController {
     }
 
     private async contextInit(message: RequestMessage) {
-        const buffers = await this.context.init(message.value.memoryBuffer);
+        await this.context.init(message.value.memory, message.value.notifier);
 
-        this.sharedNotifier = buffers.notifier;
-
+        // Let the worker know that we are finished with initialising.
         postMessageOnWorker(this.worker, {
             type: message.type,
             id: message.id,
-            value: {
-                sharedMemory: buffers.memory,
-                sharedNotifier: buffers.notifier,
-            },
+            value: null,
         });
+    }
+
+    private async finish(results: Results) {
+        this.worker.terminate();
+        await this.context.close();
+        this.executionResultResolve(this.context.results);
     }
 
     private async onMessage(message: RequestMessage) {
@@ -75,7 +76,7 @@ class WorkerMessageController {
                 throw error;
             }
 
-            this.executionResultResolve(this.context.results);
+            this.finish(this.context.results);
         }
     }
 }

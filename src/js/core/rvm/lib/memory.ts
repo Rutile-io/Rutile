@@ -1,3 +1,5 @@
+import { toHex } from "../utils/hexUtils";
+
 export class Memory {
     buffer: SharedArrayBuffer = null;
 
@@ -18,6 +20,26 @@ export class Memory {
     }
 
     read(offset: number, length: number) {
-        return new Uint8Array(this.buffer, offset, length);
+        const data = new Uint8Array(this.buffer, offset, length);
+
+        return data;
+    }
+}
+
+export function synchroniseMemoryToBuffer(memory: WebAssembly.Memory, buffer: SharedArrayBuffer) {
+    const ui8Shared = new Uint8Array(buffer);
+    const ui8Memory = new Uint8Array(memory.buffer);
+
+    for (let index = 0; index < ui8Memory.length; index++) {
+        Atomics.store(ui8Shared, index, ui8Memory[index]);
+    }
+}
+
+export function synchroniseBufferToMemory(memory: WebAssembly.Memory, buffer: SharedArrayBuffer) {
+    const ui8Shared = new Uint8Array(buffer);
+    const ui8Memory = new Uint8Array(memory.buffer);
+
+    for (let index = 0; index < ui8Shared.length; index++) {
+        ui8Memory[index] = Atomics.load(ui8Shared, index);
     }
 }

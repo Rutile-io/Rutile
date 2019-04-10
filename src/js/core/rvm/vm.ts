@@ -50,15 +50,17 @@ async function runWasm(wasmBinary: Uint8Array) {
         saferEval(`${sandboxInitator}()`, {
             wasmExports: exports,
         });
+
+        // Execution was completed without any errors
+        // The code probbably didn't call finish() on it's own
+        // so it's safe to assume we can close the VM.
+        // context.getExposedFunctions().finish(0, 0);
     } catch (error) {
         if (error.errorType !== 'VmError' && error.errorType !== 'FinishExecution') {
             console.error('[VM] Error:', error);
             throw error;
         }
     }
-
-    // await context.close();
-    // context = null;
 }
 
 async function onMessage(event: any) {

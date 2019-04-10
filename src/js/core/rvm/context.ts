@@ -20,7 +20,7 @@ export interface Results {
     exception: number;
     exceptionError?: VM_ERROR;
     gasUsed: number;
-    return: Uint8Array;
+    return: string;
 }
 
 class Context {
@@ -34,7 +34,7 @@ class Context {
     results: Results = {
         exception: 0,
         gasUsed: 0,
-        return: new Uint8Array([]),
+        return: '0x',
     };
 
     data: string;
@@ -53,30 +53,26 @@ class Context {
         this.value = options.value;
         this.transactionDifficulty = options.transactionDifficulty;
         this.dataParsed = ethUtil.toBuffer(options.data);
-        this.notifierBuffer = new SharedArrayBuffer(1000);
     }
 
-    public async init(memory: ArrayBuffer) {
+    public async init(memory: SharedArrayBuffer, notifier: SharedArrayBuffer) {
         const database = startDatabase();
 
+        this.notifierBuffer = notifier;
         this.toAccount = await Account.findOrCreate(this.toAddress);
         this.state = new MerkleTree(database, this.toAccount.storageRoot);
 
         await this.state.fill();
+        this.updateMemory(memory);
 
         return {
             notifier: this.notifierBuffer,
-            memory: this.updateMemory(memory)
+            memory,
         }
     }
 
-    public updateMemory(memory: ArrayBuffer) {
-        const length = Uint8Array.BYTES_PER_ELEMENT * memory.byteLength;
-        const sharedArrayBuffer = new SharedArrayBuffer(length);
-
-        this.mem = new Memory(sharedArrayBuffer);
-
-        return sharedArrayBuffer;
+    public updateMemory(memory: SharedArrayBuffer) {
+        this.mem = new Memory(memory);
     }
 
     public async close() {
@@ -91,11 +87,7 @@ class Context {
      * @memberof Context
      */
     public useGas(notifierIndex: number, amount: number) {
-        console.log('Using that gas pff');
         this.results.gasUsed += amount;
-
-        storeAndNotify(this.notifierBuffer, notifierIndex, 1);
-        console.log('Done with gassss');
     }
 
     /**
@@ -106,11 +98,12 @@ class Context {
      * @param {number} valueOffset
      * @memberof Context
      */
-    private storageStore(pathOffset: number, valueOffset: number) {
-        const path = this.mem.read(pathOffset, 32);
-        const value = this.mem.read(valueOffset, 32);
+    private async storageStore(notifierIndex: number, pathOffset: number, valueOffset: number) {
+        const path = Buffer.from(this.mem.read(pathOffset, 32));
+        const value = Buffer.from(this.mem.read(valueOffset, 32));
 
-        this.state.putSync(toHex(path), value);
+        await this.state.put(path.toString('hex'), value);
+        storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }
 
     /**
@@ -121,16 +114,17 @@ class Context {
      * @param {number} resultOffset
      * @memberof Context
      */
-    private storageLoad(pathOffset: number, resultOffset: number) {
+    private async storageLoad(notifierIndex: number, pathOffset: number, resultOffset: number) {
         const path = this.mem.read(pathOffset, 32);
-        let value = this.state.getSync(toHex(path));
+        let value = await this.state.get(toHex(path));
 
         // When the value is not available fall back to 32 bytes of 0
-        if (typeof value === 'undefined') {
+        if (typeof value === 'undefined' || value === null) {
             value = createZerosArray(32);
         }
 
         this.mem.write(resultOffset, 32, value);
+        storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }
 
     /**
@@ -168,7 +162,6 @@ class Context {
     private getCaller(notifierIndex: number, resultOffset: number) {
         const addressInBytes = hexStringToByte(this.fromAddress);
         this.mem.write(resultOffset, 20, addressInBytes);
-
         storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }
 
@@ -185,6 +178,7 @@ class Context {
      */
     private callDataCopy(notifierIndex: number, resultOffset: number, dataOffset: number, length: number) {
         if (length === 0) {
+            console.log('EXCEPTION ERROR');
             // TODO: Throw some sort of exception
             return;
         }
@@ -230,7 +224,7 @@ class Context {
      * @param {number} dataLength
      * @memberof Context
      */
-    private revert(dataOffset: number, dataLength: number) {
+    private revert(notifierIndex: number, dataOffset: number, dataLength: number) {
         let ret = new Uint8Array([]);
 
         if (dataLength) {
@@ -239,7 +233,7 @@ class Context {
 
         this.results.exception = 0;
         this.results.exceptionError = VM_ERROR.REVERT;
-        this.results.return = ret;
+        this.results.return = '0x' + toHex(ret);
 
         throw new VmError(VM_ERROR.REVERT);
     }
@@ -252,21 +246,23 @@ class Context {
      * @param {number} dataLength
      * @memberof Context
      */
-    private finish(dataOffset: number, dataLength: number) {
+    private finish(notifierIndex: number, dataOffset: number, dataLength: number) {
         let ret = new Uint8Array([]);
         if (dataLength) {
             ret = this.mem.read(dataOffset, dataLength);
         }
 
         this.results.exception = 0;
-        this.results.return = ret;
+        this.results.return = '0x' + toHex(ret);
 
         throw new FinishExecution('Finished execution');
     }
 
-    private log(dataOffset: number, length: number) {
+    private log(notifierIndex: number, dataOffset: number, length: number) {
         const result = this.mem.read(dataOffset, length);
-        console.log('[LOG]: ', result);
+        console.log(`[LOG]: 0x${toHex(result)} ${dataOffset}:${length}`);
+
+        storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }
 
     getExposedFunctions() {

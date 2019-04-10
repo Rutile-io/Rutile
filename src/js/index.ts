@@ -44,12 +44,13 @@ async function run() {
         }
         // const file = fs.readFileSync('./examples/wrc20/wrc20-non-debug.wasm');
         // require('/Users/franklinwaller/Desktop/EVM.wasm-master/build/untouched.wasm');
-        // const file = fs.readFileSync('/Users/franklinwaller/Desktop/EVM.wasm-master/build/untouched.wasm');
+        const file = fs.readFileSync('/Volumes/Mac Space/Workspace/Rutile/EVM.wasm/build/untouched.wasm');
+        // const file = fs.readFileSync('/Users/franklinwaller/Projects/RustWASM/wrc20/pkg/wrc20_bg.wasm');
         // const file = fs.readFileSync('/Users/franklinwaller/Desktop/EVM.wasm-master/build/ewasm_token.wasm');
-        // const fileArrayBuffer = new Uint8Array(file);
+        const fileArrayBuffer = new Uint8Array(file);
 
-        // const lamda = new Rutile.Lamda(fileArrayBuffer);
-        const hash = 'QmTBj5Y79RQz82asMSQf1EF4xpGtcZumsn7XHyxkxgEaLV'; //await rutile.deploy(lamda);
+        const lamda = new Rutile.Lamda(fileArrayBuffer);
+        const hash = await rutile.deploy(lamda);
 
         console.log('[Lamda] hash -> ', hash);
 
@@ -57,7 +58,7 @@ async function run() {
             to: hash,
             // data: '0x1A029399ed09375dc6b20050d242d1611af97ee4a6e93cad',
             // data: '0x9993021aed09375dc6b20050d242d1611af97ee4a6e93cad',
-            data: '0x00000000',
+            data: '0x00000001',
             // data: '0x5d359fbde929cf2544363bdcee4a976515d5f97758ef476c000000000007a120',
             value: 0,
             transIndex: wallet.account.transactionIndex + 1,
