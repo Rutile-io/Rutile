@@ -5,7 +5,7 @@ import isNodeJs from './services/isNodeJs';
 import Wallet from './models/Wallet';
 import { saveTransaction, startDatabase } from './services/DatabaseService';
 // import RutileContext from './models/RutileContext';
-import * as fs from 'fs';
+// import * as fs from 'fs';
 import { validateTransaction, applyTransaction } from './services/TransactionService';
 const ethUtil = require('ethereumjs-util')
 // const Logger = require('js-logger');
@@ -30,7 +30,7 @@ async function run() {
     await wallet.getAccountInfo();
 
     // Testing..
-    if (isNodeJs()) {
+    if (isNodeJs() || true) {
         const rutile = new Rutile();
         try {
             await rutile.start();
@@ -43,11 +43,11 @@ async function run() {
         }
         // const file = fs.readFileSync('./examples/wrc20/wrc20-non-debug.wasm');
         // require('/Users/franklinwaller/Desktop/EVM.wasm-master/build/untouched.wasm');
-        const file = fs.readFileSync('/Volumes/Mac Space/Workspace/Rutile/EVM.wasm/build/untouched.wasm');
+        // const file = fs.readFileSync('/Volumes/Mac Space/Workspace/Rutile/EVM.wasm/build/untouched.wasm');
         // const file = fs.readFileSync('/Users/franklinwaller/Projects/RustWASM/wrc20/pkg/wrc20_bg.wasm');
         // const file = fs.readFileSync('/Users/franklinwaller/Desktop/EVM.wasm-master/build/ewasm_token.wasm');
-        const wasm = new Uint8Array(file);
-        const hash = await rutile.deploy(wasm);
+        // const wasm = new Uint8Array(file);
+        const hash = 'QmW7E36huBmRzgd2meSk57tgWvtgN41PYv5JAZbMJrqo1Z'; // await rutile.deploy(wasm);
 
         console.log('[WASM] hash -> ', hash);
 

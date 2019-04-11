@@ -73,7 +73,6 @@ export async function getById(id: string): Promise<any> {
 
         return val;
     } catch (error) {
-        console.error(error);
         return null;
     }
 }

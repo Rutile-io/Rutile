@@ -1,19 +1,16 @@
 import EventHandler from '../services/EventHandler';
 import { PEER_TO_PEER_ON_PEER_DATA } from '../core/events';
-import PeerToPeer, { PeerDataMessage } from './PeerToPeer';
+import PeerController, { PeerDataMessage } from '../core/network/controller/PeerController';
 import Transaction from './Transaction';
 import { validateTransaction, applyTransaction, getTransactionById } from '../services/TransactionService';
 import createGenesisTransaction from '../services/transaction/createGenesisTransaction';
-import { configuration } from '../Configuration';
-import { synchroniseDatabase } from '../services/DatabaseService';
-import PeerToPeerService from '../services/PeerToPeerService';
 
 class Dag {
     eventHandler: EventHandler;
-    peerToPeer: PeerToPeer;
+    peerController: PeerController;
 
-    constructor(eventHandler: EventHandler, peerToPeer: PeerToPeer) {
-        this.peerToPeer = peerToPeer;
+    constructor(eventHandler: EventHandler, peerController: PeerController) {
+        this.peerController = peerController;
         this.eventHandler = eventHandler;
         this.eventHandler.on(PEER_TO_PEER_ON_PEER_DATA, this.onPeerData.bind(this));
 
@@ -52,8 +49,6 @@ class Dag {
             if (!isTransactionInDatabase) {
                 await applyTransaction(genesisTransaction);
             }
-
-
         } catch (error) {
             console.error('Oh noes -> ', error);
         }

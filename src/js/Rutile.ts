@@ -1,4 +1,4 @@
-import PeerToPeer from './models/PeerToPeer';
+import PeerController from './core/network/controller/PeerController';
 import Ipfs from './services/wrappers/Ipfs';
 import { configuration } from './Configuration';
 import Transaction from './models/Transaction';
@@ -11,7 +11,7 @@ import byteArrayToString from './utils/byteArrayToString';
 // These functions should actually be executed on the network. Not locally.
 
 class Rutile {
-    private peerToPeer: PeerToPeer;
+    private peerController: PeerController;
     private terminal: any;
     public ipfs: Ipfs;
     public dag: Dag;
@@ -37,13 +37,13 @@ class Rutile {
     async start() {
         try {
             // Boot up our peer to peer network
-            this.peerToPeer = new PeerToPeer(this.eventHandler);
-            await this.peerToPeer.open();
+            this.peerController = new PeerController();
+            await this.peerController.open();
         } catch (error) {
             console.error('Could not connect to peers: ', error);
         }
 
-        this.dag = new Dag(this.eventHandler, this.peerToPeer);
+        this.dag = new Dag(this.eventHandler, this.peerController);
     }
 
     async deploy(wasm: Uint8Array): Promise<string> {
@@ -51,7 +51,7 @@ class Rutile {
     }
 
     async sendTransaction(transaction: Transaction) {
-        this.peerToPeer.broadcastTransaction(transaction);
+        this.peerController.broadcastTransaction(transaction);
     }
 }
 

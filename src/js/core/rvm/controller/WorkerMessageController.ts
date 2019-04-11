@@ -1,4 +1,4 @@
-import { addEventListenerOnWorker, RequestMessage, postMessageOnWorker } from "../utils/workerUtils";
+import { addEventListenerOnWorker, RequestMessage, postMessageOnWorker, extractMessageFromEvent } from "../utils/workerUtils";
 import Context, { Results } from "../context";
 import Transaction from "../../../models/Transaction";
 
@@ -45,8 +45,10 @@ class WorkerMessageController {
         this.executionResultResolve(this.context.results);
     }
 
-    private async onMessage(message: RequestMessage) {
+    private async onMessage(event: any) {
         try {
+            const message = extractMessageFromEvent(event);
+
             // Messages that start with context:: are from the Virtual Context
             // they usually want to access values from the Context itself.
             if (message.type.startsWith('context::')) {

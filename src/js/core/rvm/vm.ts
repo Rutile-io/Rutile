@@ -1,4 +1,4 @@
-import { workerAddEventListener, workerPostMessage, workerRequest } from "./utils/workerUtils";
+import { workerAddEventListener, workerPostMessage, workerRequest, extractMessageFromEvent } from "./utils/workerUtils";
 import VirtualContext from "./lib/virtualcontext";
 
 const saferEval = require('safer-eval');
@@ -64,7 +64,7 @@ async function runWasm(wasmBinary: Uint8Array) {
 }
 
 async function onMessage(event: any) {
-    const data = event;
+    const data = extractMessageFromEvent(event);
 
     if (data.type === 'START') {
         await runWasm(data.value.wasm);

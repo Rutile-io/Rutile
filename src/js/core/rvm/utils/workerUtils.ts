@@ -29,15 +29,12 @@ export function createWorker(stringUrl: string, options?: any): Worker {
     return new WorkerConstructor(stringUrl, options);
 }
 
-export function workerParseMessage(event: any): RequestMessage {
-    return event;
-}
-
 export function workerPostMessage(message: RequestMessage) {
     if (isNodeJs()) {
         __non_webpack_require__('worker_threads').parentPort.postMessage(message);
     } else {
-        self.postMessage(message, '*');
+        // @ts-ignore
+        self.postMessage(message);
     }
 }
 
@@ -46,7 +43,8 @@ export function workerRequest(message: RequestMessage): Promise<RequestMessage> 
         message.id = uuid();
 
         function listener(event: any) {
-            const receivedMessage = workerParseMessage(event);
+            const receivedMessage = extractMessageFromEvent(event);
+            console.log('[] receivedMessage -> ', receivedMessage);
 
             if (receivedMessage.id === message.id) {
                 workerRemoveEventListener('message', listener);
@@ -88,3 +86,22 @@ export function postMessageOnWorker(worker: Worker, message: RequestMessage) {
     worker.postMessage(message);
 }
 
+/**
+ * Weird quirks in Nodejs vs Browser
+ * The events are handled differently.
+ * Temp fix to have a isNodeJs(). But should be fixed based on variables.
+ *
+ * @export
+ * @param {*} event
+ */
+export function extractMessageFromEvent(event: any): RequestMessage {
+    try {
+        if (isNodeJs()) {
+            return event;
+        }
+
+        return event.data;
+    } catch (error) {
+        return event;
+    }
+}
