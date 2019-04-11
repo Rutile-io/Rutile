@@ -1,16 +1,16 @@
 import EventHandler from '../services/EventHandler';
 import { PEER_TO_PEER_ON_PEER_DATA } from '../core/events';
-import PeerController, { PeerDataMessage } from '../core/network/controller/PeerController';
+import Network, { PeerDataMessage } from '../core/network/Network';
 import Transaction from './Transaction';
 import { validateTransaction, applyTransaction, getTransactionById } from '../services/TransactionService';
 import createGenesisTransaction from '../services/transaction/createGenesisTransaction';
 
 class Dag {
     eventHandler: EventHandler;
-    peerController: PeerController;
+    network: Network;
 
-    constructor(eventHandler: EventHandler, peerController: PeerController) {
-        this.peerController = peerController;
+    constructor(eventHandler: EventHandler, network: Network) {
+        this.network = network;
         this.eventHandler = eventHandler;
         this.eventHandler.on(PEER_TO_PEER_ON_PEER_DATA, this.onPeerData.bind(this));
 

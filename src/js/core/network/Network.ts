@@ -1,11 +1,11 @@
-import PeerToPeerService from "../services/PeerToPeerService";
+import PeerToPeerService from "./services/PeerToPeerService";
 import { URL } from 'url';
-import { TransactionMessage } from "../lib/types/MessageType";
-import Transaction from "../../../models/Transaction";
-import Peer from '../lib/peer';
-import { configuration } from "../../../Configuration";
-import isNodeJs from "../../../services/isNodeJs";
-
+import { TransactionMessage } from "./lib/types/MessageType";
+import Transaction from "../../models/Transaction";
+import Peer from './lib/peer';
+import { configuration } from "../../Configuration";
+import isNodeJs from "../../services/isNodeJs";
+import EventHandler from "./lib/EventHandler";
 
 interface Connection {
     // Offers don't have yet a filled in nodeId,
@@ -20,8 +20,8 @@ export interface PeerDataMessage {
     }
 }
 
-class PeerController {
-    connections: Connection[] = [];
+class Network extends EventHandler {
+    private connections: Connection[] = [];
 
     /**
      * Handles the HTTP Requests (Mostly for Node)
@@ -128,6 +128,11 @@ class PeerController {
 
         // Remove from array
         this.connections.splice(disconnectedConnection, 1);
+
+        this.trigger('peerClosed', {
+            peerId,
+            data: null,
+        });
     }
 
     createPeer(initiator = false, onSignal = (sdp: RTCSessionDescriptionInit) => {}) {
@@ -154,24 +159,27 @@ class PeerController {
      * @memberof PeerToPeer
      */
     private async onPeerData(data: Uint8Array, peerId: string) {
-        try {
-            const commando = data.toString();
-            const dataParsed: any = JSON.parse(commando);
-            const peerDataMessage: PeerDataMessage = {
-                data: dataParsed,
-            }
-
-            // this.eventHandler.trigger(PEER_TO_PEER_ON_PEER_DATA, peerDataMessage);
-        } catch (error) {
-            console.log('[onPeerData] error -> ', error);
-        }
+        this.trigger('message', {
+            data,
+            peerId,
+        });
     }
 
     private onPeerConnected(peerId: string) {
+        this.trigger('peerConnected', {
+            data: null,
+            peerId,
+        })
+
         console.log(`[PeerToPeer] A peer is connected (Connected: ${this.connections.length})`);
     }
 
     private onPeerError(error: any, peerId: string) {
+        this.trigger('error', {
+            data: error,
+            peerId,
+        });
+
         console.log('[OnPeerError] error -> ', error);
     }
 
@@ -226,7 +234,6 @@ class PeerController {
     }
 
     async broadcastTransaction(transaction: Transaction) {
-
         const message: TransactionMessage = {
             type: 'TRANSACTION',
             value: transaction.toRaw(),
@@ -235,6 +242,12 @@ class PeerController {
         await this.broadcast(JSON.stringify(message));
     }
 
+    /**
+     * Broadcasts data to all open connections
+     *
+     * @param {string} data
+     * @memberof Network
+     */
     async broadcast(data: string) {
         this.connections.forEach((connect) => {
             // Make sure it's still connected
@@ -264,4 +277,4 @@ class PeerController {
     }
 }
 
-export default PeerController;
+export default Network;

@@ -1,7 +1,7 @@
-import PeerController from "../../core/network/controller/PeerController";
+import Network from "../../core/network/Network";
 import { PEER_TO_PEER_ON_PEER_DATA } from "../../core/events";
 
-export default async function getLatestMilestone(peerToPeer: PeerController) {
+export default async function getLatestMilestone(peerToPeer: Network) {
     // let eventId = null;
 
     // eventId = peerToPeer.eventHandler.on(PEER_TO_PEER_ON_PEER_DATA, (data: any) => {

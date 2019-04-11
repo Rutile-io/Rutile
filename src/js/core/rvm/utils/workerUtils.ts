@@ -44,7 +44,6 @@ export function workerRequest(message: RequestMessage): Promise<RequestMessage> 
 
         function listener(event: any) {
             const receivedMessage = extractMessageFromEvent(event);
-            console.log('[] receivedMessage -> ', receivedMessage);
 
             if (receivedMessage.id === message.id) {
                 workerRemoveEventListener('message', listener);

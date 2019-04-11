@@ -7,8 +7,8 @@ const NODE_ID = `${uuid()}-${uuid()}-${uuid()}`;
 
 const config: IConfig = {
     nodeId: NODE_ID,
-    connectionServerUrl: 'localhost:1337',
-    nodesListUrl: 'http://localhost:8903/',
+    // nodesListUrl: 'http://localhost:8903/',
+    nodesListUrl: 'http://localhost:9001/examples/network-file/RutileNodes.json',
     vmUrl: './build/vm.js',
     port: 1337,
     iceServers: [
