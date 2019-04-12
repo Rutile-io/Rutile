@@ -4,6 +4,9 @@ import { configuration } from '../../Configuration'
 import Transaction from '../../models/Transaction';
 import { createWorker } from './utils/workerUtils';
 import WorkerMessageController from './controller/WorkerMessageController';
+import CallMessage from './lib/CallMessage';
+import Ipfs from '../../services/wrappers/Ipfs';
+import stringToByteArray from '../../utils/stringToByteArray';
 
 interface ExecuteSecureResults {
     gasUsed?: number;
@@ -20,7 +23,7 @@ interface ExecuteSecureResults {
  * @param {string[]} scriptArgs
  * @returns
  */
-export default async function execute(transaction: Transaction, wasmBinary: Uint8Array) {
+export default async function execute(callMessage: CallMessage) {
     const worker = createWorker(configuration.vmUrl);
 
     // This is the physical context it contains all functions and data
@@ -28,17 +31,26 @@ export default async function execute(transaction: Transaction, wasmBinary: Uint
     // since database calls and asynchronous calls cannot be done on the
     // worker thread.
     // TODO: replace 03c074e7992389c7b5403c35fe01b1fa with actual data
-    const context = new Context({
-        id: transaction.id,
-        fromAddress: '53ae893e4b22d707943299a8d0c844df0e3d5557',
-        toAddress: '52ae893e4b22d707943299a8d0c844df0e3d5557',
-        data: transaction.data,
-        value: transaction.value,
-        transactionDifficulty: configuration.difficulty
-    });
+    // const context = new Context({
+    //     id: transaction.id,
+    //     fromAddress: '53ae893e4b22d707943299a8d0c844df0e3d5557',
+    //     toAddress: '52ae893e4b22d707943299a8d0c844df0e3d5557',
+    //     data: transaction.data,
+    //     value: transaction.value,
+    //     transactionDifficulty: configuration.difficulty
+    // });
+
+    const ipfs = Ipfs.getInstance(configuration.ipfs);
+
+    // "to" should represent the wasm function address or the user address.
+    // const contents = await ipfs.cat(callMessage.destination);
+    const contents = await ipfs.cat('QmdX1dXeYE4fzPfCDVsSB5s67rCgfVFebBLQ6YNorJwr7Z');
+    const wasm = stringToByteArray(contents);
+
+    const context = new Context(callMessage);
 
     const controller = new WorkerMessageController(worker, context);
-    const result = await controller.start(transaction, wasmBinary);
+    const result = await controller.start(wasm);
 
     console.log('[] result -> ', result);
 

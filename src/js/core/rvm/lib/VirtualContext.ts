@@ -2,6 +2,7 @@ import { workerRequest } from "../utils/workerUtils";
 import Transaction from "../../../models/Transaction";
 import { waitAndLoad, reset } from "../utils/sharedBufferUtils";
 import { Memory, synchroniseBufferToMemory, synchroniseMemoryToBuffer } from "./memory";
+import { CallKind } from "./CallMessage";
 
 /**
  * Virtual Context is meant as a way to expose functions to WASM while posting requests
@@ -63,6 +64,10 @@ class VirtualContext {
         return value;
     }
 
+    call(gas: number, addressOffset: number, valueOffset: number, dataOffset: number, dataLength: number){
+        this.callContext('call', [CallKind.Call, gas, addressOffset, valueOffset, dataOffset, dataLength]);
+    }
+
     useGas(gas: number) {
         // We allow gas to be async called
         // Since useGas is at init time called while notifierBuffer is not
@@ -86,6 +91,9 @@ class VirtualContext {
             useGas: this.useGas.bind(this),
             revert: (...args: any[]) => this.callContext('revert', args),
             getCallDataSize: (...args: any[]) => this.callContext('getCallDataSize', args),
+            getCallValue: (...args: any[]) => this.callContext('getCallValue', args),
+            getAddress: (...args: any[]) => this.callContext('getAddress', args),
+            call: this.call.bind(this),
             getExternalBalance: (...args: any[]) => this.callContext('getExternalBalance', args),
             callDataCopy: (...args: any[]) => this.callContext('callDataCopy', args),
             storageLoad: (...args: any[]) => this.callContext('storageLoad', args),

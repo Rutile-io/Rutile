@@ -7,6 +7,9 @@ import { getUnsignedTransactionHash, getTransactionId } from "../services/Transa
 import { applyProofOfWork, isProofOfWorkValid } from "../services/transaction/ProofOfWork";
 import execute from "../core/rvm/execute";
 import stringToByteArray from "../utils/stringToByteArray";
+import CallMessage, { CallKind } from "../core/rvm/lib/CallMessage";
+import { hexStringToByte } from "../core/rvm/utils/hexUtils";
+import { hexStringToBuffer } from "../utils/hexUtils";
 const createKeccakHash = require('keccak');
 
 interface TransactionParams {
@@ -89,19 +92,24 @@ class Transaction {
 
     async execute() {
         try {
-            const ipfs = Ipfs.getInstance(configuration.ipfs);
-
-            // "to" should represent the wasm function address or the user address.
-            const contents = await ipfs.cat(this.to);
-            const wasm = stringToByteArray(contents);
-
             // Make sure validations can set their time.
             if (!this.timestamp) {
                 this.timestamp = Date.now();
             }
 
             // Possibly have to save the result in the transaction.
-            const executionResults = await execute(this, wasm);
+            const callMessage = new CallMessage();
+            callMessage.value = this.value;
+            callMessage.destination = '52ae893e4b22d707943299a8d0c844df0e3d5557'
+            callMessage.sender = '53ae893e4b22d707943299a8d0c844df0e3d5557'
+            callMessage.depth = 0;
+            callMessage.inputData = hexStringToBuffer(this.data);
+            callMessage.inputSize = (this.data.length - 2) / 2;
+            callMessage.kind = CallKind.Call;
+            callMessage.flags = 1;
+            callMessage.gas = this.gasLimit; 
+
+            const executionResults = await execute(callMessage);
             this.gasUsed = executionResults.result.gasUsed;
 
             return executionResults.result;
