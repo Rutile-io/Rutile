@@ -140,17 +140,22 @@ class Context {
         this.mem.write(resultOffset, 20, addressInBytes)
     }
 
-    private getExternalBalance(addressOffset: number, resultOffset: number){
+    /**
+     * Gets the external balance of an address and stores it in memory
+     * @param notifierIndex 
+     * @param addressOffset 
+     * @param resultOffset 
+     */
+    private async getExternalBalance(notifierIndex: number, addressOffset: number, resultOffset: number){
 
         const address = this.mem.read(addressOffset, 20);
-        
+        const toAccount = await Account.findOrCreate(toHex(address));
 
-        // TODO: Get an account sync from db
-        // const toAccount = Account.getFromAddress(toHex(address));
-        // console.log(toAccount)
+        const balanceHex = "0x" + toAccount.balance.toString(16);
+        const balanceBytes = hexStringToByte(balanceHex);
 
-        // this.mem.write(resultOffset, 32, data);
-
+        this.mem.write(resultOffset, 32, balanceBytes);
+        storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }
 
 

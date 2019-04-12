@@ -86,6 +86,7 @@ class VirtualContext {
             useGas: this.useGas.bind(this),
             revert: (...args: any[]) => this.callContext('revert', args),
             getCallDataSize: (...args: any[]) => this.callContext('getCallDataSize', args),
+            getExternalBalance: (...args: any[]) => this.callContext('getExternalBalance', args),
             callDataCopy: (...args: any[]) => this.callContext('callDataCopy', args),
             storageLoad: (...args: any[]) => this.callContext('storageLoad', args),
             storageStore: (...args: any[]) => this.callContext('storageStore', args),

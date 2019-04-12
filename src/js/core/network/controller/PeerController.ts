@@ -2,7 +2,7 @@ import PeerToPeerService from "../services/PeerToPeerService";
 import { URL } from 'url';
 import { TransactionMessage } from "../lib/types/MessageType";
 import Transaction from "../../../models/Transaction";
-import Peer from '../lib/peer';
+import Peer from '../lib/Peer';
 import { configuration } from "../../../Configuration";
 import isNodeJs from "../../../services/isNodeJs";
 
