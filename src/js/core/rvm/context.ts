@@ -5,6 +5,7 @@ import Account from "../../models/Account";
 import MerkleTree from "../../models/MerkleTree";
 import { startDatabase } from "../../services/DatabaseService";
 import { number } from "prop-types";
+import { storeAndNotify } from "./utils/sharedBufferUtils";
 const ethUtil = require('ethereumjs-util')
 
 interface ContextOptions {
@@ -16,11 +17,11 @@ interface ContextOptions {
     transactionDifficulty: number;
 }
 
-interface Results {
+export interface Results {
     exception: number;
     exceptionError?: VM_ERROR;
     gasUsed: number;
-    return: Uint8Array;
+    return: string;
 }
 
 class Context {
@@ -34,7 +35,7 @@ class Context {
     results: Results = {
         exception: 0,
         gasUsed: 0,
-        return: new Uint8Array([]),
+        return: '0x',
     };
 
     data: string;
@@ -42,6 +43,7 @@ class Context {
     dataParsed: any;
 
     mem: Memory;
+    notifierBuffer: SharedArrayBuffer;
     wasmInstance: WebAssembly.ResultObject;
 
     constructor(options: ContextOptions) {
@@ -54,14 +56,24 @@ class Context {
         this.dataParsed = ethUtil.toBuffer(options.data);
     }
 
-    public async init() {
+    public async init(memory: SharedArrayBuffer, notifier: SharedArrayBuffer) {
         const database = startDatabase();
 
+        this.notifierBuffer = notifier;
         this.toAccount = await Account.findOrCreate(this.toAddress);
         this.state = new MerkleTree(database, this.toAccount.storageRoot);
 
         await this.state.fill();
-        this.updateMemory();
+        this.updateMemory(memory);
+
+        return {
+            notifier: this.notifierBuffer,
+            memory,
+        }
+    }
+
+    public updateMemory(memory: SharedArrayBuffer) {
+        this.mem = new Memory(memory);
     }
 
     public async close() {
@@ -70,21 +82,12 @@ class Context {
     }
 
     /**
-     * Updates the memory instance. Should only be called once.
-     *
-     * @memberof Context
-     */
-    public updateMemory() {
-        this.mem = new Memory(this.wasmInstance.instance.exports.memory);
-    }
-
-    /**
      * Consumes gas
      *
      * @param {number} amount
      * @memberof Context
      */
-    public useGas(amount: number) {
+    public useGas(notifierIndex: number, amount: number) {
         this.results.gasUsed += amount;
     }
 
@@ -96,11 +99,12 @@ class Context {
      * @param {number} valueOffset
      * @memberof Context
      */
-    private storageStore(pathOffset: number, valueOffset: number) {
-        const path = this.mem.read(pathOffset, 32);
-        const value = this.mem.read(valueOffset, 32);
+    private async storageStore(notifierIndex: number, pathOffset: number, valueOffset: number) {
+        const path = Buffer.from(this.mem.read(pathOffset, 32));
+        const value = Buffer.from(this.mem.read(valueOffset, 32));
 
-        this.state.putSync(toHex(path), value);
+        await this.state.put(path.toString('hex'), value);
+        storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }
 
     /**
@@ -111,16 +115,17 @@ class Context {
      * @param {number} resultOffset
      * @memberof Context
      */
-    private storageLoad(pathOffset: number, resultOffset: number) {
+    private async storageLoad(notifierIndex: number, pathOffset: number, resultOffset: number) {
         const path = this.mem.read(pathOffset, 32);
-        let value = this.state.getSync(toHex(path));
+        let value = await this.state.get(toHex(path));
 
         // When the value is not available fall back to 32 bytes of 0
-        if (typeof value === 'undefined') {
+        if (typeof value === 'undefined' || value === null) {
             value = createZerosArray(32);
         }
 
         this.mem.write(resultOffset, 32, value);
+        storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }
 
     /**
@@ -139,13 +144,14 @@ class Context {
 
         const address = this.mem.read(addressOffset, 20);
         
+
         // TODO: Get an account sync from db
         // const toAccount = Account.getFromAddress(toHex(address));
         // console.log(toAccount)
 
         // this.mem.write(resultOffset, 32, data);
 
-    }        
+    }
 
 
     /**
@@ -155,9 +161,10 @@ class Context {
      * @param {number} resultOffset
      * @memberof Context
      */
-    private getCaller(resultOffset: number) {
+    private getCaller(notifierIndex: number, resultOffset: number) {
         const addressInBytes = hexStringToByte(this.fromAddress);
-        this.mem.write(resultOffset, 20, addressInBytes)
+        this.mem.write(resultOffset, 20, addressInBytes);
+        storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }
 
     /**
@@ -171,18 +178,21 @@ class Context {
      * @returns
      * @memberof Context
      */
-    private callDataCopy(resultOffset: number, dataOffset: number, length: number) {
+    private callDataCopy(notifierIndex: number, resultOffset: number, dataOffset: number, length: number) {
         if (length === 0) {
+            console.log('EXCEPTION ERROR');
             // TODO: Throw some sort of exception
             return;
         }
 
         const data = this.dataParsed.slice(dataOffset, dataOffset + length);
         this.mem.write(resultOffset, length, data);
+
+        storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }
 
     /**
-     * Gets the deposited value by the instruction/transaction responsible for this execution and loads it into memory at the given location. 
+     * Gets the deposited value by the instruction/transaction responsible for this execution and loads it into memory at the given location.
      * @todo Should change 32 to 128
      * @param resultOffset i32ptr the memory offset to load the value into (u128)
      */
@@ -198,8 +208,8 @@ class Context {
      * @returns
      * @memberof Context
      */
-    private getCallDataSize(): number {
-        return this.dataParsed.length;
+    private getCallDataSize(notifierIndex: number): void {
+        storeAndNotify(this.notifierBuffer, notifierIndex, this.dataParsed.length)
     }
 
     private getTransactionDifficulty(resultOffset: number){
@@ -216,7 +226,7 @@ class Context {
      * @param {number} dataLength
      * @memberof Context
      */
-    private revert(dataOffset: number, dataLength: number) {
+    private revert(notifierIndex: number, dataOffset: number, dataLength: number) {
         let ret = new Uint8Array([]);
 
         if (dataLength) {
@@ -225,7 +235,7 @@ class Context {
 
         this.results.exception = 0;
         this.results.exceptionError = VM_ERROR.REVERT;
-        this.results.return = ret;
+        this.results.return = '0x' + toHex(ret);
 
         throw new VmError(VM_ERROR.REVERT);
     }
@@ -238,23 +248,23 @@ class Context {
      * @param {number} dataLength
      * @memberof Context
      */
-    private finish(dataOffset: number, dataLength: number) {
+    private finish(notifierIndex: number, dataOffset: number, dataLength: number) {
         let ret = new Uint8Array([]);
         if (dataLength) {
             ret = this.mem.read(dataOffset, dataLength);
         }
 
         this.results.exception = 0;
-        this.results.return = ret;
+        this.results.return = '0x' + toHex(ret);
 
         throw new FinishExecution('Finished execution');
     }
 
-    private log(dataOffset: number, length: number) {
-        this.updateMemory();
-
+    private log(notifierIndex: number, dataOffset: number, length: number) {
         const result = this.mem.read(dataOffset, length);
-        console.log('[LOG]: ', result);
+        console.log(`[LOG]: 0x${toHex(result)} ${dataOffset}:${length}`);
+
+        storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }
 
     getExposedFunctions() {
@@ -291,6 +301,7 @@ class Context {
             returnDataCopy: () => {},
             selfDestruct: () => {},
             getTransactionTimestamp: () => {},
+            useGas: this.useGas.bind(this),
         }
     }
 }

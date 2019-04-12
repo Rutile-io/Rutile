@@ -1,6 +1,6 @@
-import getConfig, { configuration } from "../Configuration";
+import getConfig, { configuration } from "../../../Configuration";
 import fetch from 'node-fetch';
-import isNodeJs from "./isNodeJs";
+import isNodeJs from "../../../services/isNodeJs";
 // import { URL } from 'url';
 
 interface InitialHttpNodeConnectResponse {
@@ -24,7 +24,7 @@ class PeerToPeerService {
      */
     static async getRandomAvailableHost(): Promise<AvailableNode> {
         try {
-            const response = await fetch(getConfig('nodesListUrl'));
+            const response = await fetch(configuration.nodesListUrl);
             const availableNodes: AvailableNode[] = await response.json();
 
             return availableNodes[Math.floor(Math.random() * availableNodes.length)];
@@ -61,7 +61,7 @@ class PeerToPeerService {
             }
 
             url.searchParams.set('sdp', JSON.stringify(sessionDescription))
-            url.searchParams.set('nodeId', getConfig('nodeId'));
+            url.searchParams.set('nodeId', configuration.nodeId);
 
             const response = await fetch(url.toString());
             const data: InitialHttpNodeConnectResponse = (await response.json()).Result;

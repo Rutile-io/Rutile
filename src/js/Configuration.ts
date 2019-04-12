@@ -1,9 +1,7 @@
-import isNodeJs from "./services/isNodeJs";
 import IConfig from "./models/interfaces/IConfig";
 import getArguments from "./utils/getArguments";
 
 const uuid = require('uuid/v4');
-const ethers = require('ethers');
 
 const NODE_ID = `${uuid()}-${uuid()}-${uuid()}`;
 
@@ -11,6 +9,7 @@ const config: IConfig = {
     nodeId: NODE_ID,
     connectionServerUrl: 'localhost:1337',
     nodesListUrl: 'http://localhost:8903/',
+    vmUrl: './build/vm.js',
     port: 1337,
     iceServers: [
         { urls: 'stun:stun.stunprotocol.org:3478' },

@@ -20,6 +20,7 @@ interface GenesisConfig {
 
 interface IConfig {
     nodeId: string,
+    vmUrl: string,
     connectionServerUrl: string,
     nodesListUrl: string,
     port: number,

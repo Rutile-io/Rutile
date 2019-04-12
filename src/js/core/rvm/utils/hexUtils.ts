@@ -18,7 +18,7 @@ export function hexStringToByte(str: string) {
       a.push(parseInt(str.substr(i,2),16));
     }
 
-    return new Uint32Array(a);
+    return new Uint8Array(a);
   }
 
 export function createZerosArray(length: number) {

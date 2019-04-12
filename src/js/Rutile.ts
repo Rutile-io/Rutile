@@ -1,6 +1,4 @@
-import { NodeType } from './models/types/NodeType';
-import PeerToPeer from './models/PeerToPeer';
-import Lamda from './Lamda';
+import PeerController from './core/network/controller/PeerController';
 import Ipfs from './services/wrappers/Ipfs';
 import { configuration } from './Configuration';
 import Transaction from './models/Transaction';
@@ -8,19 +6,16 @@ import Dag from './models/Dag';
 import EventHandler from './services/EventHandler';
 import KeyPair from './models/KeyPair';
 import Account from './models/Account';
+import byteArrayToString from './utils/byteArrayToString';
 
 // These functions should actually be executed on the network. Not locally.
 
 class Rutile {
-    private peerToPeer: PeerToPeer;
+    private peerController: PeerController;
     private terminal: any;
     public ipfs: Ipfs;
     public dag: Dag;
     public eventHandler: EventHandler;
-
-    static get Lamda() {
-        return Lamda;
-    }
 
     static get Transaction() {
         return Transaction;
@@ -42,27 +37,21 @@ class Rutile {
     async start() {
         try {
             // Boot up our peer to peer network
-            this.peerToPeer = new PeerToPeer(this.eventHandler);
-            await this.peerToPeer.open();
+            this.peerController = new PeerController();
+            await this.peerController.open();
         } catch (error) {
             console.error('Could not connect to peers: ', error);
         }
 
-        this.dag = new Dag(this.eventHandler, this.peerToPeer);
+        this.dag = new Dag(this.eventHandler, this.peerController);
     }
 
-    async deploy(lamda: Lamda): Promise<string> {
-        const compiledLamda = await lamda.compile();
-
-        // TODO: Deploy the script to a blockchain.
-        const hash = await this.ipfs.add(compiledLamda);
-
-        // Put it inside a blockchain and get the transaction id.
-        return hash;
+    async deploy(wasm: Uint8Array): Promise<string> {
+        return this.ipfs.add(byteArrayToString(wasm));
     }
 
     async sendTransaction(transaction: Transaction) {
-        this.peerToPeer.broadcastTransaction(transaction);
+        this.peerController.broadcastTransaction(transaction);
     }
 }
 

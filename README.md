@@ -13,6 +13,10 @@ Rutile is currently in development but is actively worked on.
 - Store files in the Rutile network using IPFS
 - Re-use your Ethereum private keys & addresses in Rutile
 
+## More info
+
+- [Rutile Virtual Machine](https://github.com/Rutile-io/Rutile/tree/develop/src/js/core/rvm)
+
 ## Running Rutile
 
 Rutile is developed in TypeScript and requires node.js.
@@ -20,8 +24,6 @@ Rutile is developed in TypeScript and requires node.js.
 ```JavaScript
 npm install
 ```
-
-Make sure you have downloaded CouchDB: http://couchdb.apache.org/ and start the server. Couchdb should run on port `5984`. If not you can change the port in `src/js/Configuration.ts` using the property `couchdbUrl`
 
 For testing the node server:
 ```JavaScript

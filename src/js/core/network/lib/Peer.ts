@@ -1,9 +1,9 @@
-import isNodeJs from '../services/isNodeJs';
+import isNodeJs from "../../../services/isNodeJs";
 
-const Peer = require('simple-peer');
+const SimplePeer = require('simple-peer');
 const uuid = require('uuid/v4');
 
-class P2P {
+class Peer {
     private peer: any;
     private isInitiator: boolean = false;
     public isConnected: boolean = false;
@@ -45,7 +45,7 @@ class P2P {
         this.isConnected = false;
     }
 
-    sendData(data: String|Buffer|Uint8Array|ArrayBuffer|Blob) {
+    sendData(data: String | Buffer| Uint8Array | ArrayBuffer | Blob) {
         this.peer.send(data);
     }
 
@@ -55,7 +55,7 @@ class P2P {
      * @param {RTCSessionDescription} sessionDescription
      * @memberof P2P
      */
-    connect(sessionDescription: RTCSessionDescription|RTCSessionDescriptionInit) {
+    connect(sessionDescription: RTCSessionDescription | RTCSessionDescriptionInit) {
         this.peer.signal(sessionDescription);
     }
 
@@ -71,7 +71,7 @@ class P2P {
             peerConfig['wrtc'] = wrtc;
         }
 
-        this.peer = new Peer(peerConfig);
+        this.peer = new SimplePeer(peerConfig);
 
         this.peer.on('connect', this.onConnect.bind(this));
         this.peer.on('connect', this.onConnectInternal.bind(this));
@@ -83,4 +83,4 @@ class P2P {
     }
 }
 
-export default P2P;
+export default Peer;

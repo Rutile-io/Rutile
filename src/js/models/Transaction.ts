@@ -1,12 +1,12 @@
 import Ipfs from "../services/wrappers/Ipfs";
 import { configuration } from "../Configuration";
-import Lamda from "../Lamda";
 import KeyPair from "./KeyPair";
 import Account from "./Account";
 import sortObjKeysAlphabetically from "../utils/sortObjKeysAlphabetically";
 import { getUnsignedTransactionHash, getTransactionId } from "../services/TransactionService";
 import { applyProofOfWork, isProofOfWorkValid } from "../services/transaction/ProofOfWork";
 import execute from "../core/rvm/execute";
+import stringToByteArray from "../utils/stringToByteArray";
 const createKeccakHash = require('keccak');
 
 interface TransactionParams {
@@ -93,7 +93,7 @@ class Transaction {
 
             // "to" should represent the wasm function address or the user address.
             const contents = await ipfs.cat(this.to);
-            const lamda = Lamda.fromCompiledLamdaString(contents);
+            const wasm = stringToByteArray(contents);
 
             // Make sure validations can set their time.
             if (!this.timestamp) {
@@ -101,7 +101,7 @@ class Transaction {
             }
 
             // Possibly have to save the result in the transaction.
-            const executionResults = await execute(this, lamda.wasmBinary);
+            const executionResults = await execute(this, wasm);
             this.gasUsed = executionResults.result.gasUsed;
 
             return executionResults.result;
