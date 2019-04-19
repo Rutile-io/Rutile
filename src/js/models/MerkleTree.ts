@@ -1,4 +1,5 @@
 import { LevelUp } from "levelup";
+import PouchDbLevelDbMapping from "./PouchDbLevelDbMapping";
 
 const Trie = require('merkle-patricia-tree');
 
@@ -7,7 +8,7 @@ class MerkleTree {
     private cache: Map<string | Buffer, Uint8Array | Buffer>;
     private storagePromises: Array<Promise<any>>;
 
-    constructor(db?: LevelUp, root?: string | Buffer) {
+    constructor(db?: PouchDbLevelDbMapping, root?: string | Buffer) {
         this.trie = new Trie(db, root);
         this.cache = new Map();
         this.storagePromises = [];

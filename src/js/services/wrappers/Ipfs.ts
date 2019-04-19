@@ -34,6 +34,8 @@ class Ipfs {
     }
 
     cat(pathOrHash: string) : Promise<string> {
+        console.log('[] pathOrHash -> ', pathOrHash);
+
         return new Promise((resolve, reject) => {
             this.ipfsInstance.cat(pathOrHash, (error: any, result: string) => {
                 if (error) {

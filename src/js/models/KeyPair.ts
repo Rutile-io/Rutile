@@ -52,7 +52,7 @@ class KeyPair {
     }
 
     getAddress() {
-        return KeyPair.computeAddress(this.compressedPublicKey);
+        return KeyPair.computeAddress(this.publicKey);
     }
 
     static recoverAddress(digest: string, signature: Signature) {

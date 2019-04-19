@@ -40,11 +40,5 @@ export default async function execute(transaction: Transaction, wasmBinary: Uint
     const controller = new WorkerMessageController(worker, context);
     const result = await controller.start(transaction, wasmBinary);
 
-    console.log('[] result -> ', result);
-
-    return {
-        result: {
-            gasUsed: 100,
-        },
-    }
+    return result;
 }

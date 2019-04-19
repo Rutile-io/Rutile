@@ -14,6 +14,10 @@ class NetworkController {
         this.network.on('message', this.onNetworkMessage.bind(this));
     }
 
+    broadcastTransaction(transaction: Transaction) {
+        this.network.broadcastTransaction(transaction);
+    }
+
     onNetworkMessage(event: NetworkMessageEvent) {
         const data = JSON.parse(event.data.toString());
 

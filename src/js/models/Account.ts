@@ -21,6 +21,7 @@ class Account {
     storageRoot: string;
     storage: MerkleTree;
     alias: string;
+    isFilled: boolean;
 
     constructor(params: AccountParams) {
         this.address = params.address;
@@ -29,7 +30,7 @@ class Account {
         this.codeHash = params.codeHash || '';
         this.storageRoot = params.storageRoot;
         this.alias = params.alias || '';
-        this.storage = new MerkleTree(Database.startDatabase(), this.storageRoot);
+        this.storage = new MerkleTree(Database.getDatabaseLevelDbMapping(), this.storageRoot);
     }
 
     /**
@@ -38,6 +39,10 @@ class Account {
      * @memberof Account
      */
     async fill() {
+        if (this.isFilled) {
+            return;
+        }
+
         const storageData = await this.storage.fill();
 
         const balance = storageData.get('balance') || [0];
@@ -51,10 +56,16 @@ class Account {
         this.balance = parseInt(hexBalance, 16);
         this.transactionIndex = parseInt(hexTransactionIndex, 16);
 
+        this.isFilled = true;
+
         this.storage.flushCache();
     }
 
     async setBalance(balance: number) {
+        if (typeof balance !== 'number') {
+            throw new TypeError('balance should be a number');
+        }
+
         const buffer = hexStringToBuffer(numberToHex(balance));
         await this.storage.put('balance', buffer);
 
@@ -75,19 +86,20 @@ class Account {
      * @memberof Account
      */
     validateTransaction(transaction: Transaction) {
-        if (transaction.transIndex === this.transactionIndex) {
-            throw new Error('Transaction index should not be the same as the previous transaction index');
-        }
+        // TODO: Check if this is still necassary (Because of the walker..)
+        // if (transaction.transIndex === this.transactionIndex) {
+        //     throw new Error('Transaction index should not be the same as the previous transaction index');
+        // }
 
-        if (transaction.transIndex < this.transactionIndex) {
-            throw new Error('Transaction index should not be lower than the previous transaction index');
-        }
+        // if (transaction.transIndex < this.transactionIndex) {
+        //     throw new Error('Transaction index should not be lower than the previous transaction index');
+        // }
 
-        const expectedNewTransactionIndex = this.transactionIndex + 1;
+        // const expectedNewTransactionIndex = this.transactionIndex + 1;
 
-        if (expectedNewTransactionIndex !== transaction.transIndex) {
-            throw new Error('Missed previous transaction, either out of sync or corrupted transaction');
-        }
+        // if (expectedNewTransactionIndex !== transaction.transIndex) {
+        //     throw new Error('Missed previous transaction, either out of sync or corrupted transaction');
+        // }
 
         const newBalance = this.balance - transaction.value;
 
@@ -120,13 +132,13 @@ class Account {
     }
 
     async save() {
-        await Database.createOrUpdate(this.address, JSON.stringify({
+        await Database.createOrUpdate(this.address, {
             address: this.address,
             balance: this.balance,
             transactionIndex: this.transactionIndex,
             codeHash: this.codeHash,
             storageRoot: this.storageRoot,
-        }));
+        });
     }
 
     static async getFromAddress(address: string): Promise<Account> {
@@ -137,7 +149,10 @@ class Account {
                 return null;
             }
 
-            return new Account(JSON.parse(data));
+            const account = new Account(data);
+            await account.fill();
+
+            return account;
         } catch (error) {
             console.error(error);
             return null;
@@ -156,7 +171,7 @@ class Account {
     }
 
     static async create(address: string) {
-        const merkleTree = new MerkleTree(Database.startDatabase());
+        const merkleTree = new MerkleTree(Database.getDatabaseLevelDbMapping());
         const zeroBuffer = hexStringToBuffer('0x00');
 
         await merkleTree.put('address', hexStringToBuffer(address));

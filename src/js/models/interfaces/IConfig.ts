@@ -14,7 +14,8 @@ interface GenesisConfig {
          *
          * @type {string}
          */
-        nonce: string;
+        nonce: number;
+        minimumParentsValidation: number;
     }
 }
 
@@ -24,9 +25,6 @@ interface IConfig {
     nodesListUrl: string,
     port: number,
     iceServers: RTCIceServer[],
-    maximumNodes: number,
-    maximumNodeAskConnectTime: number,
-    timeoutBeforeCleanup: number,
     ipfs: IpfsConfig,
     databaseName: string,
     difficulty: number,

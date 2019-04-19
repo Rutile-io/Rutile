@@ -1,12 +1,12 @@
-import Transaction from "../models/Transaction";
-import sortObjKeysAlphabetically from "../utils/sortObjKeysAlphabetically";
-import { configuration } from "../Configuration";
-import KeyPair from "../models/KeyPair";
-import Account from "../models/Account";
-import { isProofOfWorkValid } from "./transaction/ProofOfWork";
-import { getById, createOrUpdate, databaseCreate } from "./DatabaseService";
+import Transaction from "../../../../models/Transaction";
+import { configuration } from "../../../../Configuration";
+import KeyPair from "../../../../models/KeyPair";
+import Account from "../../../../models/Account";
+import { isProofOfWorkValid } from "../../../../services/transaction/ProofOfWork";
+import { getById, createOrUpdate, databaseCreate, databaseFind } from "../../../../services/DatabaseService";
+import { rlpHash } from "../../../../utils/keccak256";
+import { numberToHex } from "../../../../utils/hexUtils";
 
-const createKeccakHash = require("keccak");
 const GENESIS_MILESTONE = 1;
 
 /**
@@ -19,24 +19,21 @@ const GENESIS_MILESTONE = 1;
  * @returns {string}
  */
 export function getUnsignedTransactionHash(transaction: Transaction): string {
-    // TODO: Add a state hash (A hash that shows what changed in a contract)
-    const dataToHash = sortObjKeysAlphabetically({
-        data: transaction.data,
-        to: transaction.to,
-        value: transaction.value,
-        gasPrice: transaction.gasPrice,
-        gasLimit: transaction.gasLimit,
-        gasUsed: transaction.gasUsed,
-        timestamp: transaction.timestamp,
-        transIndex: transaction.transIndex,
-        milestoneIndex: transaction.milestoneIndex,
-        gnonce: configuration.genesis.config.nonce,
-        parents: transaction.parents
-    });
+    const data = [
+        numberToHex(transaction.transIndex),
+        numberToHex(transaction.gasPrice),
+        numberToHex(transaction.gasLimit),
+        transaction.to,
+        numberToHex(transaction.value),
+        transaction.data,
+        numberToHex(transaction.gasUsed),
+        numberToHex(transaction.timestamp),
+        transaction.trunkTransaction,
+        transaction.branchTransaction,
+        numberToHex(configuration.genesis.config.nonce),
+    ];
 
-    return createKeccakHash("keccak256")
-        .update(JSON.stringify(dataToHash))
-        .digest("hex");
+    return rlpHash(data);
 }
 
 /**
@@ -53,23 +50,25 @@ export function getTransactionId(transaction: Transaction) {
     }
 
     const transactionDataHash = getUnsignedTransactionHash(transaction);
-    const transactionIdData = sortObjKeysAlphabetically({
-        hash: transactionDataHash,
-        r: transaction.r,
-        v: transaction.v,
-        s: transaction.s
-    });
+    const transactionIdData = [
+        transactionDataHash,
+        transaction.r,
+        transaction.v,
+        transaction.s,
+    ];
 
-    return createKeccakHash("keccak256")
-        .update(JSON.stringify(transactionIdData))
-        .digest("hex");
+    return rlpHash(transactionIdData);
 }
 
 export async function validateTransaction(transaction: Transaction) {
+    if (!transaction.trunkTransaction || !transaction.branchTransaction) {
+        throw new Error(`Transaction should validate 2 other transactions.`);
+    }
+
     // For effeciency sake, first check the proof of work.
     // Since we don't have to go through all the work if the transaction isn't even valid.
     if (!isProofOfWorkValid(transaction.id, transaction.nonce)) {
-        throw new Error("Proof of work is not valid");
+        throw new Error('Proof of work is not valid');
     }
 
     const addresses = getAddress(transaction);
@@ -89,8 +88,10 @@ export async function validateTransaction(transaction: Transaction) {
         timestamp: transaction.timestamp,
         nonce: transaction.nonce,
         transIndex: transaction.transIndex,
-        parents: transaction.parents,
+        branchTransaction: transaction.branchTransaction,
+        trunkTransaction: transaction.trunkTransaction,
         milestoneIndex: transaction.milestoneIndex,
+        value: transaction.value,
     });
 
     // TODO: Check if transaction is a milestone transaction
@@ -104,7 +105,7 @@ export async function validateTransaction(transaction: Transaction) {
 
     // Check the Proof of Work again to make sure all the work adds up.
     if (!isProofOfWorkValid(transactionCopy.id, transactionCopy.nonce)) {
-        throw new Error("Proof of Work after execution is not valid");
+        throw new Error('Proof of Work after execution is not valid');
     }
 
     await applyTransaction(transaction);
@@ -151,38 +152,27 @@ export async function applyTransaction(transaction: Transaction) {
     if (transaction.milestoneIndex !== GENESIS_MILESTONE) {
         const fromAccount = await Account.findOrCreate(addresses.from);
 
-        fromAccount.balance = fromAccount.balance - transaction.value;
-        fromAccount.transactionIndex = transaction.transIndex;
+        await fromAccount.setBalance(fromAccount.balance - transaction.value);
+        await fromAccount.setTransactionIndex(transaction.transIndex);
 
         results.push(fromAccount.save());
     }
 
-    toAccount.balance = toAccount.balance + transaction.value;
+    await toAccount.setBalance(toAccount.balance + transaction.value);
     results.push(toAccount.save());
     results.push(saveTransaction(transaction));
 
     await Promise.all(results);
 }
 
-/**
- * Searches the database for transactions that have a low weight that
- * needs to be validated.
- *
- * @export
- * @param {number} amount
- */
-export async function getTransactionsToValidate(amount: number = 2): Promise<Transaction[]> {
-    return null;
-}
+export async function getMilestoneTransaction(milestoneIndex: number) {
+    const result = await databaseFind('milestoneIndex', milestoneIndex);
 
-/**
- * Calculates the transaction's current weight.
- *
- * @export
- * @param {Transaction} transaction
- */
-export async function calculateTransactionWeight(transaction: Transaction): Promise<number> {
-    return 0;
+    if (!result || !result.docs.length) {
+        return null;
+    }
+
+    return Transaction.fromRaw(JSON.stringify(result.docs[0]));
 }
 
 export async function getTransactionById(id: string): Promise<Transaction> {
@@ -193,7 +183,7 @@ export async function getTransactionById(id: string): Promise<Transaction> {
             return null;
         }
 
-        const transaction = Transaction.fromRaw(result.toString());
+        const transaction = Transaction.fromRaw(JSON.stringify(result));
 
         return transaction;
     } catch (error) {
@@ -204,7 +194,7 @@ export async function getTransactionById(id: string): Promise<Transaction> {
 
 export async function saveTransaction(transaction: Transaction) {
     const rawTransaction = transaction.toRaw();
-    await databaseCreate(transaction.id, rawTransaction);
+    await databaseCreate(transaction.id, JSON.parse(rawTransaction));
 }
 
 export async function createOrUpdateTransaction(transaction: Transaction) {

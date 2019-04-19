@@ -2,35 +2,38 @@ import Transaction from '../models/Transaction';
 import isNodeJs from './isNodeJs';
 import { configuration } from '../Configuration';
 import levelup, { LevelUp } from 'levelup';
+import { AbstractIteratorOptions } from 'abstract-leveldown';
+import PouchDbLevelDbMapping from '../models/PouchDbLevelDbMapping';
 
-let levelDb: LevelUp = null;
-
+let pouchDb: PouchDB.Database = null;
 
 /**
  * Starts the database
  *
  * @export
  */
-export function startDatabase() {
-    if (levelDb) {
-        return levelDb;
+export function startDatabase(): PouchDB.Database {
+    if (pouchDb) {
+        return pouchDb;
     }
 
-    let lvlDown: any = null;
+    let PouchDb: PouchDB.Static = null;
 
     // For nodejs we use the standard file db
     // and for browsers we use indexedDB
     if (isNodeJs()) {
-        const leveldown = __non_webpack_require__('leveldown');
-        lvlDown = leveldown(`./${configuration.databaseName}`);
+        PouchDb = __non_webpack_require__('pouchdb');
+        PouchDb.plugin(__non_webpack_require__('pouchdb-find'))
     } else {
-        const leveljs = require('level-js');
-        lvlDown = leveljs(configuration.databaseName);
+        PouchDb = require('pouchdb').default;
+        PouchDb.plugin(require('pouchdb-find').default);
     }
 
-    levelDb = levelup(lvlDown);
+    pouchDb = new PouchDb(configuration.databaseName, {
+        revs_limit: 1,
+    });
 
-    return levelDb;
+    return pouchDb;
 }
 
 /**
@@ -45,8 +48,25 @@ export async function saveTransaction(transaction: Transaction) {
     await databaseCreate(transaction.id, rawTransaction);
 }
 
-export async function databaseCreate(id: string, obj: Buffer | string) {
-    return levelDb.put(id, obj);
+export async function databaseCreate(id: string | Buffer, obj: Buffer | string | Object) {
+    try {
+        let document: any = {
+            _id: Buffer.isBuffer(id) ? id.toString('hex') : id,
+        }
+
+        if (Buffer.isBuffer(obj) || typeof obj === 'string') {
+            document.value = obj;
+        } else {
+            document = {
+                ...document,
+                ...obj,
+            }
+        }
+
+        return pouchDb.put(document);
+    } catch (error) {
+        console.error('[databaseCreate] error -> ', error);
+    }
 }
 
 /**
@@ -56,8 +76,35 @@ export async function databaseCreate(id: string, obj: Buffer | string) {
  * @param {string} id
  * @param {*} obj
  */
-export async function createOrUpdate(id: string, obj: Buffer | string) {
-    await databaseCreate(id, obj);
+export async function createOrUpdate(id: string, obj: Buffer | string | Object) {
+    let document = null;
+
+    try {
+        document = await getById(id);
+
+        if (!document) {
+            await databaseCreate(id, obj);
+        } else {
+            let newData = {
+                ...document,
+            };
+
+            if (Buffer.isBuffer(obj) || typeof obj === 'string') {
+                newData.value = obj;
+            } else {
+                newData = {
+                    ...newData,
+                    ...obj,
+                }
+            }
+
+            pouchDb.put(newData, {
+                force: true,
+            })
+        }
+    } catch (error) {
+        console.error('[createOrUpdate] -> ', error);
+    }
 }
 
 /**
@@ -69,12 +116,39 @@ export async function createOrUpdate(id: string, obj: Buffer | string) {
  */
 export async function getById(id: string): Promise<any> {
     try {
-        const val = await levelDb.get(id);
+        const val = await pouchDb.get(id);
 
         return val;
     } catch (error) {
         return null;
     }
+}
+
+export async function databaseFind(propertyKey: string, propertyValue: any) {
+    try {
+        const result = await pouchDb.find({
+            selector: {
+                [propertyKey]: propertyValue,
+            }
+        });
+
+        return result;
+    } catch (error) {
+        console.error('[databaseFind] ->', error);
+        return null;
+    }
+}
+
+/**
+ * Creates a mimick of the LevelDB api in order to be used with libraries that require
+ * Leveldb.
+ *
+ * @export
+ * @returns
+ */
+export function getDatabaseLevelDbMapping(): PouchDbLevelDbMapping {
+    const db = startDatabase();
+    return new PouchDbLevelDbMapping(db);
 }
 
 export async function synchroniseDatabase(src: string) {

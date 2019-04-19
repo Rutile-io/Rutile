@@ -7,6 +7,8 @@ import EventHandler from './services/EventHandler';
 import KeyPair from './models/KeyPair';
 import Account from './models/Account';
 import byteArrayToString from './utils/byteArrayToString';
+import Wallet from './models/Wallet';
+import * as Database from './services/DatabaseService';
 
 /**
  * Glue between all core modules.
@@ -21,12 +23,20 @@ class Rutile {
     public dag: Dag;
     public eventHandler: EventHandler;
 
+    static get Database() {
+        return Database;
+    }
+
     static get Transaction() {
         return Transaction;
     }
 
     static get KeyPair() {
         return KeyPair;
+    }
+
+    static get Wallet() {
+        return Wallet;
     }
 
     static get Account() {
@@ -48,14 +58,15 @@ class Rutile {
         }
 
         this.dag = new Dag(this.network);
+        await this.dag.synchronise();
     }
 
     async deploy(wasm: Uint8Array): Promise<string> {
         return this.ipfs.add(byteArrayToString(wasm));
     }
 
-    async sendTransaction(transaction: Transaction) {
-        this.network.broadcastTransaction(transaction);
+    async sendTransaction(transaction: Transaction, keyPair: KeyPair) {
+        this.dag.submitTransaction(transaction, keyPair);
     }
 }
 

@@ -3,7 +3,7 @@ import { toHex, hexStringToByte, createZerosArray } from "./utils/hexUtils";
 import { VmError, VM_ERROR, FinishExecution } from "./lib/exceptions";
 import Account from "../../models/Account";
 import MerkleTree from "../../models/MerkleTree";
-import { startDatabase } from "../../services/DatabaseService";
+import { getDatabaseLevelDbMapping } from "../../services/DatabaseService";
 import { storeAndNotify } from "./utils/sharedBufferUtils";
 const ethUtil = require('ethereumjs-util')
 
@@ -56,7 +56,7 @@ class Context {
     }
 
     public async init(memory: SharedArrayBuffer, notifier: SharedArrayBuffer) {
-        const database = startDatabase();
+        const database = getDatabaseLevelDbMapping();
 
         this.notifierBuffer = notifier;
         this.toAccount = await Account.findOrCreate(this.toAddress);

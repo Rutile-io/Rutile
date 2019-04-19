@@ -1,19 +1,17 @@
 import Ipfs from "../services/wrappers/Ipfs";
 import { configuration } from "../Configuration";
 import KeyPair from "./KeyPair";
-import Account from "./Account";
-import sortObjKeysAlphabetically from "../utils/sortObjKeysAlphabetically";
-import { getUnsignedTransactionHash, getTransactionId } from "../services/TransactionService";
-import { applyProofOfWork, isProofOfWorkValid } from "../services/transaction/ProofOfWork";
+import { getUnsignedTransactionHash, getTransactionId } from "../core/dag/lib/services/TransactionService";
+import { applyProofOfWork } from "../services/transaction/ProofOfWork";
 import execute from "../core/rvm/execute";
 import stringToByteArray from "../utils/stringToByteArray";
-const createKeccakHash = require('keccak');
 
 interface TransactionParams {
     to: string;
     data?: string;
     gasLimit?: number;
     gasPrice?: number;
+    gasUsed?: number;
     id?: string;
     nonce?: number;
     r?: string;
@@ -22,8 +20,9 @@ interface TransactionParams {
     timestamp?: number;
     value?: number;
     transIndex?: number;
-    parents?: string[];
     milestoneIndex?: number;
+    branchTransaction?: string;
+    trunkTransaction?: string;
 }
 
 class Transaction {
@@ -51,8 +50,9 @@ class Transaction {
     // Timestamp of transaction
     timestamp?: number = 0;
 
-    // Id's of transactions that are validated
-    parents: string[];
+    // Transactions that are attached
+    branchTransaction: string = '';
+    trunkTransaction: string = '';
 
     // The nonce used to find the PoW hash
     nonce?: number = 0;
@@ -75,6 +75,7 @@ class Transaction {
         this.to = params.to;
         this.gasLimit = params.gasLimit || 0;
         this.gasPrice = params.gasPrice || 0;
+        this.gasUsed = params.gasUsed || 0;
         this.id = params.id;
         this.nonce = params.nonce || 0;
         this.r = params.r;
@@ -84,11 +85,13 @@ class Transaction {
         this.timestamp = params.timestamp || 0;
         this.value = params.value || 0;
         this.transIndex = params.transIndex || 0;
-        this.parents = params.parents || [];
+        this.trunkTransaction = params.trunkTransaction;
+        this.branchTransaction = params.branchTransaction;
     }
 
     async execute() {
         try {
+            return null;
             const ipfs = Ipfs.getInstance(configuration.ipfs);
 
             // "to" should represent the wasm function address or the user address.
@@ -102,12 +105,21 @@ class Transaction {
 
             // Possibly have to save the result in the transaction.
             const executionResults = await execute(this, wasm);
-            this.gasUsed = executionResults.result.gasUsed;
+            this.gasUsed = executionResults.gasUsed;
 
-            return executionResults.result;
+            return executionResults;
         } catch (error) {
             console.error('Executing transaction failed', error);
         }
+    }
+
+    async addParents(branchTransaction: Transaction, trunkTransaction: Transaction) {
+        if (!branchTransaction || !trunkTransaction) {
+            throw new Error('2 transactions should be given');
+        }
+
+        this.branchTransaction = branchTransaction.id;
+        this.trunkTransaction = trunkTransaction.id;
     }
 
     /**
@@ -125,6 +137,10 @@ class Transaction {
     }
 
     sign(keyPair?: KeyPair) {
+        if (!this.timestamp && !this.isGenesis()) {
+            this.timestamp = Date.now();
+        }
+
         const transactionDataHash = getUnsignedTransactionHash(this);
 
         if (keyPair) {
@@ -152,17 +168,28 @@ class Transaction {
             transIndex: this.transIndex,
             gasPrice: this.gasPrice,
             gasLimit: this.gasLimit,
+            gasUsed: this.gasUsed,
             timestamp: this.timestamp,
             milestoneIndex: this.milestoneIndex,
-            parents: this.parents,
+            trunkTransaction: this.trunkTransaction,
+            branchTransaction: this.branchTransaction,
             r: this.r,
             s: this.s,
             v: this.v,
         });
     }
 
+    isGenesis() {
+        return this.milestoneIndex === 1;
+    }
+
     static fromRaw(rawTransaction: string): Transaction {
         const transaction: TransactionParams = JSON.parse(rawTransaction);
+
+        // Validate types..
+        if (typeof transaction.value !== 'number') {
+            throw new TypeError('transaction.value should be a number');
+        }
 
         return new Transaction(transaction);
     }

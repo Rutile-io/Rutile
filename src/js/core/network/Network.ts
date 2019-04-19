@@ -239,6 +239,8 @@ class Network extends EventHandler {
             value: transaction.toRaw(),
         };
 
+        console.log('[] message -> ', message);
+
         await this.broadcast(JSON.stringify(message));
     }
 
@@ -274,6 +276,10 @@ class Network extends EventHandler {
         }
 
         connection.peer.sendData(data);
+    }
+
+    isOnline() {
+        return this.connections.length > 0;
     }
 }
 

@@ -24,3 +24,4 @@ export function hexStringToByte(str: string) {
 export function createZerosArray(length: number) {
     return new Uint8Array(length).fill(0);
 }
+
