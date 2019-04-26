@@ -20,6 +20,17 @@ declare module 'ethers' {
     export = content;
 }
 
+declare module 'pouchdb-replication-stream' {
+    const content: any;
+    export = content;
+}
+
+declare module 'memorystream' {
+    const content: any;
+    export = content;
+}
+
+
 declare module 'elliptic' {
     const content: {
         ec: any;

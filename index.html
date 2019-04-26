@@ -26,7 +26,18 @@
             </div>
             <button onclick="setPrivateKey()">Set private key</button>
         </section>
-
+        <h1>Balance of Address</h1>
+        <section>
+            <div>
+                <label>Address:</label>
+                <input type="text" id="addressInfo" value="0xe9699cc154b8121586a2d7a333d353fa91ad4bed" />
+                <div>
+                    <label>Balance:</label>
+                    <span id="balanceInfo">?</span>
+                </div>
+            </div>
+            <button onclick="getAddressInfo()">Get addresss info</button>
+        </section>
         <h2>RUT sending</h2>
         <section>
             <div>
@@ -47,6 +58,7 @@
             let keyPair = null;
             let cy = null;
             setPrivateKey();
+            getAddressInfo();
 
             async function run() {
                 try {
@@ -61,6 +73,12 @@
                     console.error(error);
                     document.getElementById('isRutileActive').innerHTML = 'Error';
                 }
+            }
+
+            async function getAddressInfo() {
+                const address = document.getElementById('addressInfo').value;
+                const account = await Rutile.Account.getFromAddress(address);
+                document.getElementById('balanceInfo').innerHTML = account.balance;
             }
 
             async function setPrivateKey() {

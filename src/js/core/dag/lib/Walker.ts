@@ -45,8 +45,6 @@ class Walker {
         }
 
         const randomIndex = getRandomInt(0, attachedTransactions.length - 1);
-        console.log(`[] Random number... ->  ${attachedTransactions.length} -> `, randomIndex);
-
 
         // TODO: Make a weighted decision between the given transactions..
         // For now we are going to random select one.

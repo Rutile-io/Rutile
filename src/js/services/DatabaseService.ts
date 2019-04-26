@@ -1,9 +1,10 @@
 import Transaction from '../models/Transaction';
 import isNodeJs from './isNodeJs';
 import { configuration } from '../Configuration';
-import levelup, { LevelUp } from 'levelup';
-import { AbstractIteratorOptions } from 'abstract-leveldown';
 import PouchDbLevelDbMapping from '../models/PouchDbLevelDbMapping';
+import * as MemoryStream from 'memorystream';
+import { Duplex } from 'stream';
+const ReplicationStream = require('pouchdb-replication-stream');
 
 let pouchDb: PouchDB.Database = null;
 
@@ -28,6 +29,11 @@ export function startDatabase(): PouchDB.Database {
         PouchDb = require('pouchdb').default;
         PouchDb.plugin(require('pouchdb-find').default);
     }
+
+    PouchDb.plugin(ReplicationStream.plugin);
+    // @ts-ignore
+    PouchDb.adapter('writableStream', ReplicationStream.adapters.writableStream);
+
 
     pouchDb = new PouchDb(configuration.databaseName, {
         revs_limit: 1,
@@ -120,6 +126,37 @@ export async function getById(id: string): Promise<any> {
 
         return val;
     } catch (error) {
+        return null;
+    }
+}
+
+async function databaseGetAllByPagination(query: any, stream: Duplex, limit: number = 10, skip: number = 0) {
+    const result = await pouchDb.find({
+        ...query,
+        limit,
+        skip,
+    });
+
+    result.docs.forEach((doc) => {
+        stream.write(JSON.stringify(doc));
+    });
+
+    // Continue we probably didn't hit the end.
+    if (result.docs.length === 10) {
+        await databaseGetAllByPagination(query, stream, limit, skip + limit);
+    } else {
+        // We completed the query.
+        stream.end();
+    }
+}
+
+export function databaseGetAll(query: any): Duplex {
+    try {
+        const memStream = new MemoryStream();
+        databaseGetAllByPagination(query, memStream, 10, 0);
+        return memStream;
+    } catch(error) {
+        console.error('[databaseFind] ->', error);
         return null;
     }
 }

@@ -264,15 +264,15 @@ class Network extends EventHandler {
     /**
      * Sends data to a single peer
      *
-     * @param {string} nodeId
+     * @param {string} peerId
      * @param {string} data
      * @memberof PeerToPeer
      */
-    sendDataToPeer(nodeId: string, data: string) {
-        const connection = this.connections.find(connection => connection.nodeId === nodeId);
+    sendDataToPeer(peerId: string, data: string) {
+        const connection = this.connections.find(connection => connection.peer.id === peerId);
 
-        if (!connection.peer.isConnected) {
-            throw new Error(`Node ${nodeId} is not connected`);
+        if (!connection || !connection.peer.isConnected) {
+            throw new Error(`Peer ${peerId} is not connected`);
         }
 
         connection.peer.sendData(data);
