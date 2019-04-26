@@ -4,6 +4,7 @@ import { applyArgv } from './Configuration';
 import isNodeJs from './services/isNodeJs';
 import Wallet from './models/Wallet';
 import { saveTransaction, startDatabase } from './services/DatabaseService';
+import { startIpfsClient} from './services/IpfsService';
 // import RutileContext from './models/RutileContext';
 // import * as fs from 'fs';
 import { validateTransaction, applyTransaction } from './services/TransactionService';
@@ -25,6 +26,7 @@ function sleep(ms: number) {
 async function run() {
     applyArgv();
     startDatabase();
+    startIpfsClient();
 
     const wallet = new Wallet('C0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE');
     await wallet.getAccountInfo();
@@ -55,13 +57,13 @@ async function run() {
             to: hash,
             // data: '0x1A029399ed09375dc6b20050d242d1611af97ee4a6e93cad',
             // data: '0x9993021aed09375dc6b20050d242d1611af97ee4a6e93cad',
-            data: '0x00000001',
+            data: '0x00000000',
             // data: '0x5d359fbde929cf2544363bdcee4a976515d5f97758ef476c000000000007a120',
             value: 0,
             transIndex: wallet.account.transactionIndex + 1,
         });
 
-        const result = await transaction.execute();
+        // const result = await transaction.execute();
 
         transaction.sign(wallet.keyPair);
         transaction.proofOfWork();
