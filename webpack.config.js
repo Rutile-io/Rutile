@@ -7,6 +7,9 @@ module.exports = {
     // target: 'node',
     resolve: {
         extensions: ['.js', '.jsx', '.tsx', '.ts'],
+        alias: {
+            'bignumber.js': 'bignumber.js/bignumber.js',
+        },
     },
     entry: {
         rutile: ['./index.js'],
@@ -40,11 +43,11 @@ module.exports = {
                     limit: 100000,
                 },
             },
-            {
-                test: /\.(js|jsx)$/,
-                exclude,
-                loader: 'babel-loader',
-            },
+            // {
+            //     test: /\.(js|jsx)$/,
+            //     exclude,
+            //     loader: 'babel-loader',
+            // },
         ],
     },
 };
