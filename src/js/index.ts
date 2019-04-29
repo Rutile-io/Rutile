@@ -26,7 +26,7 @@ function sleep(ms: number) {
 async function run() {
     applyArgv();
     startDatabase();
-    startIpfsClient();
+    await startIpfsClient();
 
     const wallet = new Wallet('C0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE');
     await wallet.getAccountInfo();
