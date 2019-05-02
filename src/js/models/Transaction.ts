@@ -70,6 +70,13 @@ class Transaction {
     // data as arguments or a message to send along with the transactions
     data?: string;
 
+    // The weight of this transaction + all weight of transactions
+    // that directly or indirectly confirms this transaction
+    cumulativeWeight: number = 1;
+
+    // The transaction own weight. Currently is fixed to 1.
+    weight: number = 1;
+
     constructor(params: TransactionParams) {
         this.data = params.data;
         this.to = params.to;

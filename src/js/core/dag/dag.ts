@@ -21,7 +21,7 @@ class Dag extends EventHandler {
     constructor(network: Network) {
         super();
         this.networkController = new NetworkController(this, network);
-        this.walker = new Walker(configuration.genesis.config.minimumParentsValidation);
+        this.walker = new Walker();
         this.ipfs = Ipfs.getInstance(configuration.ipfs);
     }
 

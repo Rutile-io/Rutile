@@ -20,6 +20,6 @@
     ],
   },
   "exclude": [
-    "./examples"
+    "build/examples"
   ]
 }

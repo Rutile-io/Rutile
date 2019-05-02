@@ -7,6 +7,13 @@ interface GenesisConfig {
         timestamp: number;
         value: number;
     };
+
+    alloc: {
+        [address: string]: {
+            balance: string;
+        }
+    };
+
     config: {
         /**
          * This is a value that is constant in the Rutile public network
@@ -14,9 +21,8 @@ interface GenesisConfig {
          *
          * @type {string}
          */
-        nonce: number;
-        minimumParentsValidation: number;
-    }
+        chainId: number;
+    };
 }
 
 interface IConfig {

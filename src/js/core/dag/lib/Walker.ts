@@ -15,12 +15,6 @@ function getRandomInt(min: number, max: number) {
  * @class Walker
  */
 class Walker {
-    private minimumTransactionsToValidate: number;
-
-    constructor(minimumTransactionsToValidate: number) {
-        this.minimumTransactionsToValidate = minimumTransactionsToValidate;
-    }
-
     async getAttachedTransactions(transactionId: string) {
         const branchTransactionsPromise = databaseFind('branchTransaction', transactionId);
         const trunkTransactionsPromise = databaseFind('trunkTransaction', transactionId);
@@ -36,6 +30,13 @@ class Walker {
         return transactions;
     }
 
+    /**
+     * Finds a transaction tip that we can use to validate.
+     *
+     * @param {Transaction} transaction
+     * @returns {Promise<Transaction>}
+     * @memberof Walker
+     */
     async getTransactionTip(transaction: Transaction): Promise<Transaction> {
         const attachedTransactions = await this.getAttachedTransactions(transaction.id);
 
@@ -50,17 +51,17 @@ class Walker {
         // For now we are going to random select one.
         const nextTransaction = attachedTransactions[randomIndex];
 
+        // TODO: Check balance of account before chosing a transaction path.
+
         return this.getTransactionTip(nextTransaction);
     }
 
     async getTransactionToValidate(milestoneIndex: number): Promise<Transaction[]> {
         let transactionsToValidate: Transaction[] = [];
 
-        console.log('Walking transactions..');
         // First we have to get the milestone transaction with the given milestoneIndex
         const milestoneTransaction = await getMilestoneTransaction(milestoneIndex);
         const trunkTransactionTip = await this.getTransactionTip(milestoneTransaction);
-        console.log('Second walk..');
         const branchTransactionTip = await this.getTransactionTip(milestoneTransaction);
 
         transactionsToValidate.push(trunkTransactionTip);
@@ -76,42 +77,13 @@ class Walker {
 
             const parentTransaction = await getTransactionById(trunkAndBranch[getRandomInt(0, 1)]);
             transactionsToValidate.push(parentTransaction);
-            console.log('Found doubles');
         } else {
             transactionsToValidate.push(branchTransactionTip);
         }
 
-        console.log('[] transactionsToValidate -> ', transactionsToValidate);
-
         return transactionsToValidate;
-
-        // Then we have to find the children of that transaction
-        // const attachedTransactions = await this.getAttachedTransactions(milestoneTransaction.id);
-
-        // if (attachedTransactions.length === 0) {
-        //     transactionsToValidate = [
-        //         milestoneTransaction,
-        //         milestoneTransaction,
-        //     ];
-        // } else if (attachedTransactions.length === 1) {
-        //     transactionsToValidate = [
-        //         milestoneTransaction,
-        //         ...attachedTransactions,
-        //     ];
-        // } else {
-        //     console.log('Yay...');
-        //     // Continue walking the dag..
-        // }
-
-        // // It's possible that the genesis milestone does not have any transactions attached to it yet
-        // // in this case we simply attach the new transaction to the genesis.
-        // if (milestoneTransaction.isGenesis() && attachedTransactions.length !== 2) {
-
-        // }
 
         // Then we have to walk backwards on that transaction (Remembering the weight/amount spend)
-
-        return transactionsToValidate;
     }
 }
 
