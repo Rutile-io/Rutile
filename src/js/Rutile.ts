@@ -9,6 +9,7 @@ import Account from './models/Account';
 import byteArrayToString from './utils/byteArrayToString';
 import Wallet from './models/Wallet';
 import * as Database from './services/DatabaseService';
+import * as Logger from 'js-logger';
 
 /**
  * Glue between all core modules.
@@ -50,6 +51,7 @@ class Rutile {
 
     async start() {
         try {
+            Logger.info('Starting Rutile');
             // Boot up our peer to peer network
             this.network = new Network();
             await this.network.open();

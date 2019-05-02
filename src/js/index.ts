@@ -4,13 +4,20 @@ import isNodeJs from './services/isNodeJs';
 import Wallet from './models/Wallet';
 import { startDatabase, databaseCreate, createOrUpdate } from './services/DatabaseService';
 import Account from './models/Account';
-import CumulativeWeightCalculator from './core/dag/lib/CumulativeWeightCalculator';
 import * as Logger from 'js-logger';
+import getTransactionCumulativeWeights from './core/dag/lib/services/CumulativeWeightService';
 // import RutileContext from './models/RutileContext';
 // import * as fs from 'fs';
 // import { validateTransaction, applyTransaction } from './services/_TransactionService';
 
 Logger.setLevel(Logger.TRACE);
+const loggerHandler = Logger.createDefaultHandler({
+    formatter: function(message, context) {
+        message.unshift(`[${context.level.name.toLowerCase()}]`);
+    }
+});
+
+Logger.setHandler(loggerHandler);
 
 let wallet: Wallet;
 let account: Account;
@@ -67,11 +74,6 @@ async function sendDummyTransaction () {
 async function run() {
     applyArgv();
     startDatabase();
-    const cwc = new CumulativeWeightCalculator();
-    cwc.calculate('');
-
-
-    return;
 
     wallet = new Wallet('10DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE');
     account = await wallet.getAccountInfo();
@@ -89,9 +91,9 @@ async function run() {
         }
 
         rutile.dag.networkController.network.on('peerConnected', () => {
-            setInterval(() => {
-                sendDummyTransaction();
-            }, 10000);
+            // setInterval(() => {
+            //     sendDummyTransaction();
+            // }, 10000);
         });
 
         if (isNodeJs()) {

@@ -1,6 +1,8 @@
 import Transaction from "../../../models/Transaction";
 import { getMilestoneTransaction, getTransactionById } from "./services/TransactionService";
 import { databaseFind } from "../../../services/DatabaseService";
+import getTransactionCumulativeWeights from "./services/CumulativeWeightService";
+import * as Logger from 'js-logger';
 
 function getRandomInt(min: number, max: number) {
     min = Math.ceil(min);
@@ -15,6 +17,8 @@ function getRandomInt(min: number, max: number) {
  * @class Walker
  */
 class Walker {
+    transactionCumulativeWeights: Map<string, number>;
+
     async getAttachedTransactions(transactionId: string) {
         const branchTransactionsPromise = databaseFind('branchTransaction', transactionId);
         const trunkTransactionsPromise = databaseFind('trunkTransaction', transactionId);
@@ -28,6 +32,30 @@ class Walker {
         ];
 
         return transactions;
+    }
+
+    getRandomWeightedTransaction(transactions: Transaction[]): Transaction {
+        let sumOfWeight = 0;
+
+        transactions.forEach((transaction) => {
+            sumOfWeight += this.transactionCumulativeWeights.get(transaction.id);
+        });
+
+        let randomNum = getRandomInt(0, sumOfWeight);
+
+        const transaction = transactions.find((transaction) => {
+            if (randomNum < this.transactionCumulativeWeights.get(transaction.id)) {
+                return true;
+            }
+
+            randomNum -= this.transactionCumulativeWeights.get(transaction.id);
+        });
+
+        if (!transaction) {
+            return transactions[0];
+        }
+
+        return transaction;
     }
 
     /**
@@ -45,11 +73,7 @@ class Walker {
             return transaction;
         }
 
-        const randomIndex = getRandomInt(0, attachedTransactions.length - 1);
-
-        // TODO: Make a weighted decision between the given transactions..
-        // For now we are going to random select one.
-        const nextTransaction = attachedTransactions[randomIndex];
+        const nextTransaction = this.getRandomWeightedTransaction(attachedTransactions);
 
         // TODO: Check balance of account before chosing a transaction path.
 
@@ -60,8 +84,13 @@ class Walker {
         let transactionsToValidate: Transaction[] = [];
 
         // First we have to get the milestone transaction with the given milestoneIndex
+        this.transactionCumulativeWeights = await getTransactionCumulativeWeights();
         const milestoneTransaction = await getMilestoneTransaction(milestoneIndex);
+
+        Logger.debug('Searching for trunk transaction');
         const trunkTransactionTip = await this.getTransactionTip(milestoneTransaction);
+
+        Logger.debug('Searching for branch transaction');
         const branchTransactionTip = await this.getTransactionTip(milestoneTransaction);
 
         transactionsToValidate.push(trunkTransactionTip);
