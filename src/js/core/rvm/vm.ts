@@ -1,5 +1,5 @@
 import { workerAddEventListener, workerPostMessage, workerRequest, extractMessageFromEvent } from "./utils/workerUtils";
-import VirtualContext from "./lib/virtualcontext";
+import VirtualContext from "./lib/VirtualContext";
 
 const saferEval = require('safer-eval');
 const metering = require('wasm-metering');
