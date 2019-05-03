@@ -8,53 +8,65 @@ const http = require('http');
 
 const configs = [
     {
+        port: 1240,
+        databaseName: 'db_rutile',
+        privateKey: '10DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE',
+    },
+    {
         port: 1234,
         databaseName: 'db_rutile1234',
+        privateKey: '20DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE',
     },
     {
         port: 1236,
         databaseName: 'db_rutile1236',
+        privateKey: '30DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE',
     },
     {
         port: 1235,
         databaseName: 'db_rutile1235',
+        privateKey: '40DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE',
     },
     {
         port: 1237,
         databaseName: 'db_rutile1237',
+        privateKey: '50DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE',
     },
     {
         port: 1238,
         databaseName: 'db_rutile1238',
+        privateKey: '60DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE',
     },
     {
         port: 1239,
         databaseName: 'db_rutile1239',
+        privateKey: '70DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE',
     },
     {
         port: 1230,
         databaseName: 'db_rutile1230',
+        privateKey: '80DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE',
     },
 ];
 
 const nodes = [];
 
-function spawnNode(port, dbName) {
-    const node = spawn('node', ['./build/rutile.js', '--port', port, '--databaseName', dbName]);
+function spawnNode(port, dbName, pk) {
+    const node = spawn('node', ['./build/rutile.js', '--port', port, '--databaseName', dbName, '--privateKey', pk, '--nodesListUrl', 'http://localhost:8903/examples/network-file/RutileNodes.json']);
     nodes.push(node);
 
     node.stdout.on('data', (data) => {
-        console.log(`Node[${port}] -> ${data}`);
+        console.log(`Node[${port}:${dbName}] -> ${data}`);
     });
 
     node.stderr.on('data', (data) => {
-        console.error(`Node[${port}] -> ${data}`);
+        console.error(`Node[${port}:${dbName}] -> ${data}`);
     });
 }
 
 async function startPool() {
     configs.forEach((config) => {
-        spawnNode(config.port, config.databaseName);
+        spawnNode(config.port, config.databaseName, config.privateKey);
     });
 
     const httpServer = http.createServer((req, res) => {

@@ -1,4 +1,4 @@
-import Dag from "../dag";
+import Dag from "../Dag";
 import Network from "../../network/Network";
 import { NetworkMessageEvent } from "../../network/lib/types/Events";
 import Transaction from "../../../models/Transaction";
@@ -50,7 +50,7 @@ class NetworkController {
 
         if (data.type === 'TRANSACTION') {
             const transaction = Transaction.fromRaw(data.value);
-            this.dag.addTransaction(transaction);
+            this.dag.addTransaction(transaction, event.peerId);
         } else if (data.type === 'SYNC_FROM_MILESTONE') {
             // A node sent us a request to synchronise our database.
             this.dag.synchroniseTo(data.value.milestoneIndex, event.peerId);

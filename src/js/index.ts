@@ -1,5 +1,5 @@
 import Rutile from './Rutile';
-import { applyArgv } from './Configuration';
+import { applyArgv, configuration } from './Configuration';
 import isNodeJs from './services/isNodeJs';
 import Wallet from './models/Wallet';
 import { startDatabase, databaseCreate, createOrUpdate } from './services/DatabaseService';
@@ -32,10 +32,16 @@ function sleep(ms: number) {
 }
 
 async function sendDummyTransaction () {
-    wallet = new Wallet('10DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE');
+    wallet = new Wallet(configuration.privateKey);
     account = await wallet.getAccountInfo();
 
     console.log('My address is -> ', account.address, ' with balance -> ', account.balance);
+
+    if (account.balance < 10) {
+        Logger.debug('Transaction not possible, amount is lower than 10');
+        return;
+    }
+
 // const file = fs.readFileSync('./examples/wrc20/wrc20-non-debug.wasm');
     // require('/Users/franklinwaller/Desktop/EVM.wasm-master/build/untouched.wasm');
     // const file = fs.readFileSync('/Volumes/Mac Space/Workspace/Rutile/EVM.wasm/build/untouched.wasm');
@@ -89,6 +95,10 @@ async function run() {
         } catch (e) {
             console.error('Oh well', e);
         }
+
+        setInterval(() => {
+            sendDummyTransaction();
+        }, 10000);
 
         rutile.dag.networkController.network.on('peerConnected', () => {
             // setInterval(() => {

@@ -193,7 +193,7 @@ class Transaction {
     static fromRaw(rawTransaction: string): Transaction {
         const transaction: TransactionParams = JSON.parse(rawTransaction);
 
-        // Validate types..
+        // TODO: Validate more types..
         if (typeof transaction.value !== 'number') {
             throw new TypeError('transaction.value should be a number');
         }

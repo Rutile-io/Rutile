@@ -35,6 +35,8 @@ interface IConfig {
     databaseName: string,
     difficulty: number,
     genesis: GenesisConfig,
+    privateKey: string;
+    maximumNodes: number;
 }
 
 export default IConfig;

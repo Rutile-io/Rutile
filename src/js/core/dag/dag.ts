@@ -2,7 +2,7 @@ import Network from "../network/Network";
 import NetworkController from "./controller/NetworkController";
 import Transaction from "../../models/Transaction";
 import KeyPair from "../../models/KeyPair";
-import { getMilestoneTransaction, validateTransaction, applyTransaction, saveTransaction } from "./lib/services/TransactionService";
+import { getMilestoneTransaction, validateTransaction, applyTransaction, saveTransaction, getTransactionById } from "./lib/services/TransactionService";
 import { configuration } from "../../Configuration";
 import Walker from "./lib/Walker";
 import createGenesisTransaction from "./lib/transaction/createGenesisTransaction";
@@ -10,6 +10,7 @@ import EventHandler from "../network/lib/EventHandler";
 import Ipfs from "../../services/wrappers/Ipfs";
 import { databaseGetAll } from "../../services/DatabaseService";
 import { isProofOfWorkValid } from "../../services/transaction/ProofOfWork";
+import * as Logger from 'js-logger';
 
 const GENESIS_MILESTONE = 1;
 
@@ -31,16 +32,29 @@ class Dag extends EventHandler {
      * @param {Transaction} transaction
      * @memberof Dag
      */
-    async addTransaction(transaction: Transaction) {
+    async addTransaction(transaction: Transaction, fromPeerId: string) {
         try {
-            console.log('[DAG]: Received transaction..' ,transaction);
+            // Make sure we are not storing duplicates.
+            const isTransactionInDatabase = !!(await getTransactionById(transaction.id));
+
+            if (isTransactionInDatabase) {
+                Logger.debug(`Transaction ${transaction.id} already received`);
+                return;
+            }
+
+            // Send the transaction to the rest of the nodes.
+            this.networkController.network.broadcastTransaction(transaction, [fromPeerId]);
+
+            Logger.debug('Received transaction ', transaction.id);
+
             await validateTransaction(transaction);
-            console.log('[DAG]: Transaction is valid, adding to db.');
+
+            // Let the rest of the application know it's valid.
             this.trigger('transactionAdded', {
                 transaction,
             });
         } catch (error) {
-            console.error('[DAG]: Transaction adding failed: ', error);
+            Logger.warn('Transaction with id', transaction.id, 'failed', error);
         }
     }
 

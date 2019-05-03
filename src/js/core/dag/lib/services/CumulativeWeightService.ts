@@ -31,6 +31,11 @@ async function updateApprovers(transactionApprovers: Map<string, string[]>, tran
     const approvers = transactionApprovers.get(transactionId);
     const transaction = await getTransactionById(transactionId);
 
+    if (!transaction) {
+        Logger.debug(`Missing transaction ${transactionId}`);
+        return transactionApprovers;
+    }
+
     const trunkApprovers = createApprovers(transactionApprovers, transactionId, approvers, transaction.trunkTransaction);
     transactionApprovers.set(transaction.trunkTransaction, trunkApprovers);
 

@@ -14,6 +14,9 @@ interface AvailableNode {
     dbUrl: string,
 }
 
+// TODO: A better way of peer discovery..
+const alreadyConnectedTo: string[] = [];
+
 class PeerToPeerService {
     /**
      * Gets all nodes from a provided service and returns one host that is possible to connect to.
@@ -27,7 +30,15 @@ class PeerToPeerService {
             const response = await fetch(configuration.nodesListUrl);
             const availableNodes: AvailableNode[] = await response.json();
 
-            return availableNodes[Math.floor(Math.random() * availableNodes.length)];
+            const node = availableNodes[Math.floor(Math.random() * availableNodes.length)];
+
+            if (alreadyConnectedTo.includes(node.nodeUrl)) {
+                return null;
+            }
+
+            alreadyConnectedTo.push(node.nodeUrl);
+
+            return node;
         } catch (error) {
             console.error(error);
             return null;

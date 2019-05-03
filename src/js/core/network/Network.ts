@@ -6,6 +6,7 @@ import Peer from './lib/peer';
 import { configuration } from "../../Configuration";
 import isNodeJs from "../../services/isNodeJs";
 import EventHandler from "./lib/EventHandler";
+import * as Logger from 'js-logger';
 
 interface Connection {
     // Offers don't have yet a filled in nodeId,
@@ -100,11 +101,14 @@ class Network extends EventHandler {
         const connection = this.connections[connectionIndex];
 
         if (!response) {
-            throw new Error('No session description received, not adding connection');
+            // this.onPeerClose(peerId);
+            Logger.error(`No session description found for ${peerId}`);
+            return;
         }
 
         if (!connection) {
-            throw new Error('Could not find connection, not adding');
+            Logger.error('Could not find connection, not adding');
+            return;
         }
 
         // Since this is our first connection we need more nodes.
@@ -120,11 +124,10 @@ class Network extends EventHandler {
     }
 
     // Peer handeling events
-
     private onPeerClose(peerId: string) {
         const disconnectedConnection = this.connections.findIndex(connection => connection.peer.id === peerId);
 
-        console.log('[PeerToPeer] Disconnected with NodeId -> ', this.connections[disconnectedConnection].nodeId);
+        Logger.info(`Peer ${peerId} disconnected`);
 
         // Remove from array
         this.connections.splice(disconnectedConnection, 1);
@@ -132,6 +135,17 @@ class Network extends EventHandler {
         this.trigger('peerClosed', {
             peerId,
             data: null,
+        });
+    }
+
+    connectToMoreNodes() {
+        if (this.connections.length > configuration.maximumNodes) {
+            return;
+        }
+
+        Logger.debug(`Trying to connect to more nodes (Currently: ${this.connections.length})`);
+        const peer = this.createPeer(true, (sdp) => {
+            this.onSignal(sdp, peer.id);
         });
     }
 
@@ -171,7 +185,7 @@ class Network extends EventHandler {
             peerId,
         })
 
-        console.log(`[PeerToPeer] A peer is connected (Connected: ${this.connections.length})`);
+        Logger.info(`New peer is connected (Total: ${this.connections.length})`);
     }
 
     private onPeerError(error: any, peerId: string) {
@@ -180,7 +194,7 @@ class Network extends EventHandler {
             peerId,
         });
 
-        console.log('[OnPeerError] error -> ', error);
+        Logger.error('Network error: ', error);
     }
 
     /**
@@ -199,8 +213,12 @@ class Network extends EventHandler {
 
                 httpServer.listen(configuration.port, '0.0.0.0');
 
-                console.log(`[Peer]Listening on port ${configuration.port}`);
+                Logger.info(`HTTP Listening on port ${configuration.port}`);
             }
+
+            setInterval(() => {
+                this.connectToMoreNodes();
+            }, 2000);
 
             // Since we are just opening the node we have to create an offer.
             const peer = new Peer(true);
@@ -217,6 +235,7 @@ class Network extends EventHandler {
             peer.onData = (data) => this.onPeerData(data, peer.id);
             peer.onConnect = () => {
                 this.onPeerConnected(peer.id);
+
                 resolve(peer.id);
             }
 
@@ -233,15 +252,14 @@ class Network extends EventHandler {
         });
     }
 
-    async broadcastTransaction(transaction: Transaction) {
+    async broadcastTransaction(transaction: Transaction, skipPeerIds: string[] = []) {
         const message: TransactionMessage = {
             type: 'TRANSACTION',
             value: transaction.toRaw(),
         };
 
-        console.log('[] message -> ', message);
-
-        await this.broadcast(JSON.stringify(message));
+        Logger.debug(`Broadcasting transaction ${transaction.id}`);
+        await this.broadcast(JSON.stringify(message), skipPeerIds);
     }
 
     /**
@@ -250,10 +268,14 @@ class Network extends EventHandler {
      * @param {string} data
      * @memberof Network
      */
-    async broadcast(data: string) {
+    async broadcast(data: string, skipPeerIds: string[] = []) {
         this.connections.forEach((connect) => {
             // Make sure it's still connected
             if (!connect.peer.isConnected) {
+                return;
+            }
+
+            if (skipPeerIds.includes(connect.peer.id)) {
                 return;
             }
 

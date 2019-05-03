@@ -8,9 +8,13 @@ const NODE_ID = `${uuid()}-${uuid()}-${uuid()}`;
 const config: IConfig = {
     nodeId: NODE_ID,
     // nodesListUrl: 'http://localhost:8903/',
-    nodesListUrl: 'http://localhost:9001/examples/network-file/RutileNodes.json',
+    nodesListUrl: 'http://localhost:8903/examples/network-file/RutileNodes.json',
+    maximumNodes: 5,
     vmUrl: './build/vm.js',
     port: 1337,
+
+    // Private key is used for milestone generation.
+    privateKey: '10DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE',
     iceServers: [
         { urls: 'stun:stun.stunprotocol.org:3478' },
         { urls: 'stun:stun.l.google.com:19302' }
