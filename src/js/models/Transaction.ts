@@ -21,8 +21,7 @@ interface TransactionParams {
     value?: number;
     transIndex?: number;
     milestoneIndex?: number;
-    branchTransaction?: string;
-    trunkTransaction?: string;
+    parents?: string[];
 }
 
 class Transaction {
@@ -50,10 +49,6 @@ class Transaction {
     // Timestamp of transaction
     timestamp?: number = 0;
 
-    // Transactions that are attached
-    branchTransaction: string = '';
-    trunkTransaction: string = '';
-
     // The nonce used to find the PoW hash
     nonce?: number = 0;
 
@@ -77,6 +72,9 @@ class Transaction {
     // The transaction own weight. Currently is fixed to 1.
     weight: number = 1;
 
+    // Parents of the transaction
+    parents: string[] = [];
+
     constructor(params: TransactionParams) {
         this.data = params.data;
         this.to = params.to;
@@ -92,8 +90,7 @@ class Transaction {
         this.timestamp = params.timestamp || 0;
         this.value = params.value || 0;
         this.transIndex = params.transIndex || 0;
-        this.trunkTransaction = params.trunkTransaction;
-        this.branchTransaction = params.branchTransaction;
+        this.parents = params.parents || [];
     }
 
     async execute() {
@@ -120,13 +117,14 @@ class Transaction {
         }
     }
 
-    async addParents(branchTransaction: Transaction, trunkTransaction: Transaction) {
-        if (!branchTransaction || !trunkTransaction) {
+    async addParents(transactions: Transaction[]) {
+        if (transactions.length < 2) {
             throw new Error('2 transactions should be given');
         }
 
-        this.branchTransaction = branchTransaction.id;
-        this.trunkTransaction = trunkTransaction.id;
+        for (let i = 0; i < transactions.length; i++) {
+            this.parents.push(transactions[i].id);
+        }
     }
 
     /**
@@ -178,8 +176,7 @@ class Transaction {
             gasUsed: this.gasUsed,
             timestamp: this.timestamp,
             milestoneIndex: this.milestoneIndex,
-            trunkTransaction: this.trunkTransaction,
-            branchTransaction: this.branchTransaction,
+            parents: this.parents,
             r: this.r,
             s: this.s,
             v: this.v,

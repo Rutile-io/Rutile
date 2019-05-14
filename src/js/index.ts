@@ -13,7 +13,8 @@ import getTransactionCumulativeWeights from './core/dag/lib/services/CumulativeW
 Logger.setLevel(Logger.TRACE);
 const loggerHandler = Logger.createDefaultHandler({
     formatter: function(message, context) {
-        message.unshift(`[${context.level.name.toLowerCase()}]`);
+        message.unshift(`[${context.level.name.toLowerCase()}]:`);
+        message.unshift(new Date().toLocaleString());
     }
 });
 

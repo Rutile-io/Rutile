@@ -28,8 +28,7 @@ export function getUnsignedTransactionHash(transaction: Transaction): string {
         transaction.data,
         numberToHex(transaction.gasUsed),
         numberToHex(transaction.timestamp),
-        transaction.trunkTransaction,
-        transaction.branchTransaction,
+        transaction.parents,
         numberToHex(configuration.genesis.config.chainId),
     ];
 
@@ -61,7 +60,7 @@ export function getTransactionId(transaction: Transaction) {
 }
 
 export async function validateTransaction(transaction: Transaction) {
-    if (!transaction.trunkTransaction || !transaction.branchTransaction) {
+    if (transaction.parents.length < 2) {
         throw new Error(`Transaction should validate 2 other transactions.`);
     }
 
@@ -88,10 +87,9 @@ export async function validateTransaction(transaction: Transaction) {
         timestamp: transaction.timestamp,
         nonce: transaction.nonce,
         transIndex: transaction.transIndex,
-        branchTransaction: transaction.branchTransaction,
-        trunkTransaction: transaction.trunkTransaction,
         milestoneIndex: transaction.milestoneIndex,
         value: transaction.value,
+        parents: transaction.parents,
     });
 
     // TODO: Check if transaction is a milestone transaction

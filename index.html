@@ -120,23 +120,17 @@
                     }
                 });
 
-                toAdd.push({
-                    group: 'edges',
-                    data: {
-                        source: transaction.id,
-                        target: transaction.branchTransaction,
-                        id: transaction.id + transaction.branchTransaction,
-                    }
-                });
-
-                toAdd.push({
-                    group: 'edges',
-                    data: {
-                        source: transaction.id,
-                        target: transaction.trunkTransaction,
-                        id: transaction.id + transaction.trunkTransaction,
-                    }
-                });
+                if (transaction.parents.length) {
+                    transaction.parents.forEach((tx) => {
+                        links.push({
+                            data: {
+                                source: transaction.id,
+                                target: tx,
+                                id: transaction.id + tx,
+                            }
+                        });
+                    });
+                }
 
                 cy.add(toAdd);
             }
@@ -155,22 +149,15 @@
                         }
                     });
 
-                    if (transaction.branchTransaction) {
-
-                        links.push({
-                            data: {
-                                source: transaction.id,
-                                target: transaction.branchTransaction,
-                                id: transaction.id + transaction.branchTransaction,
-                            }
-                        });
-
-                        links.push({
-                            data: {
-                                source: transaction.id,
-                                target: transaction.trunkTransaction,
-                                id: transaction.id + transaction.trunkTransaction,
-                            }
+                    if (transaction.parents.length) {
+                        transaction.parents.forEach((tx) => {
+                            links.push({
+                                data: {
+                                    source: transaction.id,
+                                    target: tx,
+                                    id: transaction.id + tx,
+                                }
+                            });
                         });
                     }
                 }

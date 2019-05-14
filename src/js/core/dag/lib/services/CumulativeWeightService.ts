@@ -12,8 +12,9 @@ function getTransactionsInTopologicalOrder(): Promise<string[]> {
         transactions.on('data', (transactionBuffer: Buffer) => {
             const transaction = Transaction.fromRaw(transactionBuffer.toString());
 
-            graph.push([transaction.id, transaction.branchTransaction]);
-            graph.push([transaction.id, transaction.trunkTransaction]);
+            transaction.parents.forEach((parentTransactionId) => {
+                graph.push([transaction.id, parentTransactionId]);
+            });
         });
 
         transactions.on('end', () => {
@@ -36,11 +37,10 @@ async function updateApprovers(transactionApprovers: Map<string, string[]>, tran
         return transactionApprovers;
     }
 
-    const trunkApprovers = createApprovers(transactionApprovers, transactionId, approvers, transaction.trunkTransaction);
-    transactionApprovers.set(transaction.trunkTransaction, trunkApprovers);
-
-    const branchApprovers = createApprovers(transactionApprovers, transactionId, approvers, transaction.branchTransaction);
-    transactionApprovers.set(transaction.branchTransaction, branchApprovers);
+    transaction.parents.forEach((parentTransactionId) => {
+        const parentApprovers = createApprovers(transactionApprovers, transactionId, approvers, parentTransactionId);
+        transactionApprovers.set(parentTransactionId, parentApprovers);
+    });
 
     // We've already calculated this transactionId. We can forget it.
     transactionApprovers.delete(transactionId);

@@ -1,6 +1,6 @@
 import Transaction from "../../../models/Transaction";
 import { getMilestoneTransaction, getTransactionById } from "./services/TransactionService";
-import { databaseFind } from "../../../services/DatabaseService";
+import { databaseFind, startDatabase } from "../../../services/DatabaseService";
 import getTransactionCumulativeWeights from "./services/CumulativeWeightService";
 import * as Logger from 'js-logger';
 
@@ -19,19 +19,25 @@ function getRandomInt(min: number, max: number) {
 class Walker {
     transactionCumulativeWeights: Map<string, number>;
 
-    async getAttachedTransactions(transactionId: string) {
-        const branchTransactionsPromise = databaseFind('branchTransaction', transactionId);
-        const trunkTransactionsPromise = databaseFind('trunkTransaction', transactionId);
+    /**
+     * Finds transaction that includes the transactionId as it's parent
+     *
+     * @param {string} transactionId
+     * @returns {Promise<Transaction[]>}
+     * @memberof Walker
+     */
+    async getAttachedTransactions(transactionId: string): Promise<Transaction[]> {
+        const db = startDatabase();
 
-        const branchTransactions = (await branchTransactionsPromise).docs.map(transaction => Transaction.fromRaw(JSON.stringify(transaction)));
-        const trunkTransactions = (await trunkTransactionsPromise).docs.map(transaction => Transaction.fromRaw(JSON.stringify(transaction)));
+        const data = await db.find({
+            selector: {
+                'parents': {
+                    '$in': [transactionId],
+                }
+            }
+        });
 
-        const transactions = [
-            ...branchTransactions,
-            ...trunkTransactions,
-        ];
-
-        return transactions;
+        return data.docs.map(transaction => Transaction.fromRaw(JSON.stringify(transaction)))
     }
 
     getRandomWeightedTransaction(transactions: Transaction[]): Transaction {
@@ -80,39 +86,31 @@ class Walker {
         return this.getTransactionTip(nextTransaction);
     }
 
-    async getTransactionToValidate(milestoneIndex: number): Promise<Transaction[]> {
+    async getTransactionToValidate(milestoneIndex: number, transactionsAmount: number): Promise<Transaction[]> {
         let transactionsToValidate: Transaction[] = [];
 
         // First we have to get the milestone transaction with the given milestoneIndex
         this.transactionCumulativeWeights = await getTransactionCumulativeWeights();
         const milestoneTransaction = await getMilestoneTransaction(milestoneIndex);
 
-        Logger.debug('Searching for trunk transaction');
-        const trunkTransactionTip = await this.getTransactionTip(milestoneTransaction);
+        const transactionAmountIterator = new Array(transactionsAmount);
 
-        Logger.debug('Searching for branch transaction');
-        const branchTransactionTip = await this.getTransactionTip(milestoneTransaction);
+        for (let [index] of transactionAmountIterator.entries()) {
+            Logger.debug(`Searching for transaction ${index + 1}/${transactionsAmount}`);
 
-        transactionsToValidate.push(trunkTransactionTip);
+            const transaction = await this.getTransactionTip(milestoneTransaction);
+            const alreadyHasTransaction = !!transactionsToValidate.find(tx => tx.id === transaction.id);
 
-        // We can't add the same transaction id, as this would result in a chain rather than a DAG.
-        if (trunkTransactionTip.id === branchTransactionTip.id && !trunkTransactionTip.isGenesis()) {
-            // We get the parent of the transaction since that came before this one.
-            // TODO: Make sure we validate that transaction before selecting it.
-            const trunkAndBranch = [
-                trunkTransactionTip.trunkTransaction,
-                trunkTransactionTip.branchTransaction,
-            ];
-
-            const parentTransaction = await getTransactionById(trunkAndBranch[getRandomInt(0, 1)]);
-            transactionsToValidate.push(parentTransaction);
-        } else {
-            transactionsToValidate.push(branchTransactionTip);
+            if (alreadyHasTransaction && !transaction.isGenesis()) {
+                // We can't add the same transaction id, as this would result in a chain rather than a DAG.
+                const randomParent = transaction.parents[getRandomInt(0, transaction.parents.length - 1)];
+                transactionsToValidate.push(await getTransactionById(randomParent));
+            } else {
+                transactionsToValidate.push(transaction);
+            }
         }
 
         return transactionsToValidate;
-
-        // Then we have to walk backwards on that transaction (Remembering the weight/amount spend)
     }
 }
 

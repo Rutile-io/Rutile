@@ -13,6 +13,7 @@ import { isProofOfWorkValid } from "../../services/transaction/ProofOfWork";
 import * as Logger from 'js-logger';
 
 const GENESIS_MILESTONE = 1;
+const TRANSACTION_AMOUNT_TO_VALIDATE = 2;
 
 class Dag extends EventHandler {
     networkController: NetworkController;
@@ -66,10 +67,12 @@ class Dag extends EventHandler {
      * @memberof Dag
      */
     async submitTransaction(transaction: Transaction, keyPair: KeyPair) {
-        const transactions = await this.walker.getTransactionToValidate(1);
-        await transaction.addParents(transactions[0], transactions[1]);
+        const parentTransactions = await this.walker.getTransactionToValidate(1, TRANSACTION_AMOUNT_TO_VALIDATE);
+        await transaction.addParents(parentTransactions);
+
         transaction.sign(keyPair);
         transaction.proofOfWork();
+
         await validateTransaction(transaction);
         this.networkController.broadcastTransaction(transaction);
     }
