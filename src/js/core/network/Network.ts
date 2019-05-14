@@ -7,6 +7,7 @@ import { configuration } from "../../Configuration";
 import isNodeJs from "../../services/isNodeJs";
 import EventHandler from "./lib/EventHandler";
 import * as Logger from 'js-logger';
+import PeerHttpServer from "./PeerHttpServer";
 
 interface Connection {
     // Offers don't have yet a filled in nodeId,
@@ -22,78 +23,7 @@ export interface PeerDataMessage {
 }
 
 class Network extends EventHandler {
-    private connections: Connection[] = [];
-
-    /**
-     * Handles the HTTP Requests (Mostly for Node)
-     *
-     * @private
-     * @param {*} req
-     * @param {*} res
-     * @returns
-     * @memberof PeerController
-     */
-    private handleHttpRequest(req: any, res: any) {
-        res.setHeader('Access-Control-Allow-Origin', '*');
-
-        if (req.url === '/nodes') {
-            res.writeHead(200, {
-                'Content-Type': 'application/json'
-            });
-            res.end(JSON.stringify({
-                Result: this.connections,
-            }));
-         } else if (req.url.includes('/requestSdpConnection')) {
-            const requestUrl = new URL('http://localhost.com' + req.url);
-
-            const sdp = requestUrl.searchParams.get('sdp');
-            const nodeId = requestUrl.searchParams.get('nodeId');
-
-            // TODO: Return a bad request when no sdp param was found..
-            if (!sdp || !nodeId) {
-                console.error('No sdp or nodeId available');
-                return;
-            }
-
-            const descriptionInit: RTCSessionDescription = JSON.parse(sdp);
-
-            if (descriptionInit.type !== 'offer') {
-                console.error('SDP is not offer');
-                return;
-            }
-
-            // Create a response signal and send it as response.
-            const peer = new Peer(false);
-
-            peer.onSignal = (offerSignal) => {
-                res.writeHead(200, {
-                    'Content-Type': 'application/json',
-                });
-                res.end(JSON.stringify({
-                    Result: {
-                        sdp: offerSignal,
-                        nodeId: configuration.nodeId,
-                    }
-                }));
-            }
-
-            peer.onData = (data) => this.onPeerData(data, peer.id);
-            peer.onClose = () => this.onPeerClose(peer.id);
-            peer.onConnect = () => this.onPeerConnected(peer.id);
-            peer.onError = (error) => this.onPeerError(error, peer.id);
-            peer.open();
-            peer.connect(descriptionInit)
-
-            // Now use the offer that was given and connect to that node.
-            this.connections.push({
-                peer,
-                nodeId,
-            });
-         } else {
-            res.writeHead(404, { 'Content-Type': 'text/html' });
-            res.end('Page not found.');
-        }
-    }
+    public connections: Connection[] = [];
 
     private async onSignal(sessionDescription: RTCSessionDescriptionInit, peerId: string) {
         const response =  await PeerToPeerService.initialHttpNodeConnect(sessionDescription);
@@ -208,12 +138,8 @@ class Network extends EventHandler {
         return new Promise((resolve, reject) => {
             if (isNodeJs()) {
                 // TODO: Use HTTPS here instead of HTTP
-                const http = require('http');
-                const httpServer = http.createServer(this.handleHttpRequest.bind(this));
-
-                httpServer.listen(configuration.port, '0.0.0.0');
-
-                Logger.info(`HTTP Listening on port ${configuration.port}`);
+                const peerHttpServer = new PeerHttpServer(this);
+                peerHttpServer.open(configuration.port);
             }
 
             setInterval(() => {
