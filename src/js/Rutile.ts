@@ -29,6 +29,10 @@ class Rutile {
         return Account;
     }
 
+    get Ipfs(){
+        return this.ipfs;
+    }
+
     constructor() {
         this.ipfs = Ipfs.getInstance(configuration.ipfs);
         this.eventHandler = new EventHandler();

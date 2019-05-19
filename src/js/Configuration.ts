@@ -19,9 +19,9 @@ const config: IConfig = {
     maximumNodeAskConnectTime: 3000,
     timeoutBeforeCleanup: 30000,
     ipfs: {
-        host: 'ipfs.infura.io',
-        port: 5001,
-        protocol: 'https',
+        host: 'localhost',
+        port: 4002,
+        protocol: 'http',
     },
     difficulty: 3,
     databaseName: 'db_rutile',

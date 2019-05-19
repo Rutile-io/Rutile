@@ -33,6 +33,21 @@
             </div>
             <button onclick="sendValue()">Send transaction</button>
         </section>
+        <h2>Upload file to local IPFS Node</h2>
+        <section>
+            <div>
+                <label>File</label>
+                <input type="file" id="valueFile" />
+            </div>
+        </section>
+        <h2>Read file from local IPFS Node</h2>
+        <section>
+            <div>
+                <label>Hash of file</label>
+                <input type="text" id="valueHash"/>
+            </div>
+            <button onclick="getIpfsFile()">Get file</button>
+        </section>
 
         <div id="app"></div>
         <script src="build/rutile.js" charset="utf-8"></script>
@@ -45,6 +60,7 @@
                 try {
                     rutile = new Rutile();
                     await rutile.start();
+
                     document.getElementById('isRutileActive').innerHTML = 'Yes';
                 } catch (error) {
                     console.error(error);
@@ -75,6 +91,28 @@
                 console.log(rutile);
             }
 
+            async function uploadFileToLocalIPFS(evt) {
+                var f = evt.target.files[0]; 
+
+                if (f) {
+                var r = new FileReader();
+                r.onload = async function(e) { 
+                    var content = e.target.result;
+                    var hash = await rutile.Ipfs.add(content);
+                    console.log('IPFS HASH / ADDRESS: ' + hash);
+                }
+                r.readAsText(f);
+                } else { 
+                    alert("Failed to load file");
+                }
+            }
+
+            async function getIpfsFile(){
+                const value = document.getElementById('valueHash').value;
+                var content = await rutile.Ipfs.cat(value);
+                console.log('Value of ' + value + ': \n' + content);
+            }
+            document.getElementById('valueFile').addEventListener('change', uploadFileToLocalIPFS, false);
             run();
 
         </script>
