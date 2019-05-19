@@ -98,8 +98,6 @@
                 const account = await Rutile.Account.getFromAddress(keyPair.getAddress());
                 let transIndex = account.transactionIndex + 1;
 
-                console.log('[In] transIndex -> ', transIndex);
-
                 const transaction = new Rutile.Transaction({
                     to: toAddress,
                     value,

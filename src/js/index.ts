@@ -89,7 +89,7 @@ async function run() {
     if (isNodeJs()) {
         rutile = new Rutile();
 
-        console.log('My address is -> ', account.address, ' with balance -> ', account.balance);
+        Logger.debug('My address is -> ', account.address, ' with balance -> ', account.balance);
 
         try {
             await rutile.start();

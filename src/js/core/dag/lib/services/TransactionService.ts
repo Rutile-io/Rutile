@@ -59,22 +59,29 @@ export function getTransactionId(transaction: Transaction) {
     return rlpHash(transactionIdData);
 }
 
+/**
+ * Validates a transaction
+ *
+ * @export
+ * @param {Transaction} transaction
+ * @returns
+ */
 export async function validateTransaction(transaction: Transaction) {
-    if (transaction.parents.length < 2) {
-        throw new Error(`Transaction should validate 2 other transactions.`);
+    // For now the maximum of transactions that can be validated is 2
+    if (!transaction.isGenesis() && (transaction.parents.length < 2 || transaction.parents.length > 2)) {
+        throw new Error(`Transaction ${transaction.id} should validate 2 other transactions.`);
+    }
+
+    // Only positive values are allowed
+    if (transaction.value < 0) {
+        throw new Error(`Transaction ${transaction.id} should not have negative values`);
     }
 
     // For effeciency sake, first check the proof of work.
-    // Since we don't have to go through all the work if the transaction isn't even valid.
+    // Since we don't have to go through all the work if the PoW isn't even valid.
     if (!isProofOfWorkValid(transaction.id, transaction.nonce)) {
         throw new Error('Proof of work is not valid');
     }
-
-    const addresses = getAddress(transaction);
-    const account = await Account.findOrCreate(addresses.from);
-
-    // Make sure that balance updates are possible
-    account.validateTransaction(transaction);
 
     // By copying we are essentially only trusting a limited amount of data
     // this way we can be sure no tempering has been done to the executing
@@ -106,12 +113,10 @@ export async function validateTransaction(transaction: Transaction) {
         throw new Error('Proof of Work after execution is not valid');
     }
 
-    await applyTransaction(transaction);
-
     return true;
 }
 
-export function getAddress(transaction: Transaction) {
+export function getAddressFromTransaction(transaction: Transaction) {
     // Genesis milestones don't have a from
     if (transaction.milestoneIndex === GENESIS_MILESTONE) {
         return {
@@ -142,22 +147,24 @@ export function getAddress(transaction: Transaction) {
  * @param {Transaction} transaction
  */
 export async function applyTransaction(transaction: Transaction) {
-    const addresses = getAddress(transaction);
-    const toAccount = await Account.findOrCreate(addresses.to);
+    // For now applying is only savinf the transaction
+    // since the balances are getting updated by the DAG.
+    // const addresses = getAddressFromTransaction(transaction);
+    // const toAccount = await Account.findOrCreate(addresses.to);
     const results = [];
 
     // There is no from in a genesis milestone
-    if (transaction.milestoneIndex !== GENESIS_MILESTONE) {
-        const fromAccount = await Account.findOrCreate(addresses.from);
+    // if (transaction.milestoneIndex !== GENESIS_MILESTONE) {
+    //     const fromAccount = await Account.findOrCreate(addresses.from);
 
-        await fromAccount.setBalance(fromAccount.balance - transaction.value);
-        await fromAccount.setTransactionIndex(transaction.transIndex);
+    //     await fromAccount.setBalance(fromAccount.balance - transaction.value);
+    //     await fromAccount.setTransactionIndex(transaction.transIndex);
 
-        results.push(fromAccount.save());
-    }
+    //     results.push(fromAccount.save());
+    // }
 
-    await toAccount.setBalance(toAccount.balance + transaction.value);
-    results.push(toAccount.save());
+    // await toAccount.setBalance(toAccount.balance + transaction.value);
+    // results.push(toAccount.save());
     results.push(saveTransaction(transaction));
 
     await Promise.all(results);
