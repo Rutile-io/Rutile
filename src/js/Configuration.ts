@@ -20,7 +20,7 @@ const config: IConfig = {
     timeoutBeforeCleanup: 30000,
     ipfs: {
         host: 'localhost',
-        port: 4002,
+        port: 5001,
         protocol: 'http',
     },
     difficulty: 3,
