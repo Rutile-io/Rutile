@@ -40,6 +40,13 @@ class Walker {
         return data.docs.map(transaction => Transaction.fromRaw(JSON.stringify(transaction)))
     }
 
+    /**
+     * Gets a random weighted transaction from the dag
+     *
+     * @param {Transaction[]} transactions
+     * @returns {Transaction}
+     * @memberof Walker
+     */
     getRandomWeightedTransaction(transactions: Transaction[]): Transaction {
         let sumOfWeight = 0;
 
@@ -86,6 +93,14 @@ class Walker {
         return this.getTransactionTip(nextTransaction);
     }
 
+    /**
+     * Finds transactions that can be validated. Will not give duplicates (Unless it's the genesis transaction)
+     *
+     * @param {number} milestoneIndex
+     * @param {number} transactionsAmount
+     * @returns {Promise<Transaction[]>}
+     * @memberof Walker
+     */
     async getTransactionToValidate(milestoneIndex: number, transactionsAmount: number): Promise<Transaction[]> {
         let transactionsToValidate: Transaction[] = [];
 
@@ -93,6 +108,8 @@ class Walker {
         this.transactionCumulativeWeights = await getTransactionCumulativeWeights();
         const milestoneTransaction = await getMilestoneTransaction(milestoneIndex);
 
+        // for of loops (required for async loops) only have support for iterables and not ranges
+        // this is why we create an empty array of x length and iterate over that
         const transactionAmountIterator = new Array(transactionsAmount);
 
         for (let [index] of transactionAmountIterator.entries()) {

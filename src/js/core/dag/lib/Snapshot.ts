@@ -1,7 +1,7 @@
 /**
- * Snapshots the dag and transactions
- * This allows for DAGs to prune transactions.
- * Also this allows the walker to be faster.
+ * Responsible of creating snapshots of the current state of the DAG.
+ * It should only snapshot on milestone indexes or on transactions that have
+ * a high confidence (>99%)
  *
  * @class Snapshot
  */
@@ -10,6 +10,18 @@ class Snapshot {
 
     constructor() {
 
+    }
+
+    getIndex() {
+        return 1;
+    }
+
+    getSolidEntryPoints() {
+        return new Map<string, number>();
+    }
+
+    static async getLatestSnapshot(): Promise<Snapshot> {
+        return new Snapshot();
     }
 }
 

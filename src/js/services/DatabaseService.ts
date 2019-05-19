@@ -1,9 +1,10 @@
+import * as Logger from 'js-logger';
+import * as MemoryStream from 'memorystream';
+import { Duplex } from 'stream';
 import Transaction from '../models/Transaction';
 import isNodeJs from './isNodeJs';
 import { configuration } from '../Configuration';
 import PouchDbLevelDbMapping from '../models/PouchDbLevelDbMapping';
-import * as MemoryStream from 'memorystream';
-import { Duplex } from 'stream';
 const ReplicationStream = require('pouchdb-replication-stream');
 
 let pouchDb: PouchDB.Database = null;
@@ -130,6 +131,24 @@ export async function getById(id: string): Promise<any> {
     }
 }
 
+/**
+ * Removes an item from the database
+ *
+ * @export
+ * @param {string} id
+ * @returns
+ */
+export async function databaseRemove(id: string): Promise<boolean> {
+    try {
+        const doc = await getById(id);
+        await pouchDb.remove(doc);
+        return true;
+    } catch (error) {
+        Logger.error(error);
+        return false;
+    }
+}
+
 async function databaseGetAllByPagination(query: any, stream: Duplex, limit: number = 10, skip: number = 0) {
     const result = await pouchDb.find({
         ...query,
@@ -160,6 +179,8 @@ export function databaseGetAll(query: any): Duplex {
         return null;
     }
 }
+
+
 
 export async function databaseFind(propertyKey: string, propertyValue: any) {
     try {

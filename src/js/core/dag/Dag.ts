@@ -8,9 +8,10 @@ import Walker from "./lib/Walker";
 import createGenesisTransaction from "./lib/transaction/createGenesisTransaction";
 import EventHandler from "../network/lib/EventHandler";
 import Ipfs from "../../services/wrappers/Ipfs";
-import { databaseGetAll } from "../../services/DatabaseService";
+import { databaseGetAll, databaseRemove } from "../../services/DatabaseService";
 import { isProofOfWorkValid } from "../../services/transaction/ProofOfWork";
 import * as Logger from 'js-logger';
+import TipValidator from "./lib/TipValidator";
 
 const GENESIS_MILESTONE = 1;
 const TRANSACTION_AMOUNT_TO_VALIDATE = 2;
@@ -19,12 +20,14 @@ class Dag extends EventHandler {
     networkController: NetworkController;
     walker: Walker;
     ipfs: Ipfs;
+    tipValidator: TipValidator;
 
     constructor(network: Network) {
         super();
         this.networkController = new NetworkController(this, network);
         this.walker = new Walker();
         this.ipfs = Ipfs.getInstance(configuration.ipfs);
+        this.tipValidator = new TipValidator();
     }
 
     /**
@@ -66,14 +69,42 @@ class Dag extends EventHandler {
      * @param {KeyPair} keyPair
      * @memberof Dag
      */
-    async submitTransaction(transaction: Transaction, keyPair: KeyPair) {
+    async submitTransaction(transaction: Transaction, keyPair: KeyPair, depth: number = 0) {
+        // We have tried searching 10 times for a tip but couldn't find a valid one
+        // user should submit it on a later time..
+        if (depth > 5) {
+            throw new Error(`Could not find valid transaction tip after ${depth} tries`);
+        }
+
+        // Find transactions using the random weighted walk
         const parentTransactions = await this.walker.getTransactionToValidate(1, TRANSACTION_AMOUNT_TO_VALIDATE);
+
+        // Validate these transactions by searching for a path that allows the user to spend this amount.
+        const invalidTransaction = await this.tipValidator.validateTransactionBalances(parentTransactions);
+
+        // One of the tips is considered invalid and should not be used
+        // We retry to submit our transaction to a different tip
+        if (invalidTransaction) {
+            depth += 1;
+
+            Logger.debug(`Transaction ${invalidTransaction.id} was not considered valid and will be deleted`);
+            await databaseRemove(invalidTransaction.id);
+
+            // Now retry our tip selection without the bad transaction in the way
+            await this.submitTransaction(transaction, keyPair, depth);
+            return;
+        }
+
         await transaction.addParents(parentTransactions);
 
         transaction.sign(keyPair);
         transaction.proofOfWork();
 
+        // Make sure all is ok with our transaction before sending it off
         await validateTransaction(transaction);
+        await applyTransaction(transaction);
+
+        // Apply the transaction to our local node
         this.networkController.broadcastTransaction(transaction);
     }
 
