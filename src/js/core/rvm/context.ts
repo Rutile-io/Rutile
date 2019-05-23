@@ -198,9 +198,9 @@ class Context {
      * @param resultOffset i32ptr the memory offset to load the value into (u128)
      */
     private getCallValue(resultOffset: number){
-        const valueHex = "0x" + this.value.toString('hex');
+        const valueHex = "0x" + this.value.toString('hex', 16);
         const valueBytes = hexStringToByte(valueHex);
-        this.mem.write(resultOffset, 32, valueBytes);
+        this.mem.write(resultOffset, 16, valueBytes);
     }
 
     /**

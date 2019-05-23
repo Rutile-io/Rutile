@@ -19,11 +19,6 @@ const config: IConfig = {
         { urls: 'stun:stun.stunprotocol.org:3478' },
         { urls: 'stun:stun.l.google.com:19302' }
     ],
-    // ipfs: {
-    //     host: 'ipfs.infura.io',
-    //     port: 5001,
-    //     protocol: 'https',
-    // },
     ipfs: {
         host: '127.0.0.1',
         port: 5001,

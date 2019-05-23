@@ -42,3 +42,5 @@ Currently testing is done in `src/js/index.ts`.
 For contributing create a PR or contact Franklin Waller: f.waller@rutile.io
 
 For more information see: https://rutile.io
+
+If you want to support the project by donating to Rutile you can use the address: `0x42b904bcA15eb96488912456C17475ce33e0d3cF`
