@@ -92,7 +92,7 @@
             async function sendValue() {
                 const privateKey = document.getElementById('privateKey').value;
                 const toAddress = document.getElementById('valueAddressTo').value;
-                const value = parseInt(document.getElementById('valueAddress').value, 10);
+                const value = document.getElementById('valueAddress').value;
 
                 const keyPair = new Rutile.KeyPair(privateKey);
                 const account = await Rutile.Account.getFromAddress(keyPair.getAddress());

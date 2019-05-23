@@ -5,13 +5,7 @@ interface GenesisConfig {
     transaction: {
         to: string;
         timestamp: number;
-        value: number;
-    };
-
-    alloc: {
-        [address: string]: {
-            balance: string;
-        }
+        value: string;
     };
 
     config: {

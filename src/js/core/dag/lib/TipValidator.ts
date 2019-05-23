@@ -1,10 +1,14 @@
 import * as Logger from 'js-logger';
+import BNType from 'bn.js';
 import Transaction from "../../../models/Transaction";
 import { getTransactionById, getAddressFromTransaction, validateTransaction } from "./services/TransactionService";
+const BN = require('bn.js');
 
 interface AddressBalancePair {
-    [key: string]: number;
+    [key: string]: BNType;
 };
+
+const BASE10_RADIX = 10;
 
 class TipValidator {
     /**
@@ -43,7 +47,7 @@ class TipValidator {
             const address = addresses[index];
             const value = addressBalancePair[address];
 
-            if (value < 0) {
+            if (value.isNeg()) {
                 return false;
             }
         }
@@ -67,20 +71,20 @@ class TipValidator {
         // once we are at the final stage we have to check if some balances are negative
         // if they are we must not use the tip
         if (state[addresses.from]) {
-            state[addresses.from] = state[addresses.from] - transaction.value;
+            state[addresses.from] = state[addresses.from].sub(transaction.value);
         } else {
             // Genesis transactions do not have any address
             if (!transaction.isGenesis()) {
                 // Going into the negatives.
-                state[addresses.from] = 0 - transaction.value;
+                state[addresses.from] = new BN(0, BASE10_RADIX).sub(transaction.value);
             }
         }
 
         // Now for the receiver
         if (state[addresses.to]) {
-            state[addresses.to] = state[addresses.to] + transaction.value;
+            state[addresses.to] = state[addresses.to].add(transaction.value);
         } else {
-            state[addresses.to] = 0 + transaction.value;
+            state[addresses.to] = transaction.value;
         }
     }
 
@@ -108,8 +112,8 @@ class TipValidator {
             const transaction = await getTransactionById(transactionId);
 
             // We can skip transactions that have no value attached to them
-            // since they do not effect the state
-            if (transaction.value !== 0) {
+            // since they do not effect the balance state
+            if (!transaction.value.isZero()) {
                 await validateTransaction(transaction);
                 this.applyTransactionToState(transaction, state);
             }

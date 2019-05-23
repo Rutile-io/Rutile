@@ -32,16 +32,11 @@ const config: IConfig = {
     difficulty: 3,
     databaseName: 'db_rutile',
     genesis: {
-        alloc: {
-            '0x53ae893e4b22d707943299a8d0c844df0e3d5557': {
-                balance: '0x8F0D180',
-            },
-        },
         transaction: {
             // Address is a test address.
             to: '0x53ae893e4b22d707943299a8d0c844df0e3d5557',
             timestamp: 0,
-            value: 150000000,
+            value: '150000000000000000000000000',
         },
         config: {
             chainId: 1,

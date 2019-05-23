@@ -5,6 +5,8 @@ import { getUnsignedTransactionHash, getTransactionId } from "../core/dag/lib/se
 import { applyProofOfWork } from "../services/transaction/ProofOfWork";
 import execute from "../core/rvm/execute";
 import stringToByteArray from "../utils/stringToByteArray";
+import BNtype from 'bn.js';
+const BN = require('bn.js');
 
 interface TransactionParams {
     to: string;
@@ -18,7 +20,7 @@ interface TransactionParams {
     s?: string;
     v?: number;
     timestamp?: number;
-    value?: number;
+    value?: number | string | BNtype;
     transIndex?: number;
     milestoneIndex?: number;
     parents?: string[];
@@ -44,7 +46,7 @@ class Transaction {
     v: number;
 
     // The value of tiles transfered
-    value?: number = 0;
+    value?: BNtype;
 
     // Timestamp of transaction
     timestamp?: number = 0;
@@ -88,7 +90,7 @@ class Transaction {
         this.v = params.v;
         this.milestoneIndex = params.milestoneIndex || null;
         this.timestamp = params.timestamp || 0;
-        this.value = params.value || 0;
+        this.value = params.value ? new BN(params.value, 10) : new BN(0, 10);
         this.transIndex = params.transIndex || 0;
         this.parents = params.parents || [];
     }
@@ -167,7 +169,7 @@ class Transaction {
         return JSON.stringify({
             id: this.id,
             to: this.to,
-            value: this.value,
+            value: this.value.toString(10),
             data: this.data,
             nonce: this.nonce,
             transIndex: this.transIndex,
@@ -187,12 +189,21 @@ class Transaction {
         return this.milestoneIndex === 1;
     }
 
+    /**
+     * Converts a string version of the transaction to a model
+     * Also validates the properties to make sure that the model complies
+     *
+     * @static
+     * @param {string} rawTransaction
+     * @returns {Transaction}
+     * @memberof Transaction
+     */
     static fromRaw(rawTransaction: string): Transaction {
         const transaction: TransactionParams = JSON.parse(rawTransaction);
 
         // TODO: Validate more types..
-        if (typeof transaction.value !== 'number') {
-            throw new TypeError('transaction.value should be a number');
+        if (typeof transaction.value !== 'string') {
+            throw new TypeError('transaction.value should be a string');
         }
 
         return new Transaction(transaction);

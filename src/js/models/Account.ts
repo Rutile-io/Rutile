@@ -79,58 +79,6 @@ class Account {
         this.storageRoot = await this.storage.getMerkleRoot();
     }
 
-    /**
-     * Validates if the transaction is possible (balance wise)
-     *
-     * @param {Transaction} transaction
-     * @memberof Account
-     */
-    validateTransaction(transaction: Transaction) {
-        // TODO: Check if this is still necassary (Because of the walker..)
-        // if (transaction.transIndex === this.transactionIndex) {
-        //     throw new Error('Transaction index should not be the same as the previous transaction index');
-        // }
-
-        // if (transaction.transIndex < this.transactionIndex) {
-        //     throw new Error('Transaction index should not be lower than the previous transaction index');
-        // }
-
-        // const expectedNewTransactionIndex = this.transactionIndex + 1;
-
-        // if (expectedNewTransactionIndex !== transaction.transIndex) {
-        //     throw new Error('Missed previous transaction, either out of sync or corrupted transaction');
-        // }
-
-        const newBalance = this.balance - transaction.value;
-
-        if (newBalance < 0) {
-            throw new Error('Insuffecient balance');
-        }
-
-        return true;
-    }
-
-    async applyTransaction(transaction: Transaction) {
-        if (!this.validateTransaction(transaction)) {
-            return;
-        }
-
-        // Update our from our account
-        const newBalance = this.balance - transaction.value;
-        this.balance = newBalance;
-        this.transactionIndex = transaction.transIndex;
-
-        // Update the account where the tokens are sent to
-        const toAccount = await Account.findOrCreate(transaction.to);
-        toAccount.balance = toAccount.balance + transaction.value;
-
-        // TODO: For a Contract address we should update the state of the address
-        // TODO: Also include the transaction as part of a merkle tree
-
-        // Save our changes
-        await Promise.all([this.save(), toAccount.save()]);
-    }
-
     async save() {
         await Database.createOrUpdate(this.address, {
             address: this.address,

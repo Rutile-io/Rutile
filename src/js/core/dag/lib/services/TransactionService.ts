@@ -24,7 +24,7 @@ export function getUnsignedTransactionHash(transaction: Transaction): string {
         numberToHex(transaction.gasPrice),
         numberToHex(transaction.gasLimit),
         transaction.to,
-        numberToHex(transaction.value),
+        transaction.value.toString('hex'),
         transaction.data,
         numberToHex(transaction.gasUsed),
         numberToHex(transaction.timestamp),
@@ -72,8 +72,12 @@ export async function validateTransaction(transaction: Transaction) {
         throw new Error(`Transaction ${transaction.id} should validate 2 other transactions.`);
     }
 
+    // Making sure the properties are valid types
+    // it throws an exception if a value is wrong
+    Transaction.fromRaw(transaction.toRaw());
+
     // Only positive values are allowed
-    if (transaction.value < 0) {
+    if (transaction.value.isNeg()) {
         throw new Error(`Transaction ${transaction.id} should not have negative values`);
     }
 

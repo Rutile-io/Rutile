@@ -1,3 +1,4 @@
+import BNType from 'bn.js';
 import { Memory } from "./lib/memory";
 import { toHex, hexStringToByte, createZerosArray } from "./utils/hexUtils";
 import { VmError, VM_ERROR, FinishExecution } from "./lib/exceptions";
@@ -5,14 +6,16 @@ import Account from "../../models/Account";
 import MerkleTree from "../../models/MerkleTree";
 import { getDatabaseLevelDbMapping } from "../../services/DatabaseService";
 import { storeAndNotify } from "./utils/sharedBufferUtils";
-const ethUtil = require('ethereumjs-util')
+const ethUtil = require('ethereumjs-util');
+const BN = require('bn.js');
+
 
 interface ContextOptions {
     id: string;
     fromAddress: string;
     toAddress: string;
     data: string;
-    value: number;
+    value: BNType;
     transactionDifficulty: number;
 }
 
@@ -28,7 +31,7 @@ class Context {
     fromAddress: string;
     toAddress: string;
     toAccount: Account;
-    value: number;
+    value: BNType;
     transactionDifficulty: number;
 
     results: Results = {
@@ -195,7 +198,7 @@ class Context {
      * @param resultOffset i32ptr the memory offset to load the value into (u128)
      */
     private getCallValue(resultOffset: number){
-        const valueHex = "0x" + this.value.toString(16);
+        const valueHex = "0x" + this.value.toString('hex');
         const valueBytes = hexStringToByte(valueHex);
         this.mem.write(resultOffset, 32, valueBytes);
     }
