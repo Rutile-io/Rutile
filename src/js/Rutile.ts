@@ -19,7 +19,6 @@ import * as Logger from 'js-logger';
  */
 class Rutile {
     private network: Network;
-    private terminal: any;
     public ipfs: Ipfs;
     public dag: Dag;
     public eventHandler: EventHandler;

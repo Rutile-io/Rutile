@@ -1,4 +1,4 @@
-import IConfig from "./models/interfaces/IConfig";
+import IConfig, { NodeType } from "./models/interfaces/IConfig";
 import getArguments from "./utils/getArguments";
 
 const uuid = require('uuid/v4');
@@ -7,6 +7,7 @@ const NODE_ID = `${uuid()}-${uuid()}-${uuid()}`;
 
 const config: IConfig = {
     nodeId: NODE_ID,
+    nodeType: NodeType.FULL,
     // nodesListUrl: 'http://localhost:8903/',
     nodesListUrl: 'http://localhost:9001/examples/network-file/RutileNodes.json',
     maximumNodes: 5,

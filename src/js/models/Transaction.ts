@@ -6,6 +6,8 @@ import { applyProofOfWork } from "../services/transaction/ProofOfWork";
 import execute from "../core/rvm/execute";
 import stringToByteArray from "../utils/stringToByteArray";
 import BNtype from 'bn.js';
+import { NodeType } from "./interfaces/IConfig";
+import Account from "./Account";
 const BN = require('bn.js');
 
 interface TransactionParams {
@@ -97,8 +99,19 @@ class Transaction {
 
     async execute() {
         try {
-            return null;
+            // non full nodes do not need to execute the function
+            if (configuration.nodeType !== NodeType.FULL) {
+                return null;
+            }
+
             const ipfs = Ipfs.getInstance(configuration.ipfs);
+            const account = await Account.findOrCreate(this.to);
+
+            // It's possible that an account does not have any contract attached to it
+            // This means we do not have to execute any functions
+            if (!account.codeHash) {
+                return null;
+            }
 
             // "to" should represent the wasm function address or the user address.
             const contents = await ipfs.cat(this.to);

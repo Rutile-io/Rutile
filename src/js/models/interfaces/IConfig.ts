@@ -1,5 +1,13 @@
 import { IpfsConfig } from "../../services/wrappers/Ipfs";
-import Transaction from "../Transaction";
+
+enum NodeType {
+    FULL = 'FULL',
+    LIGHT = 'LIGHT',
+};
+
+export {
+    NodeType
+};
 
 interface GenesisConfig {
     transaction: {
@@ -20,15 +28,16 @@ interface GenesisConfig {
 }
 
 interface IConfig {
-    nodeId: string,
-    vmUrl: string,
-    nodesListUrl: string,
-    port: number,
-    iceServers: RTCIceServer[],
-    ipfs: IpfsConfig,
-    databaseName: string,
-    difficulty: number,
-    genesis: GenesisConfig,
+    nodeId: string;
+    nodeType: NodeType;
+    vmUrl: string;
+    nodesListUrl: string;
+    port: number;
+    iceServers: RTCIceServer[];
+    ipfs: IpfsConfig;
+    databaseName: string;
+    difficulty: number;
+    genesis: GenesisConfig;
     privateKey: string;
     maximumNodes: number;
 }

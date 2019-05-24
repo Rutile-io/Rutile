@@ -91,15 +91,30 @@ async function run() {
 
         Logger.debug('My address is -> ', account.address, ' with balance -> ', account.balance);
 
+        // Deploy a contract to IPFS
+        const fs = require('fs');
+        const file = fs.readFileSync('/Volumes/Mac Space/Workspace/Rutile/EVM.wasm/build/untouched.wasm');
+        console.log(file.toString('hex'));
+        const transaction = new Rutile.Transaction({
+            // Sending to no one means we want to create a contract
+            to: null,
+            data: '',
+        });
+
         try {
             await rutile.start();
         } catch (e) {
             console.error('Oh well', e);
         }
 
-        setInterval(() => {
-            sendDummyTransaction();
-        }, 10000);
+
+
+
+
+
+        // setInterval(() => {
+        //     sendDummyTransaction();
+        // }, 10000);
 
         rutile.dag.networkController.network.on('peerConnected', () => {
             // setInterval(() => {
