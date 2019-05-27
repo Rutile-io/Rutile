@@ -6,6 +6,7 @@ import { startDatabase, databaseCreate, createOrUpdate } from './services/Databa
 import Account from './models/Account';
 import * as Logger from 'js-logger';
 import getTransactionCumulativeWeights from './core/dag/lib/services/CumulativeWeightService';
+import { stringToHex } from './utils/hexUtils';
 // import RutileContext from './models/RutileContext';
 // import * as fs from 'fs';
 // import { validateTransaction, applyTransaction } from './services/_TransactionService';
@@ -94,23 +95,29 @@ async function run() {
         // Deploy a contract to IPFS
         const fs = require('fs');
         const file = fs.readFileSync('/Volumes/Mac Space/Workspace/Rutile/EVM.wasm/build/untouched.wasm');
-        console.log(file.toString('hex'));
+        const wasm = new Uint8Array(file);
+        let hash = await rutile.deploy(wasm);
+        hash = stringToHex(hash);
+
         const transaction = new Rutile.Transaction({
             // Sending to no one means we want to create a contract
             to: null,
-            data: '',
+            gasPrice: 1,
+            data: hash,
         });
+
+        transaction.sign(wallet.keyPair);
+        transaction.proofOfWork();
+
+        const result = await transaction.execute();
+
+        console.log('[] result -> ', result);
 
         try {
             await rutile.start();
         } catch (e) {
             console.error('Oh well', e);
         }
-
-
-
-
-
 
         // setInterval(() => {
         //     sendDummyTransaction();

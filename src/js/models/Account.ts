@@ -48,6 +48,7 @@ class Account {
         const balance = storageData.get('balance') || [0];
         const transactionIndex = storageData.get('transactionIndex') || [0];
         const address = storageData.get('address') || [0];
+        const codeHash = storageData.get('codeHash') || [0];
 
         const hexBalance = '0x' + toHex(balance);
         const hexTransactionIndex = '0x' + toHex(transactionIndex);
@@ -55,6 +56,7 @@ class Account {
         this.address = '0x' + toHex(address);
         this.balance = parseInt(hexBalance, 16);
         this.transactionIndex = parseInt(hexTransactionIndex, 16);
+        this.codeHash = '0x' + toHex(codeHash);
 
         this.isFilled = true;
 
@@ -118,7 +120,7 @@ class Account {
         return Account.create(address);
     }
 
-    static async create(address: string) {
+    static async create(address: string, codeHash?: string) {
         const merkleTree = new MerkleTree(Database.getDatabaseLevelDbMapping());
         const zeroBuffer = hexStringToBuffer('0x00');
 
@@ -126,11 +128,16 @@ class Account {
         await merkleTree.put('balance', zeroBuffer);
         await merkleTree.put('transactionIndex', zeroBuffer);
 
+        if (codeHash) {
+            await merkleTree.put('codeHash', hexStringToBuffer(codeHash));
+        }
+
         const storageRoot = await merkleTree.getMerkleRoot();
 
         const newAccount = new Account({
             address,
             storageRoot,
+            codeHash,
         });
 
         await newAccount.save();

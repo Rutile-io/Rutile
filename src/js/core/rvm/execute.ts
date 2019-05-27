@@ -4,6 +4,7 @@ import { configuration } from '../../Configuration'
 import Transaction from '../../models/Transaction';
 import { createWorker } from './utils/workerUtils';
 import WorkerMessageController from './controller/WorkerMessageController';
+import { getAddressFromTransaction } from '../dag/lib/services/TransactionService';
 
 interface ExecuteSecureResults {
     gasUsed?: number;
@@ -13,7 +14,6 @@ interface ExecuteSecureResults {
 /**
  * Executes code in a different context and vm.
  * This way the code is executed safely.
- * We only give it an instance of Rutile
  *
  * @export
  * @param {string} code
@@ -27,11 +27,12 @@ export default async function execute(transaction: Transaction, wasmBinary: Uint
     // needed to execute a smart contract. It lives on the main thread
     // since database calls and asynchronous calls cannot be done on the
     // worker thread.
-    // TODO: replace 03c074e7992389c7b5403c35fe01b1fa with actual data
+    const addresses = getAddressFromTransaction(transaction);
+
     const context = new Context({
         id: transaction.id,
-        fromAddress: '53ae893e4b22d707943299a8d0c844df0e3d5557',
-        toAddress: '52ae893e4b22d707943299a8d0c844df0e3d5557',
+        fromAddress: addresses.from,
+        toAddress: addresses.to,
         data: transaction.data,
         value: transaction.value,
         transactionDifficulty: configuration.difficulty

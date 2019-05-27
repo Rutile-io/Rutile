@@ -21,10 +21,16 @@ const config: IConfig = {
         { urls: 'stun:stun.l.google.com:19302' }
     ],
     ipfs: {
-        host: '127.0.0.1',
+        host: 'ipfs.infura.io',
         port: 5001,
-        protocol: 'http',
+        protocol: 'https',
     },
+
+    // ipfs: {
+    //     host: '127.0.0.1',
+    //     port: 5001,
+    //     protocol: 'http',
+    // },
     difficulty: 3,
     databaseName: 'db_rutile',
     genesis: {

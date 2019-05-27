@@ -7,3 +7,24 @@ export function numberToHex(numb: number) {
 export function hexStringToBuffer(str: string) {
     return ethUtil.toBuffer(str);
 }
+
+/**
+ * Converts a string to a hex
+ *
+ * @export
+ * @param {string} str
+ * @returns
+ */
+export function stringToHex(str: string) {
+    let result = '';
+
+    for (var i=0; i < str.length; i++) {
+      result += str.charCodeAt(i).toString(16);
+    }
+
+    return '0x' + result;
+}
+
+export function hexStringToString(hexStr: string) {
+    console.log('[] hexStr -> ', hexStr);
+}

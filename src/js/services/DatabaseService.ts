@@ -102,7 +102,7 @@ export async function createOrUpdate(id: string, obj: Buffer | string | Object) 
                 newData = {
                     ...newData,
                     ...obj,
-                }
+                };
             }
 
             pouchDb.put(newData, {
@@ -110,7 +110,7 @@ export async function createOrUpdate(id: string, obj: Buffer | string | Object) 
             })
         }
     } catch (error) {
-        console.error('[createOrUpdate] -> ', error);
+        Logger.error(`createOrUpdate failed, data given ${id}:${document} ->`, error);
     }
 }
 

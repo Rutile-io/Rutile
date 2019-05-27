@@ -1,13 +1,17 @@
+import * as Logger from 'js-logger';
 import Ipfs from "../services/wrappers/Ipfs";
 import { configuration } from "../Configuration";
 import KeyPair from "./KeyPair";
-import { getUnsignedTransactionHash, getTransactionId } from "../core/dag/lib/services/TransactionService";
+import { getUnsignedTransactionHash, getTransactionId, getAddressFromTransaction } from "../core/dag/lib/services/TransactionService";
 import { applyProofOfWork } from "../services/transaction/ProofOfWork";
 import execute from "../core/rvm/execute";
 import stringToByteArray from "../utils/stringToByteArray";
 import BNtype from 'bn.js';
 import { NodeType } from "./interfaces/IConfig";
 import Account from "./Account";
+import { rlpHash } from "../utils/keccak256";
+import { hexStringToString } from "../utils/hexUtils";
+import { Results } from '../core/rvm/context';
 const BN = require('bn.js');
 
 interface TransactionParams {
@@ -97,7 +101,22 @@ class Transaction {
         this.parents = params.parents || [];
     }
 
-    async execute() {
+    async deployContract(): Promise<Account> {
+        if (this.to) {
+            throw new Error(`Contract deploys should not have a 'to' property attached to it`);
+        }
+
+        const addresses = getAddressFromTransaction(this);
+
+        const contractAddress = '0x' + rlpHash([
+            this.data,
+            addresses.from,
+        ]).slice(24);
+
+        return Account.create(contractAddress, this.data);
+    }
+
+    async execute(): Promise<Results> {
         try {
             // non full nodes do not need to execute the function
             if (configuration.nodeType !== NodeType.FULL) {
@@ -105,15 +124,30 @@ class Transaction {
             }
 
             const ipfs = Ipfs.getInstance(configuration.ipfs);
+
+            // This is a contract creation because we do not have a receipient
+            if (!this.to) {
+                const contractAccount = await this.deployContract();
+
+                return {
+                    exception: 0,
+                    exceptionError: null,
+                    gasUsed: 0,
+                    return: contractAccount.address,
+                }
+            }
+
+            console.log('Here?', this.to);
             const account = await Account.findOrCreate(this.to);
 
             // It's possible that an account does not have any contract attached to it
-            // This means we do not have to execute any functions
+            // This means we do not have to execute any functions but should just transfer value
             if (!account.codeHash) {
                 return null;
             }
 
-            // "to" should represent the wasm function address or the user address.
+            const ipfsHash = hexStringToString(account.codeHash);
+
             const contents = await ipfs.cat(this.to);
             const wasm = stringToByteArray(contents);
 
@@ -128,7 +162,8 @@ class Transaction {
 
             return executionResults;
         } catch (error) {
-            console.error('Executing transaction failed', error);
+            Logger.error('Executing transaction failed', error);
+            return null;
         }
     }
 
