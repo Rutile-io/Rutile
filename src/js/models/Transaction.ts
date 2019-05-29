@@ -73,13 +73,6 @@ class Transaction {
     // data as arguments or a message to send along with the transactions
     data?: string;
 
-    // The weight of this transaction + all weight of transactions
-    // that directly or indirectly confirms this transaction
-    cumulativeWeight: number = 1;
-
-    // The transaction own weight. Currently is fixed to 1.
-    weight: number = 1;
-
     // Parents of the transaction
     parents: string[] = [];
 
@@ -118,6 +111,10 @@ class Transaction {
 
     async execute(): Promise<Results> {
         try {
+            // Make sure validations can set their time.
+            // if (!this.timestamp && !this.isGenesis()) {
+            //     this.timestamp = Date.now();
+            // }
             // non full nodes do not need to execute the function
             if (configuration.nodeType !== NodeType.FULL) {
                 return null;
@@ -127,6 +124,7 @@ class Transaction {
 
             // This is a contract creation because we do not have a receipient
             if (!this.to) {
+                Logger.debug('Creating new contract address');
                 const contractAccount = await this.deployContract();
 
                 return {
@@ -137,24 +135,17 @@ class Transaction {
                 }
             }
 
-            console.log('Here?', this.to);
             const account = await Account.findOrCreate(this.to);
 
             // It's possible that an account does not have any contract attached to it
             // This means we do not have to execute any functions but should just transfer value
-            if (!account.codeHash) {
+            if (!account.codeHash || account.codeHash === '0x00') {
                 return null;
             }
 
             const ipfsHash = hexStringToString(account.codeHash);
-
-            const contents = await ipfs.cat(this.to);
+            const contents = await ipfs.cat(ipfsHash);
             const wasm = stringToByteArray(contents);
-
-            // Make sure validations can set their time.
-            if (!this.timestamp) {
-                this.timestamp = Date.now();
-            }
 
             // Possibly have to save the result in the transaction.
             const executionResults = await execute(this, wasm);
@@ -162,7 +153,7 @@ class Transaction {
 
             return executionResults;
         } catch (error) {
-            Logger.error('Executing transaction failed', error);
+            Logger.error('Executing transaction failed ->', error);
             return null;
         }
     }

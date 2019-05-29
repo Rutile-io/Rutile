@@ -111,10 +111,8 @@ class TipValidator {
 
             const transaction = await getTransactionById(transactionId);
 
-            // We can skip transactions that have no value attached to them
-            // since they do not effect the balance state
             if (!transaction.value.isZero()) {
-                await validateTransaction(transaction);
+                await validateTransaction(transaction, true);
                 this.applyTransactionToState(transaction, state);
             }
 

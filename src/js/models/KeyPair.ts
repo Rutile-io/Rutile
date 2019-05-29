@@ -33,6 +33,7 @@ class KeyPair {
 
         this.privateKey = privateKey;
         this.publicKey = keyPair.getPublic(false, 'hex');
+
         this.compressedPublicKey = keyPair.getPublic(true, 'hex');
     }
 
@@ -53,6 +54,20 @@ class KeyPair {
 
     getAddress() {
         return KeyPair.computeAddress(this.publicKey);
+    }
+
+    static verifySignature(digest: string, signature: Signature): boolean {
+        const recoveryParam = signature.v - 27;
+
+        const rs = {
+            r: signature.r,
+            s: signature.s,
+        }
+
+        const pubkeyCurve = getCurve().recoverPubKey(arrayify(digest), rs, recoveryParam);
+        const keyPair = getCurve().keyFromPublic(pubkeyCurve);
+
+        return keyPair.verify(digest, rs);
     }
 
     static recoverAddress(digest: string, signature: Signature) {

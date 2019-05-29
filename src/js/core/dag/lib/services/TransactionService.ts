@@ -1,3 +1,4 @@
+import * as Logger from 'js-logger';
 import Transaction from "../../../../models/Transaction";
 import { configuration } from "../../../../Configuration";
 import KeyPair from "../../../../models/KeyPair";
@@ -23,8 +24,8 @@ export function getUnsignedTransactionHash(transaction: Transaction): string {
         numberToHex(transaction.transIndex),
         numberToHex(transaction.gasPrice),
         numberToHex(transaction.gasLimit),
-        transaction.to,
-        transaction.value.toString('hex'),
+        transaction.to ? transaction.to : '0x0',
+        '0x' + transaction.value.toString('hex'),
         transaction.data,
         numberToHex(transaction.gasUsed),
         numberToHex(transaction.timestamp),
@@ -66,15 +67,35 @@ export function getTransactionId(transaction: Transaction) {
  * @param {Transaction} transaction
  * @returns
  */
-export async function validateTransaction(transaction: Transaction) {
+export async function validateTransaction(transaction: Transaction, noExecution: boolean = false) {
+    // Making sure the properties are valid types
+    // it throws an exception if a value is wrong
+    Transaction.fromRaw(transaction.toRaw());
+
     // For now the maximum of transactions that can be validated is 2
     if (!transaction.isGenesis() && (transaction.parents.length < 2 || transaction.parents.length > 2)) {
         throw new Error(`Transaction ${transaction.id} should validate 2 other transactions.`);
     }
 
-    // Making sure the properties are valid types
-    // it throws an exception if a value is wrong
-    Transaction.fromRaw(transaction.toRaw());
+    if (!transaction.r || !transaction.s || !transaction.v) {
+        throw new Error(`Transaction ${transaction.id} was not signed`);
+    }
+
+    // Genesis transactions don't really have any signature
+    if (!transaction.isGenesis()) {
+        // Make sure the signature matches the transaction.
+        const unsignedTxHash = getUnsignedTransactionHash(transaction);
+        const isSignatureValid = KeyPair.verifySignature(unsignedTxHash, {
+            r: transaction.r,
+            s: transaction.s,
+            v: transaction.v
+        });
+
+        if (!isSignatureValid) {
+            throw new Error(`Transaction ${transaction.id} has an invalid signature`);
+        }
+    }
+
 
     // Only positive values are allowed
     if (transaction.value.isNeg()) {
@@ -90,6 +111,8 @@ export async function validateTransaction(transaction: Transaction) {
     // By copying we are essentially only trusting a limited amount of data
     // this way we can be sure no tempering has been done to the executing
     const transactionCopy = new Transaction({
+        gasPrice: transaction.gasPrice,
+        gasLimit: transaction.gasLimit,
         to: transaction.to,
         data: transaction.data,
         r: transaction.r,
@@ -106,11 +129,14 @@ export async function validateTransaction(transaction: Transaction) {
     // TODO: Check if transaction is a milestone transaction
     // If it is we need to revalidate depending on the model.
 
-    // Execute to get to the same point as the transaction
-    await transactionCopy.execute();
-
     // "Sign" the transaction, since we are taking the signatures from the created transaction
     transactionCopy.sign();
+
+    // For the balance DAG walk we do not need to execute the function
+    if (!noExecution) {
+        // Execute to get to the same point as the transaction
+        await transactionCopy.execute();
+    }
 
     // Check the Proof of Work again to make sure all the work adds up.
     if (!isProofOfWorkValid(transactionCopy.id, transactionCopy.nonce)) {
@@ -127,6 +153,10 @@ export function getAddressFromTransaction(transaction: Transaction) {
             to: transaction.to,
             from: null,
         }
+    }
+
+    if (!transaction.r || !transaction.s || !transaction.v) {
+        throw new Error(`Value r,s,v should not be undefined on transaction ${transaction.id}`);
     }
 
     const unsignedTransactionHash = getUnsignedTransactionHash(transaction);

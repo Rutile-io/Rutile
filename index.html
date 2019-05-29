@@ -77,8 +77,12 @@
 
             async function getAddressInfo() {
                 const address = document.getElementById('addressInfo').value;
+                document.getElementById('balanceInfo').innerHTML = 'calculating..';
+
                 const account = await Rutile.Account.getFromAddress(address);
-                document.getElementById('balanceInfo').innerHTML = account.balance;
+                const balance = await rutile.getAccountBalance(address);
+
+                document.getElementById('balanceInfo').innerHTML = balance;
             }
 
             async function setPrivateKey() {
@@ -109,6 +113,7 @@
             }
 
             function addTransaction(transaction) {
+                return;
                 const toAdd = [];
 
                 toAdd.push({

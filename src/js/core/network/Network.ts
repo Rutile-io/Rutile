@@ -134,8 +134,8 @@ class Network extends EventHandler {
      *
      * @memberof PeerToPeer
      */
-    open(): Promise<string> {
-        return new Promise((resolve, reject) => {
+    open(): Promise<void> {
+        return new Promise((resolve) => {
             if (isNodeJs()) {
                 // TODO: Use HTTPS here instead of HTTP
                 const peerHttpServer = new PeerHttpServer(this);
@@ -150,24 +150,17 @@ class Network extends EventHandler {
             const peer = new Peer(true);
 
             peer.onSignal = async (description) => {
-                try {
-                    await this.onSignal(description, peer.id);
-                } catch (error) {
-                    reject(error);
-                }
+                await this.onSignal(description, peer.id);
             }
 
             peer.onClose = () => this.onPeerClose(peer.id);
             peer.onData = (data) => this.onPeerData(data, peer.id);
             peer.onConnect = () => {
                 this.onPeerConnected(peer.id);
-
-                resolve(peer.id);
             }
 
             peer.onError = (error) => {
                 this.onPeerError(error, peer.id);
-                reject(error);
             }
 
             peer.open();
@@ -175,6 +168,8 @@ class Network extends EventHandler {
             this.connections.push({
                 peer,
             });
+
+            resolve();
         });
     }
 
@@ -184,7 +179,7 @@ class Network extends EventHandler {
             value: transaction.toRaw(),
         };
 
-        Logger.debug(`Broadcasting transaction ${transaction.id}`);
+        Logger.debug(`Broadcasting transaction 0x${transaction.id}`);
         await this.broadcast(JSON.stringify(message), skipPeerIds);
     }
 

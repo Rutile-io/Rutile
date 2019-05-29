@@ -4,7 +4,7 @@ export function numberToHex(numb: number) {
     return '0x' + numb.toString(16);
 }
 
-export function hexStringToBuffer(str: string) {
+export function hexStringToBuffer(str: string): Buffer {
     return ethUtil.toBuffer(str);
 }
 
@@ -15,7 +15,7 @@ export function hexStringToBuffer(str: string) {
  * @param {string} str
  * @returns
  */
-export function stringToHex(str: string) {
+export function stringToHex(str: string): string {
     let result = '';
 
     for (var i=0; i < str.length; i++) {
@@ -25,6 +25,6 @@ export function stringToHex(str: string) {
     return '0x' + result;
 }
 
-export function hexStringToString(hexStr: string) {
-    console.log('[] hexStr -> ', hexStr);
+export function hexStringToString(hexStr: string): string {
+    return hexStringToBuffer(hexStr).toString('utf8');
 }

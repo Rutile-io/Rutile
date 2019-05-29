@@ -10,7 +10,6 @@ class NetworkController {
     constructor(dag: Dag, network: Network) {
         this.dag = dag;
         this.network = network;
-
         this.network.on('message', this.onNetworkMessage.bind(this));
     }
 
@@ -50,6 +49,7 @@ class NetworkController {
 
         if (data.type === 'TRANSACTION') {
             const transaction = Transaction.fromRaw(data.value);
+
             this.dag.addTransaction(transaction, event.peerId);
         } else if (data.type === 'SYNC_FROM_MILESTONE') {
             // A node sent us a request to synchronise our database.

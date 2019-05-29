@@ -27,7 +27,7 @@ class Peer {
         console.log(JSON.stringify(sessionDescription));
     }
 
-    public onData(data: Uint8Array|Buffer) {
+    public onData(data: Uint8Array | Buffer) {
         console.log('[onData] :: data -> ', data);
     }
 

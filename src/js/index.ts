@@ -37,12 +37,14 @@ async function sendDummyTransaction () {
     wallet = new Wallet(configuration.privateKey);
     account = await wallet.getAccountInfo();
 
-    console.log('My address is -> ', account.address, ' with balance -> ', account.balance);
+    const myBalance = await rutile.getAccountBalance(account.address);
 
-    if (account.balance < 10) {
-        Logger.debug('Transaction not possible, amount is lower than 10');
-        return;
-    }
+    console.log('My address is -> ', account.address, ' with balance -> ', myBalance);
+
+    // if (account.balance < 10) {
+    //     Logger.debug('Transaction not possible, amount is lower than 10');
+    //     return;
+    // }
 
 // const file = fs.readFileSync('./examples/wrc20/wrc20-non-debug.wasm');
     // require('/Users/franklinwaller/Desktop/EVM.wasm-master/build/untouched.wasm');
@@ -60,7 +62,7 @@ async function sendDummyTransaction () {
         // data: '0x9993021aed09375dc6b20050d242d1611af97ee4a6e93cad',
         data: '0x00000001',
         // data: '0x5d359fbde929cf2544363bdcee4a976515d5f97758ef476c000000000007a120',
-        value: 10,
+        value: 0,
         transIndex: wallet.account.transactionIndex + 1,
     });
 
@@ -79,6 +81,29 @@ async function sendDummyTransaction () {
     rutile.sendTransaction(transaction, wallet.keyPair);
 }
 
+async function deployContract() {
+    // Deploy a contract to IPFS
+    const fs = __non_webpack_require__('fs');
+    const file = fs.readFileSync('/Volumes/Mac Space/Workspace/Rutile/EVM.wasm/build/untouched.wasm');
+    const wasm = new Uint8Array(file);
+    let hash = await rutile.deploy(wasm);
+    hash = stringToHex(hash);
+
+    const transaction = new Rutile.Transaction({
+        // Sending to no one means we want to create a contract
+        to: null,
+        gasPrice: 1,
+        data: hash,
+    });
+
+    // const result = await transaction.execute();
+
+    // console.log('[] result -> ', result);
+
+    const result = await rutile.sendTransaction(transaction, wallet.keyPair);
+    console.log('[] result -> ', result);
+}
+
 async function run() {
     applyArgv();
     startDatabase();
@@ -92,27 +117,6 @@ async function run() {
 
         Logger.debug('My address is -> ', account.address, ' with balance -> ', account.balance);
 
-        // Deploy a contract to IPFS
-        const fs = require('fs');
-        const file = fs.readFileSync('/Volumes/Mac Space/Workspace/Rutile/EVM.wasm/build/untouched.wasm');
-        const wasm = new Uint8Array(file);
-        let hash = await rutile.deploy(wasm);
-        hash = stringToHex(hash);
-
-        const transaction = new Rutile.Transaction({
-            // Sending to no one means we want to create a contract
-            to: null,
-            gasPrice: 1,
-            data: hash,
-        });
-
-        transaction.sign(wallet.keyPair);
-        transaction.proofOfWork();
-
-        const result = await transaction.execute();
-
-        console.log('[] result -> ', result);
-
         try {
             await rutile.start();
         } catch (e) {
@@ -124,10 +128,13 @@ async function run() {
         // }, 10000);
 
         rutile.dag.networkController.network.on('peerConnected', () => {
-            // setInterval(() => {
-            //     sendDummyTransaction();
-            // }, 10000);
+            // deployContract();
+
         });
+
+        setInterval(() => {
+            // sendDummyTransaction();
+        }, 20000);
 
         if (isNodeJs()) {
             // await sleep(10000);

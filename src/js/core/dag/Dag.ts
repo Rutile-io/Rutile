@@ -24,6 +24,7 @@ class Dag extends EventHandler {
 
     constructor(network: Network) {
         super();
+
         this.networkController = new NetworkController(this, network);
         this.walker = new Walker();
         this.ipfs = Ipfs.getInstance(configuration.ipfs);
@@ -46,12 +47,13 @@ class Dag extends EventHandler {
                 return;
             }
 
+            Logger.debug(`Received transaction 0x${transaction.id}`);
+
             // Send the transaction to the rest of the nodes.
             this.networkController.network.broadcastTransaction(transaction, [fromPeerId]);
 
-            Logger.debug('Received transaction ', transaction.id);
-
             await validateTransaction(transaction);
+            await applyTransaction(transaction);
 
             // Let the rest of the application know it's valid.
             this.trigger('transactionAdded', {
@@ -60,6 +62,13 @@ class Dag extends EventHandler {
         } catch (error) {
             Logger.warn('Transaction with id', transaction.id, 'failed', error);
         }
+    }
+
+    async getAccountBalance(address: string) {
+        const walkedTransactions = await this.walker.getTransactionToValidate(1, 1);
+        const balances = await this.tipValidator.generateAccountBalances(walkedTransactions[0].id);
+
+        return balances;
     }
 
     /**
@@ -82,6 +91,7 @@ class Dag extends EventHandler {
         // Validate these transactions by searching for a path that allows the user to spend this amount.
         const invalidTransaction = await this.tipValidator.validateTransactionBalances(parentTransactions);
 
+
         // One of the tips is considered invalid and should not be used
         // We retry to submit our transaction to a different tip
         if (invalidTransaction) {
@@ -95,17 +105,28 @@ class Dag extends EventHandler {
             return;
         }
 
+        Logger.debug(`Attaching to ${parentTransactions.map(t => t.id)}`);
         await transaction.addParents(parentTransactions);
 
         transaction.sign(keyPair);
+
+        Logger.debug(`Applying PoW to transaction ${transaction.id}`);
         transaction.proofOfWork();
 
+        Logger.debug(`Executing transaction ${transaction.id}`);
+        const result = await transaction.execute();
+
         // Make sure all is ok with our transaction before sending it off
+        Logger.debug(`Re-validating transaction before sending ${transaction.id}`);
         await validateTransaction(transaction);
+
+        Logger.debug(`Applying transaction ${transaction.id}`);
         await applyTransaction(transaction);
 
         // Apply the transaction to our local node
         this.networkController.broadcastTransaction(transaction);
+
+        return result;
     }
 
     /**
@@ -116,6 +137,8 @@ class Dag extends EventHandler {
      * @memberof Dag
      */
     async synchroniseTo(beginMilestoneIndex: number, peerId: string) {
+        Logger.debug(`Synchronising to peer ${peerId} starting from ${beginMilestoneIndex}`);
+
         // TODO: Synchronise from the beginMilestoneIndex instead of sending all.
         const stream = databaseGetAll({
             selector: {
@@ -141,12 +164,16 @@ class Dag extends EventHandler {
         let genesisTransaction = await getMilestoneTransaction(GENESIS_MILESTONE);
 
         if (!genesisTransaction) {
-            genesisTransaction = createGenesisTransaction();
+            genesisTransaction = await createGenesisTransaction();
             await applyTransaction(genesisTransaction);
         }
 
-        // Find the highest milestone we currently have and ask a node to get data up to the next milestone.
-        this.networkController.broadcastSynchroniseRequest(0);
+        // Make sure we have a peer that can accept the request
+        this.networkController.network.one('peerConnected', () => {
+            // Find the highest milestone we currently have and ask a node to get data up to the next milestone.
+            Logger.info('Requesting synchronisation');
+            this.networkController.broadcastSynchroniseRequest(0);
+        });
     }
 
     async onTransactionSyncMessage(transaction: Transaction) {

@@ -67,7 +67,16 @@ class Rutile {
     }
 
     async sendTransaction(transaction: Transaction, keyPair: KeyPair) {
-        this.dag.submitTransaction(transaction, keyPair);
+        return this.dag.submitTransaction(transaction, keyPair);
+    }
+
+    async getAccountBalance(address: string) {
+        if (!this.dag) {
+            throw new Error('Rutile should be started first');
+        }
+
+        const balances = await this.dag.getAccountBalance(address);
+        return balances[address].toString();
     }
 }
 

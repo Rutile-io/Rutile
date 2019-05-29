@@ -80,7 +80,7 @@ class EventHandler {
         let eventId: HookInfo[] = null;
 
         eventId = this.on(hooks, (data: any) => {
-            method(data);
+            setTimeout(() => method(data), 0);
             this.remove(eventId);
         }, caller);
 
@@ -153,7 +153,7 @@ class EventHandler {
             const eventHandle = this.stack[hook][i];
 
             try {
-                eventHandle.method(data);
+                setTimeout(() => eventHandle.method(data), 0);
             } catch (e) {
                 console.error(`EventHandler: Handle from '${eventHandle.caller}' for '${hook}' failed. Error: ${e}`);
             }
