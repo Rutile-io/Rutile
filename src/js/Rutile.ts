@@ -10,6 +10,7 @@ import byteArrayToString from './utils/byteArrayToString';
 import Wallet from './models/Wallet';
 import * as Database from './services/DatabaseService';
 import * as Logger from 'js-logger';
+import Block from './models/Block';
 
 /**
  * Glue between all core modules.
@@ -29,6 +30,10 @@ class Rutile {
 
     static get Transaction() {
         return Transaction;
+    }
+
+    static get Block() {
+        return Block;
     }
 
     static get KeyPair() {
@@ -66,8 +71,8 @@ class Rutile {
         return this.ipfs.add(byteArrayToString(wasm));
     }
 
-    async sendTransaction(transaction: Transaction, keyPair: KeyPair) {
-        return this.dag.submitTransaction(transaction, keyPair);
+    async sendBlock(block: Block) {
+        return this.dag.submitBlock(block);
     }
 
     async getAccountBalance(address: string) {
@@ -76,6 +81,7 @@ class Rutile {
         }
 
         const balances = await this.dag.getAccountBalance(address);
+
         return balances[address].toString();
     }
 }

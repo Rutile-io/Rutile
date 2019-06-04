@@ -92,6 +92,7 @@ class VirtualContext {
             finish: (...args: any[]) => this.callContext('finish', args),
             getCaller: (...args: any[]) => this.callContext('getCaller', args),
             log: (...args: any[]) => this.callContext('log', args),
+            getCallValue: (...args: any[]) => this.callContext('getCallValue', args),
         }
     }
 }

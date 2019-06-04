@@ -2,6 +2,8 @@ import * as Logger from 'js-logger';
 import BNType from 'bn.js';
 import Transaction from "../../../models/Transaction";
 import { getTransactionById, getAddressFromTransaction, validateTransaction } from "./services/TransactionService";
+import Block from '../../../models/Block';
+import { getBlockById } from './services/BlockService';
 const BN = require('bn.js');
 
 interface AddressBalancePair {
@@ -12,21 +14,21 @@ const BASE10_RADIX = 10;
 
 class TipValidator {
     /**
-     * Validates the balances of the transaction to check if the correct tips where selected
-     * Returns null if the given transactions are considered valid
-     * Returns a transaction that was considered to be not valid (and should be deleted from the database)
+     * Validates the balances of the block to check if the correct tips where selected
+     * Returns null if the given blocks are considered valid
+     * Returns a block that was considered to be not valid (and should be deleted from the database)
      *
-     * @param {Transaction[]} transactions
-     * @returns {(Promise<Transaction | null>)} A transaction that is invalid and should be deleted or null
+     * @param {Block[]} blocks
+     * @returns {(Promise<Block | null>)} A transaction that is invalid and should be deleted or null
      * @memberof TipValidator
      */
-    async validateTransactionBalances(transactions: Transaction[]): Promise<Transaction | null> {
-        for (const transaction of transactions) {
-            const balances = await this.generateAccountBalances(transaction.id);
+    async validateBlockBalances(blocks: Block[]): Promise<Block | null> {
+        for (const block of blocks) {
+            const balances = await this.generateAccountBalances(block.id);
 
             // Make sure we are not approving any negative balances
             if (!this.validateForNegativeBalances(balances)) {
-                return transaction;
+                return block;
             }
         }
 
@@ -95,28 +97,31 @@ class TipValidator {
      * @returns {Promise<AddressBalancePair>}
      * @memberof TipValidator
      */
-    async generateAccountBalances(startTransactionId: string): Promise<AddressBalancePair> {
-        const visitedTransactions: string[] = [];
+    async generateAccountBalances(startBlockId: string): Promise<AddressBalancePair> {
+        const visitedBlocks: string[] = [];
 
-        const transactionIdsToCheck: string[] = [startTransactionId];
+        const blockIdsToCheck: string[] = [startBlockId];
         const state: AddressBalancePair = {};
 
-        for (const transactionId of transactionIdsToCheck) {
+        for (const blockId of blockIdsToCheck) {
             // Make sure we don't validate the same transactions twice
-            if (visitedTransactions.includes(transactionId)) {
+            if (visitedBlocks.includes(blockId)) {
                 continue;
             }
 
-            visitedTransactions.push(transactionId);
+            visitedBlocks.push(blockId);
 
-            const transaction = await getTransactionById(transactionId);
+            const block = await getBlockById(blockId);
+            await block.validate();
 
-            if (!transaction.value.isZero()) {
-                await validateTransaction(transaction, true);
-                this.applyTransactionToState(transaction, state);
+            for (const transaction of block.transactions) {
+                if (!transaction.value.isZero()) {
+                    await validateTransaction(transaction, true);
+                    this.applyTransactionToState(transaction, state);
+                }
             }
 
-            transactionIdsToCheck.push(...transaction.parents);
+            blockIdsToCheck.push(...block.parents);
         }
 
         return state;

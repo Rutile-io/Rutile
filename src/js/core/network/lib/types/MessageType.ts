@@ -11,3 +11,8 @@ export interface TransactionMessage {
     type: 'TRANSACTION',
     value: string;
 }
+
+export interface BlockMessage {
+    type: 'BLOCK';
+    value: string;
+}

@@ -73,9 +73,9 @@ export async function validateTransaction(transaction: Transaction, noExecution:
     Transaction.fromRaw(transaction.toRaw());
 
     // For now the maximum of transactions that can be validated is 2
-    if (!transaction.isGenesis() && (transaction.parents.length < 2 || transaction.parents.length > 2)) {
-        throw new Error(`Transaction ${transaction.id} should validate 2 other transactions.`);
-    }
+    // if (!transaction.isGenesis() && (transaction.parents.length < 2 || transaction.parents.length > 2)) {
+    //     throw new Error(`Transaction ${transaction.id} should validate 2 other transactions.`);
+    // }
 
     if (!transaction.r || !transaction.s || !transaction.v) {
         throw new Error(`Transaction ${transaction.id} was not signed`);
@@ -102,11 +102,11 @@ export async function validateTransaction(transaction: Transaction, noExecution:
         throw new Error(`Transaction ${transaction.id} should not have negative values`);
     }
 
-    // For effeciency sake, first check the proof of work.
-    // Since we don't have to go through all the work if the PoW isn't even valid.
-    if (!isProofOfWorkValid(transaction.id, transaction.nonce)) {
-        throw new Error('Proof of work is not valid');
-    }
+    // // For effeciency sake, first check the proof of work.
+    // // Since we don't have to go through all the work if the PoW isn't even valid.
+    // if (!isProofOfWorkValid(transaction.id, transaction.nonce)) {
+    //     throw new Error('Proof of work is not valid');
+    // }
 
     // By copying we are essentially only trusting a limited amount of data
     // this way we can be sure no tempering has been done to the executing
@@ -138,10 +138,12 @@ export async function validateTransaction(transaction: Transaction, noExecution:
         await transactionCopy.execute();
     }
 
+    // TODO: Make sure the copy is valid
+
     // Check the Proof of Work again to make sure all the work adds up.
-    if (!isProofOfWorkValid(transactionCopy.id, transactionCopy.nonce)) {
-        throw new Error('Proof of Work after execution is not valid');
-    }
+    // if (!isProofOfWorkValid(transactionCopy.id, transactionCopy.nonce)) {
+    //     throw new Error('Proof of Work after execution is not valid');
+    // }
 
     return true;
 }

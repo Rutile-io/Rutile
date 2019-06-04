@@ -1,4 +1,5 @@
 import BNType from 'bn.js';
+import * as Logger from 'js-logger';
 import { Memory } from "./lib/memory";
 import { toHex, hexStringToByte, createZerosArray } from "./utils/hexUtils";
 import { VmError, VM_ERROR, FinishExecution } from "./lib/exceptions";
@@ -197,10 +198,12 @@ class Context {
      * @todo Should change 32 to 128
      * @param resultOffset i32ptr the memory offset to load the value into (u128)
      */
-    private getCallValue(resultOffset: number){
+    private getCallValue(notifierIndex: number, resultOffset: number){
         const valueHex = "0x" + this.value.toString('hex', 16);
         const valueBytes = hexStringToByte(valueHex);
         this.mem.write(resultOffset, 16, valueBytes);
+
+        storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }
 
     /**
@@ -263,7 +266,7 @@ class Context {
 
     private log(notifierIndex: number, dataOffset: number, length: number) {
         const result = this.mem.read(dataOffset, length);
-        console.log(`[LOG]: 0x${toHex(result)} ${dataOffset}:${length}`);
+        Logger.info(`vm.log 0x${toHex(result)} ${dataOffset}:${length}`);
 
         storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }

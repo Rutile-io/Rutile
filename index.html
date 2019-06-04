@@ -30,7 +30,7 @@
         <section>
             <div>
                 <label>Address:</label>
-                <input type="text" id="addressInfo" value="0xe9699cc154b8121586a2d7a333d353fa91ad4bed" />
+                <input type="text" id="addressInfo" value="0x53ae893e4b22d707943299a8d0c844df0e3d5557" />
                 <div>
                     <label>Balance:</label>
                     <span id="balanceInfo">?</span>
@@ -46,7 +46,11 @@
             </div>
             <div>
                 <label>Value</label>
-                <input type="number" id="valueAddress" value="20" />RUT
+                <input type="number" id="valueAddress" value="0" />RUT
+            </div>
+            <div>
+                <label>Data</label>
+                <input type="text" id="valueData" value="0x00000001" />
             </div>
             <button onclick="sendValue()">Send transaction</button>
         </section>
@@ -97,19 +101,28 @@
                 const privateKey = document.getElementById('privateKey').value;
                 const toAddress = document.getElementById('valueAddressTo').value;
                 const value = document.getElementById('valueAddress').value;
+                const data = document.getElementById('valueData').value;
 
                 const keyPair = new Rutile.KeyPair(privateKey);
                 const account = await Rutile.Account.getFromAddress(keyPair.getAddress());
                 let transIndex = account.transactionIndex + 1;
 
+                const block = new Rutile.Block({});
+
                 const transaction = new Rutile.Transaction({
                     to: toAddress,
                     value,
-                    data: '',
+                    data,
                     transIndex,
                 });
 
-                rutile.sendTransaction(transaction, keyPair);
+                transaction.sign(keyPair);
+
+                block.addTransactions([transaction]);
+
+                const txResult = await rutile.sendBlock(block);
+
+                console.log('[] txResult -> ', txResult);
             }
 
             function addTransaction(transaction) {

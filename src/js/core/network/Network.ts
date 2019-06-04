@@ -1,6 +1,6 @@
 import PeerToPeerService from "./services/PeerToPeerService";
 import { URL } from 'url';
-import { TransactionMessage } from "./lib/types/MessageType";
+import { TransactionMessage, BlockMessage } from "./lib/types/MessageType";
 import Transaction from "../../models/Transaction";
 import Peer from './lib/Peer';
 import { configuration } from "../../Configuration";
@@ -8,6 +8,7 @@ import isNodeJs from "../../services/isNodeJs";
 import EventHandler from "./lib/EventHandler";
 import * as Logger from 'js-logger';
 import PeerHttpServer from "./PeerHttpServer";
+import Block from "../../models/Block";
 
 interface Connection {
     // Offers don't have yet a filled in nodeId,
@@ -173,13 +174,14 @@ class Network extends EventHandler {
         });
     }
 
-    async broadcastTransaction(transaction: Transaction, skipPeerIds: string[] = []) {
-        const message: TransactionMessage = {
-            type: 'TRANSACTION',
-            value: transaction.toRaw(),
+    async broadcastBlock(block: Block, skipPeerIds: string[] = []) {
+        const message: BlockMessage = {
+            // type: 'TRANSACTION',
+            type: 'BLOCK',
+            value: block.toRaw(),
         };
 
-        Logger.debug(`Broadcasting transaction 0x${transaction.id}`);
+        Logger.debug(`Broadcasting block ${block.id}`);
         await this.broadcast(JSON.stringify(message), skipPeerIds);
     }
 

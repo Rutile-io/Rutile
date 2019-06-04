@@ -1,8 +1,8 @@
-import Transaction from "../../../models/Transaction";
-import { getMilestoneTransaction, getTransactionById } from "./services/TransactionService";
-import { databaseFind, startDatabase } from "../../../services/DatabaseService";
-import getTransactionCumulativeWeights from "./services/CumulativeWeightService";
+import { startDatabase } from "../../../services/DatabaseService";
+import getBlocksCumulativeWeights from "./services/CumulativeWeightService";
 import * as Logger from 'js-logger';
+import { getBlockByNumber, getBlockById } from "./services/BlockService";
+import Block from "../../../models/Block";
 
 function getRandomInt(min: number, max: number) {
     min = Math.ceil(min);
@@ -26,18 +26,18 @@ class Walker {
      * @returns {Promise<Transaction[]>}
      * @memberof Walker
      */
-    async getAttachedTransactions(transactionId: string): Promise<Transaction[]> {
+    async getAttachedBlocks(blockId: string): Promise<Block[]> {
         const db = startDatabase();
 
         const data = await db.find({
             selector: {
                 'parents': {
-                    '$in': [transactionId],
+                    '$in': [blockId],
                 }
             }
         });
 
-        return data.docs.map(transaction => Transaction.fromRaw(JSON.stringify(transaction)))
+        return data.docs.map(block => Block.fromRaw(JSON.stringify(block)))
     }
 
     /**
@@ -47,87 +47,89 @@ class Walker {
      * @returns {Transaction}
      * @memberof Walker
      */
-    getRandomWeightedTransaction(transactions: Transaction[]): Transaction {
+    getRandomWeightedBlock(blocks: Block[]): Block {
         let sumOfWeight = 0;
 
-        transactions.forEach((transaction) => {
-            sumOfWeight += this.transactionCumulativeWeights.get(transaction.id);
+        blocks.forEach((block) => {
+            sumOfWeight += this.transactionCumulativeWeights.get(block.id);
         });
 
         let randomNum = getRandomInt(0, sumOfWeight);
 
-        const transaction = transactions.find((transaction) => {
-            if (randomNum < this.transactionCumulativeWeights.get(transaction.id)) {
+        const weightedBlock = blocks.find((block) => {
+            if (randomNum < this.transactionCumulativeWeights.get(block.id)) {
                 return true;
             }
 
-            randomNum -= this.transactionCumulativeWeights.get(transaction.id);
+            randomNum -= this.transactionCumulativeWeights.get(block.id);
         });
 
-        if (!transaction) {
-            return transactions[0];
+        if (!weightedBlock) {
+            return blocks[0];
         }
 
-        return transaction;
+        return weightedBlock;
     }
 
     /**
-     * Finds a transaction tip that we can use to validate.
+     * Finds a block tip that we can use to validate.
      *
-     * @param {Transaction} transaction
+     * @param {Block} block
      * @returns {Promise<Transaction>}
      * @memberof Walker
      */
-    async getTransactionTip(transaction: Transaction): Promise<Transaction> {
-        const attachedTransactions = await this.getAttachedTransactions(transaction.id);
+    async getBlockTip(block: Block): Promise<Block> {
+        const attachedBlocks = await this.getAttachedBlocks(block.id);
 
         // We found a tip
-        if (attachedTransactions.length === 0) {
-            return transaction;
+        if (attachedBlocks.length === 0) {
+            return block;
         }
 
-        const nextTransaction = this.getRandomWeightedTransaction(attachedTransactions);
+        const nextBlock = this.getRandomWeightedBlock(attachedBlocks);
 
-        // TODO: Check balance of account before chosing a transaction path.
-
-        return this.getTransactionTip(nextTransaction);
+        return this.getBlockTip(nextBlock);
     }
 
     /**
-     * Finds transactions that can be validated. Will not give duplicates (Unless it's the genesis transaction)
+     * Finds transactions that can be validated. Will not give duplicates (Unless it's the genesis block)
      *
-     * @param {number} milestoneIndex
+     * @param {number} blockNumber
      * @param {number} transactionsAmount
      * @returns {Promise<Transaction[]>}
      * @memberof Walker
      */
-    async getTransactionToValidate(milestoneIndex: number, transactionsAmount: number): Promise<Transaction[]> {
-        let transactionsToValidate: Transaction[] = [];
+    async getBlocksToValidate(blockNumber: number, blockParentsAmount: number): Promise<Block[]> {
+        let blocksToValidate: Block[] = [];
 
         // First we have to get the milestone transaction with the given milestoneIndex
-        this.transactionCumulativeWeights = await getTransactionCumulativeWeights();
-        const milestoneTransaction = await getMilestoneTransaction(milestoneIndex);
+        this.transactionCumulativeWeights = await getBlocksCumulativeWeights();
+        const milestoneBlock = await getBlockByNumber(blockNumber);
+
+        if (!milestoneBlock) {
+            throw new Error(`Block number ${blockNumber} could not be found`);
+        }
 
         // for of loops (required for async loops) only have support for iterables and not ranges
         // this is why we create an empty array of x length and iterate over that
-        const transactionAmountIterator = new Array(transactionsAmount);
+        const blockAmountIterator = new Array(blockParentsAmount);
 
-        for (let [index] of transactionAmountIterator.entries()) {
-            Logger.debug(`Searching for transaction ${index + 1}/${transactionsAmount}`);
+        for (let [index] of blockAmountIterator.entries()) {
+            Logger.debug(`Searching for transaction ${index + 1}/${blockParentsAmount}`);
 
-            const transaction = await this.getTransactionTip(milestoneTransaction);
-            const alreadyHasTransaction = !!transactionsToValidate.find(tx => tx.id === transaction.id);
+            const blockTip = await this.getBlockTip(milestoneBlock);
+            const alreadyHasTransaction = !!blocksToValidate.find(block => block.id === blockTip.id);
 
-            if (alreadyHasTransaction && !transaction.isGenesis()) {
+            if (alreadyHasTransaction && !blockTip.isGenesis()) {
                 // We can't add the same transaction id, as this would result in a chain rather than a DAG.
-                const randomParent = transaction.parents[getRandomInt(0, transaction.parents.length - 1)];
-                transactionsToValidate.push(await getTransactionById(randomParent));
+                const randomParentBlockId = blockTip.parents[getRandomInt(0, blockTip.parents.length - 1)];
+                blocksToValidate.push(await getBlockById(randomParentBlockId));
             } else {
-                transactionsToValidate.push(transaction);
+                blocksToValidate.push(blockTip);
             }
         }
 
-        return transactionsToValidate;
+        return blocksToValidate;
     }
 }
 

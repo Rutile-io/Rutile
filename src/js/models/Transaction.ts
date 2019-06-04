@@ -225,6 +225,7 @@ class Transaction {
     }
 
     isGenesis() {
+        // TODO: More checks. Such as the id compared to the configuration
         return this.milestoneIndex === 1;
     }
 
