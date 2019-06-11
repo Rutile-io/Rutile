@@ -100,7 +100,7 @@ class Block {
             numberToHex(this.number),
             this.parents,
             // TODO: Convert to the actual transactions
-            this.transactions.map(() => '0x000000'),
+            this.transactions.map(tx => tx.id),
             numberToHex(this.timestamp),
             this.difficulty,
             this.stateRoot,

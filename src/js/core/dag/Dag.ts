@@ -181,7 +181,7 @@ class Dag extends EventHandler {
         try {
             // TODO: Check more than only the PoW.
             if (!isProofOfWorkValid(block.id, block.nonce)) {
-                console.error(`Block [${block.id}] is invalid. Not adding.`);
+                console.error(`Block ${block.id} is invalid. Not adding.`);
                 return;
             }
 

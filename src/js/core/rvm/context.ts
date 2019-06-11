@@ -199,10 +199,7 @@ class Context {
      * @param resultOffset i32ptr the memory offset to load the value into (u128)
      */
     private getCallValue(notifierIndex: number, resultOffset: number){
-        const valueHex = "0x" + this.value.toString('hex', 16);
-        const valueBytes = hexStringToByte(valueHex);
-        this.mem.write(resultOffset, 16, valueBytes);
-
+        this.mem.write(resultOffset, 16, this.value.toArray(undefined, 16));
         storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }
 

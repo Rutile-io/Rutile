@@ -28,7 +28,6 @@ export default async function execute(transaction: Transaction, wasmBinary: Uint
     // since database calls and asynchronous calls cannot be done on the
     // worker thread.
     const addresses = getAddressFromTransaction(transaction);
-
     const context = new Context({
         id: transaction.id,
         fromAddress: addresses.from,

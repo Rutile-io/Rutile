@@ -88,28 +88,34 @@ async function sendDummyTransaction () {
     rutile.sendBlock(block);
 }
 
-// async function deployContract() {
-//     // Deploy a contract to IPFS
-//     const fs = __non_webpack_require__('fs');
-//     const file = fs.readFileSync('/Volumes/Mac Space/Workspace/Rutile/InternalContracts/build/untouched-milestones.wasm');
-//     const wasm = new Uint8Array(file);
-//     let hash = await rutile.deploy(wasm);
-//     hash = stringToHex(hash);
+async function deployContract() {
+    // Deploy a contract to IPFS
+    const fs = __non_webpack_require__('fs');
+    const file = fs.readFileSync('/Volumes/Mac Space/Workspace/Rutile/InternalContracts/build/untouched-milestones.wasm');
+    const wasm = new Uint8Array(file);
+    let hash = await rutile.deploy(wasm);
+    hash = stringToHex(hash);
 
-//     const transaction = new Rutile.Transaction({
-//         // Sending to no one means we want to create a contract
-//         to: null,
-//         gasPrice: 1,
-//         data: hash,
-//     });
+    const transaction = new Rutile.Transaction({
+        // Sending to no one means we want to create a contract
+        to: null,
+        gasPrice: 1,
+        data: hash,
+    });
 
-//     // const result = await transaction.execute();
+    transaction.sign(wallet.keyPair);
 
-//     // console.log('[] result -> ', result);
+    const block = new Rutile.Block({});
+    block.addTransactions([transaction]);
 
-//     const result = await rutile.sendBlock(transaction);
-//     console.log('[] result -> ', result);
-// }
+    const results = await block.execute();
+    // const result = await transaction.execute();
+
+    // console.log('[] result -> ', result);
+
+    const result = await rutile.sendBlock(block);
+    console.log('[] result -> ', results);
+}
 
 async function run() {
     applyArgv();
