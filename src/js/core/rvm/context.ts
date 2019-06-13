@@ -195,11 +195,13 @@ class Context {
 
     /**
      * Gets the deposited value by the instruction/transaction responsible for this execution and loads it into memory at the given location.
-     * @todo Should change 32 to 128
+     * @todo Should change 64 to 128
      * @param resultOffset i32ptr the memory offset to load the value into (u128)
      */
     private getCallValue(notifierIndex: number, resultOffset: number){
-        this.mem.write(resultOffset, 16, this.value.toArray(undefined, 16));
+        // We should not yet use u128 for values since they need to be supported in WASM.
+        // We either need to
+        this.mem.write(resultOffset, 8, this.value.toArray(undefined, 8));
         storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }
 
@@ -268,6 +270,43 @@ class Context {
         storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }
 
+    // Start debug methods
+
+    /**
+     * Prints a 32bit integer
+     *
+     * @private
+     * @param {number} notifierIndex
+     * @param {number} value
+     * @memberof Context
+     */
+    private print32(notifierIndex: number, value: number) {
+        Logger.info(`vm.print32 ${value}`);
+        storeAndNotify(this.notifierBuffer, notifierIndex, 1);
+    }
+
+    /**
+     * Prints a 64bit integer
+     *
+     * @private
+     * @param {number} notifierIndex
+     * @param {number} value
+     * @memberof Context
+     */
+    private print64(notifierIndex: number, value: number) {
+        Logger.info(`vm.print64 ${value}`);
+        storeAndNotify(this.notifierBuffer, notifierIndex, 1);
+    }
+
+    private printMemHex(notifierIndex: number, offset: number, length: number) {
+        const value = this.mem.read(offset, length);
+        const hexValue = toHex(value);
+
+        Logger.info(`vm.printMemHex 0x${hexValue}`);
+
+        storeAndNotify(this.notifierBuffer, notifierIndex, 1);
+    }
+
     getExposedFunctions() {
         return {
             getAddress: this.getAddress.bind(this),
@@ -303,6 +342,11 @@ class Context {
             selfDestruct: () => {},
             getTransactionTimestamp: () => {},
             useGas: this.useGas.bind(this),
+
+            // Debug methods
+            print32: this.print32.bind(this),
+            print64: this.print64.bind(this),
+            printMemHex: this.printMemHex.bind(this),
         }
     }
 }

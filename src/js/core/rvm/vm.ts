@@ -19,7 +19,7 @@ async function runWasm(wasmBinary: Uint8Array) {
                     context.useGas(gas);
                 }
             },
-            env: context.getExposedFunctions(),
+            ...context.getExposedFunctions(),
         });
 
         // Grow memory to 64Kib

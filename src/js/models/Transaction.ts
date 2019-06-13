@@ -124,7 +124,7 @@ class Transaction {
 
             // This is a contract creation because we do not have a receipient
             if (!this.to) {
-                Logger.debug('Creating new contract address');
+                // Logger.debug('Creating new contract address');
                 const contractAccount = await this.deployContract();
 
                 return {

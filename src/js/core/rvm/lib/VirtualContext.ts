@@ -83,16 +83,23 @@ class VirtualContext {
      */
     getExposedFunctions() {
         return {
-            useGas: this.useGas.bind(this),
-            revert: (...args: any[]) => this.callContext('revert', args),
-            getCallDataSize: (...args: any[]) => this.callContext('getCallDataSize', args),
-            callDataCopy: (...args: any[]) => this.callContext('callDataCopy', args),
-            storageLoad: (...args: any[]) => this.callContext('storageLoad', args),
-            storageStore: (...args: any[]) => this.callContext('storageStore', args),
-            finish: (...args: any[]) => this.callContext('finish', args),
-            getCaller: (...args: any[]) => this.callContext('getCaller', args),
-            log: (...args: any[]) => this.callContext('log', args),
-            getCallValue: (...args: any[]) => this.callContext('getCallValue', args),
+            env: {
+                useGas: this.useGas.bind(this),
+                revert: (...args: any[]) => this.callContext('revert', args),
+                getCallDataSize: (...args: any[]) => this.callContext('getCallDataSize', args),
+                callDataCopy: (...args: any[]) => this.callContext('callDataCopy', args),
+                storageLoad: (...args: any[]) => this.callContext('storageLoad', args),
+                storageStore: (...args: any[]) => this.callContext('storageStore', args),
+                finish: (...args: any[]) => this.callContext('finish', args),
+                getCaller: (...args: any[]) => this.callContext('getCaller', args),
+                log: (...args: any[]) => this.callContext('log', args),
+                getCallValue: (...args: any[]) => this.callContext('getCallValue', args),
+            },
+            debug: {
+                print32: (...args: any[]) => this.callContext('print32', args),
+                print64: (...args: any[]) => this.callContext('print64', args),
+                printMemHex: (...args: any[]) => this.callContext('printMemHex', args),
+            }
         }
     }
 }

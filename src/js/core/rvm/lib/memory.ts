@@ -24,6 +24,30 @@ export class Memory {
 
         return data;
     }
+
+    /**
+     * Stores on the memory in reverse
+     *
+     * @param {number} offset
+     * @param {number} length
+     * @param {ArrayLike<number>} value
+     * @memberof Memory
+     */
+    storeMemoryReverse(offset: number, length: number, value: ArrayLike<number>) {
+        const m = new Uint8Array(this.buffer);
+
+        for (let index = 0; index < length; ++index) {
+            m.set([value[index]], offset + length - (index + 1));
+        }
+    }
+
+    storeUint128(offset: number, value: ArrayLike<number>) {
+        this.storeMemoryReverse(offset, 16, value);
+    }
+
+    storeUint256(offset: number, value: ArrayLike<number>) {
+        this.storeMemoryReverse(offset, 32, value);
+    }
 }
 
 export function synchroniseMemoryToBuffer(memory: WebAssembly.Memory, buffer: SharedArrayBuffer) {
