@@ -82,7 +82,8 @@ class VirtualContext {
      * @memberof VirtualContext
      */
     getExposedFunctions() {
-        return {
+        const exposedFunctions = {
+            ethereum: {},
             env: {
                 useGas: this.useGas.bind(this),
                 revert: (...args: any[]) => this.callContext('revert', args),
@@ -101,6 +102,11 @@ class VirtualContext {
                 printMemHex: (...args: any[]) => this.callContext('printMemHex', args),
             }
         }
+
+        // Keeping backwards compatibility with ethereum contracts
+        exposedFunctions.ethereum = exposedFunctions.env;
+
+        return exposedFunctions;
     }
 }
 

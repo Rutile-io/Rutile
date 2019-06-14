@@ -127,6 +127,11 @@ class Dag extends EventHandler {
         // Apply the transaction to our local node
         this.networkController.broadcastBlock(block);
 
+        // Let the rest of the application know it's valid.
+        this.trigger('blockAdded', {
+            block,
+        });
+
         return results;
     }
 

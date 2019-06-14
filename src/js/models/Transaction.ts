@@ -12,6 +12,7 @@ import Account from "./Account";
 import { rlpHash } from "../utils/keccak256";
 import { hexStringToString } from "../utils/hexUtils";
 import { Results } from '../core/rvm/context';
+import getSystemContract from '../services/getSystemContract';
 const BN = require('bn.js');
 
 interface TransactionParams {
@@ -135,17 +136,24 @@ class Transaction {
                 }
             }
 
-            const account = await Account.findOrCreate(this.to);
+            // It's possible that we are just calling a system contract
+            let wasm: Uint8Array = getSystemContract(this.to);
 
-            // It's possible that an account does not have any contract attached to it
-            // This means we do not have to execute any functions but should just transfer value
-            if (!account.codeHash || account.codeHash === '0x00') {
-                return null;
+            // The address is not a system contract, we'll forward it to IPFS.
+            if (!wasm) {
+                const account = await Account.findOrCreate(this.to);
+
+                // It's possible that an account does not have any contract attached to it
+                // This means we do not have to execute any functions but should just transfer value
+                if (!account.codeHash || account.codeHash === '0x00') {
+                    return null;
+                }
+
+                const ipfsHash = hexStringToString(account.codeHash);
+                const contents = await ipfs.cat(ipfsHash);
+
+                wasm = stringToByteArray(contents);
             }
-
-            const ipfsHash = hexStringToString(account.codeHash);
-            const contents = await ipfs.cat(ipfsHash);
-            const wasm = stringToByteArray(contents);
 
             // Possibly have to save the result in the transaction.
             const executionResults = await execute(this, wasm);

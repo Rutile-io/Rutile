@@ -9,9 +9,10 @@ async function runWasm(wasmBinary: Uint8Array) {
         const context = new VirtualContext();
 
         // Instantiate the WebAssembly module with metering included
-        const meteredWas = metering.meterWASM(wasmBinary, {
-            meterType: 'i32',
-        });
+        // const meteredWas = metering.meterWASM(wasmBinary, {
+        //     meterType: 'i32',
+        // });
+        const meteredWas = wasmBinary;
 
         const wasm = await WebAssembly.instantiate(meteredWas, {
             metering: {

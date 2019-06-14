@@ -91,7 +91,14 @@ class Block {
      * @returns
      * @memberof Block
      */
-    proofOfWork(): void {
+    proofOfWork(isMilestone: boolean = false): void {
+        let difficulty = configuration.difficulty;
+
+        if (isMilestone) {
+            // TEMP
+            difficulty = 6;
+        }
+
         this.nonce = applyProofOfWork(this.getBlockId());
     }
 
