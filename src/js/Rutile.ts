@@ -11,6 +11,8 @@ import Wallet from './models/Wallet';
 import * as Database from './services/DatabaseService';
 import * as Logger from 'js-logger';
 import Block from './models/Block';
+import { NodeType } from './models/interfaces/IConfig';
+import Validator from './core/milestone/Validator';
 
 /**
  * Glue between all core modules.
@@ -23,6 +25,7 @@ class Rutile {
     public ipfs: Ipfs;
     public dag: Dag;
     public eventHandler: EventHandler;
+    public validator: Validator;
 
     static get Database() {
         return Database;
@@ -65,6 +68,11 @@ class Rutile {
 
         this.dag = new Dag(this.network);
         await this.dag.synchronise();
+
+        if (configuration.nodeType === NodeType.FULL) {
+            this.validator = new Validator(this.dag);
+            this.validator.start();
+        }
     }
 
     async deploy(wasm: Uint8Array): Promise<string> {

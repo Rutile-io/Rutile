@@ -6,7 +6,7 @@ module.exports = {
     mode: process.env.NODE_ENV,
     // target: 'node',
     resolve: {
-        extensions: ['.js', '.jsx', '.tsx', '.ts'],
+        extensions: ['.js', '.jsx', '.tsx', '.ts', '.wasm'],
     },
     entry: {
         rutile: ['./index.js'],
@@ -20,6 +20,11 @@ module.exports = {
     },
     module: {
         rules: [
+            {
+                test: /\.wasm$/,
+                type: 'javascript/auto',
+                loaders: ['arraybuffer-loader'],
+            },
             {
                 type: 'javascript/auto',
                 test: /\.mjs$/,
