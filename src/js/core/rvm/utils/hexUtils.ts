@@ -12,10 +12,12 @@ export function toHex(byteArray: ArrayLike<number>): string {
 }
 
 export function hexStringToByte(str: string) {
+    const hex = str.replace('0x', '');
+
     var a = [];
 
-    for (var i = 0, len = str.length; i < len; i+=2) {
-      a.push(parseInt(str.substr(i,2),16));
+    for (var i = 0, len = hex.length; i < len; i+=2) {
+      a.push(parseInt(hex.substr(i,2),16));
     }
 
     return new Uint8Array(a);

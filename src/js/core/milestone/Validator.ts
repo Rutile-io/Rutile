@@ -9,6 +9,7 @@ class Validator {
     }
 
     start() {
+        return;
         this.milestone.start();
     }
 }

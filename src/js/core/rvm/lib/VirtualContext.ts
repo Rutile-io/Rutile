@@ -100,6 +100,7 @@ class VirtualContext {
                 print32: (...args: any[]) => this.callContext('print32', args),
                 print64: (...args: any[]) => this.callContext('print64', args),
                 printMemHex: (...args: any[]) => this.callContext('printMemHex', args),
+                printString: (...args: any[]) => this.callContext('printString', args),
             }
         }
 

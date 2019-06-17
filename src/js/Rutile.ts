@@ -75,8 +75,8 @@ class Rutile {
         }
     }
 
-    async deploy(wasm: Uint8Array): Promise<string> {
-        return this.ipfs.add(byteArrayToString(wasm));
+    async deploy(binary: Uint8Array): Promise<string> {
+        return this.ipfs.add(byteArrayToString(binary));
     }
 
     async sendBlock(block: Block) {
@@ -89,6 +89,10 @@ class Rutile {
         }
 
         const balances = await this.dag.getAccountBalance(address);
+
+        if (!balances[address]) {
+            return '0';
+        }
 
         return balances[address].toString();
     }

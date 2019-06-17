@@ -5,6 +5,8 @@ import Transaction from '../../models/Transaction';
 import { createWorker } from './utils/workerUtils';
 import WorkerMessageController from './controller/WorkerMessageController';
 import { getAddressFromTransaction } from '../dag/lib/services/TransactionService';
+import isWasmBinary from './lib/services/isWasmBinary';
+// import Evm from './lib/Evm';
 
 interface ExecuteSecureResults {
     gasUsed?: number;
@@ -12,15 +14,19 @@ interface ExecuteSecureResults {
 }
 
 /**
- * Executes code in a different context and vm.
- * This way the code is executed safely.
+ * Executes code in a virtual machine
+ * Supports both EVM and EWASM
  *
  * @export
- * @param {string} code
- * @param {string[]} scriptArgs
+ * @param {Transaction} transaction
+ * @param {Uint8Array} binary
  * @returns
  */
-export default async function execute(transaction: Transaction, wasmBinary: Uint8Array) {
+export default async function execute(transaction: Transaction, binary: Uint8Array) {
+    if (!isWasmBinary(binary)) {
+        throw new Error('Binary is not WASM code');
+    }
+
     const worker = createWorker(configuration.vmUrl);
 
     // This is the physical context it contains all functions and data
@@ -38,7 +44,7 @@ export default async function execute(transaction: Transaction, wasmBinary: Uint
     });
 
     const controller = new WorkerMessageController(worker, context);
-    const result = await controller.start(transaction, wasmBinary);
+    const result = await controller.start(transaction, binary);
 
     return result;
 }

@@ -7,6 +7,7 @@ import Account from "../../models/Account";
 import MerkleTree from "../../models/MerkleTree";
 import { getDatabaseLevelDbMapping } from "../../services/DatabaseService";
 import { storeAndNotify } from "./utils/sharedBufferUtils";
+import byteArrayToString from '../../utils/byteArrayToString';
 const ethUtil = require('ethereumjs-util');
 const BN = require('bn.js');
 
@@ -102,9 +103,9 @@ class Context {
      * @param {number} valueOffset
      * @memberof Context
      */
-    private async storageStore(notifierIndex: number, pathOffset: number, valueOffset: number) {
-        const path = Buffer.from(this.mem.read(pathOffset, 32));
-        const value = Buffer.from(this.mem.read(valueOffset, 32));
+    private async storageStore(notifierIndex: number, pathOffset: number, valueOffset: number, pathLength: number = 32, valueLength: number = 32) {
+        const path = Buffer.from(this.mem.read(pathOffset, pathLength));
+        const value = Buffer.from(this.mem.read(valueOffset, valueLength));
 
         await this.state.put(path.toString('hex'), value);
         storeAndNotify(this.notifierBuffer, notifierIndex, 1);
@@ -298,6 +299,12 @@ class Context {
         storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }
 
+    private printString(notifierIndex: number, offset: number, length: number) {
+        const value = this.mem.read(offset, length);
+        Logger.info(`vm.printString ${byteArrayToString(value)}`);
+        storeAndNotify(this.notifierBuffer, notifierIndex, 1);
+    }
+
     private printMemHex(notifierIndex: number, offset: number, length: number) {
         const value = this.mem.read(offset, length);
         const hexValue = toHex(value);
@@ -346,6 +353,7 @@ class Context {
             // Debug methods
             print32: this.print32.bind(this),
             print64: this.print64.bind(this),
+            printString: this.printString.bind(this),
             printMemHex: this.printMemHex.bind(this),
         }
     }

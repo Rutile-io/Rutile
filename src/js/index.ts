@@ -6,7 +6,8 @@ import { startDatabase, databaseCreate, createOrUpdate } from './services/Databa
 import Account from './models/Account';
 import * as Logger from 'js-logger';
 import getTransactionCumulativeWeights from './core/dag/lib/services/CumulativeWeightService';
-import { stringToHex } from './utils/hexUtils';
+import { stringToHex, hexStringToBuffer } from './utils/hexUtils';
+import stringToByteArray from './utils/stringToByteArray';
 // import RutileContext from './models/RutileContext';
 // import * as fs from 'fs';
 // import { validateTransaction, applyTransaction } from './services/_TransactionService';
@@ -109,12 +110,32 @@ async function deployContract() {
     block.addTransactions([transaction]);
 
     const results = await block.execute();
-    // const result = await transaction.execute();
-
-    // console.log('[] result -> ', result);
-
     const result = await rutile.sendBlock(block);
-    console.log('[] result -> ', results);
+    console.log('[WASM] result -> ', results);
+}
+
+async function deployEvmContract() {
+    const contractCode = '0x608060405234801561001057600080fd5b5061013f806100206000396000f300608060405260043610610041576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063942ae0a714610046575b600080fd5b34801561005257600080fd5b5061005b6100d6565b6040518080602001828103825283818151815260200191508051906020019080838360005b8381101561009b578082015181840152602081019050610080565b50505050905090810190601f1680156100c85780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b60606040805190810160405280600a81526020017f68656c6c6f576f726c64000000000000000000000000000000000000000000008152509050905600a165627a7a72305820e1bfe6aaae737431bec307d10cb17276c39ad7accd9736d2bf0ee24a49dc92e90029';
+    const binary = Uint8Array.from(hexStringToBuffer(contractCode));
+
+    let hash = await rutile.deploy(binary);
+    hash = stringToHex(hash);
+
+    const transaction = new Rutile.Transaction({
+        // Sending to no one means we want to create a contract
+        to: null,
+        gasPrice: 1,
+        data: hash,
+    });
+
+    transaction.sign(wallet.keyPair);
+
+    const block = new Rutile.Block({});
+    block.addTransactions([transaction]);
+
+    const results = await block.execute();
+    const result = await rutile.sendBlock(block);
+    console.log('[EVM] result -> ', results);
 }
 
 async function run() {
@@ -136,7 +157,7 @@ async function run() {
             console.error('Oh well', e);
         }
 
-        // deployContract();
+        deployContract();
 
         // setInterval(() => {
         //     sendDummyTransaction();
