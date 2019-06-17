@@ -14,7 +14,6 @@ export class Memory {
         //     const pageSize = 64 * 1024
         //     this._raw.grow(Math.ceil(diff / pageSize))
         // }
-
         const m = new Uint8Array(this.buffer, offset, length);
         m.set(value);
     }

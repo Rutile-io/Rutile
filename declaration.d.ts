@@ -5,6 +5,11 @@ declare module 'secure-eval' {
     export = content;
 }
 
+declare module 'ethereumjs-vm' {
+    const content: any;
+    export = content;
+}
+
 declare module 'level-js' {
     const content: any;
     export = content;
