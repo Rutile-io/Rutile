@@ -8,6 +8,7 @@ import * as Logger from 'js-logger';
 import getTransactionCumulativeWeights from './core/dag/lib/services/CumulativeWeightService';
 import { stringToHex, hexStringToBuffer } from './utils/hexUtils';
 import stringToByteArray from './utils/stringToByteArray';
+import keccak256 from './utils/keccak256';
 // import RutileContext from './models/RutileContext';
 // import * as fs from 'fs';
 // import { validateTransaction, applyTransaction } from './services/_TransactionService';
@@ -157,7 +158,7 @@ async function run() {
             console.error('Oh well', e);
         }
 
-        deployContract();
+        // deployContract();
 
         // setInterval(() => {
         //     sendDummyTransaction();
