@@ -6,7 +6,6 @@ import { createWorker } from './utils/workerUtils';
 import WorkerMessageController from './controller/WorkerMessageController';
 import { getAddressFromTransaction } from '../dag/lib/services/TransactionService';
 import isWasmBinary from './lib/services/isWasmBinary';
-// import Evm from './lib/Evm';
 
 interface ExecuteSecureResults {
     gasUsed?: number;
