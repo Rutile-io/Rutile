@@ -8,15 +8,16 @@ import MerkleTree from "../../models/MerkleTree";
 import { getDatabaseLevelDbMapping } from "../../services/DatabaseService";
 import { storeAndNotify } from "./utils/sharedBufferUtils";
 import byteArrayToString from '../../utils/byteArrayToString';
+import CallMessage, { CallKind } from './lib/CallMessage';
+import execute from './execute';
 const ethUtil = require('ethereumjs-util');
 const BN = require('bn.js');
 
 
 interface ContextOptions {
-    id: string;
     fromAddress: string;
     toAddress: string;
-    data: string;
+    data: Buffer | Uint8Array;
     value: BNType;
     transactionDifficulty: number;
 }
@@ -25,21 +26,31 @@ export interface Results {
     exception: number;
     exceptionError?: VM_ERROR;
     gasUsed: number;
-    return: string;
+    return: Uint8Array;
+    returnHex: string;
 }
 
+
 class Context {
-    id: string;
     fromAddress: string;
     toAddress: string;
     toAccount: Account;
     value: BNType;
     transactionDifficulty: number;
 
+    /**
+     * The results of the call, callcode, calldelegate, callStatic or create
+     *
+     * @type {Results}
+     * @memberof Context
+     */
+    callResults: Results = null;
+
     results: Results = {
         exception: 0,
         gasUsed: 0,
-        return: '0x',
+        return: new Uint8Array(),
+        returnHex: '0x',
     };
 
     data: string;
@@ -47,17 +58,17 @@ class Context {
     dataParsed: any;
 
     mem: Memory;
+    message: CallMessage;
     notifierBuffer: SharedArrayBuffer;
     wasmInstance: WebAssembly.ResultObject;
 
-    constructor(options: ContextOptions) {
-        this.id = options.id;
+    constructor(options: ContextOptions, callMessage: CallMessage) {
         this.fromAddress = options.fromAddress;
         this.toAddress = options.toAddress;
-        this.data = options.data;
+        this.dataParsed = options.data;
         this.value = options.value;
         this.transactionDifficulty = options.transactionDifficulty;
-        this.dataParsed = ethUtil.toBuffer(options.data);
+        this.message = callMessage;
     }
 
     public async init(memory: SharedArrayBuffer, notifier: SharedArrayBuffer) {
@@ -144,16 +155,37 @@ class Context {
         this.mem.write(resultOffset, 20, addressInBytes)
     }
 
+    /**
+     * Gets the size of the return data
+     *
+     * @private
+     * @param {number} notifierIndex
+     * @memberof Context
+     */
+    private getReturnDataSize(notifierIndex: number) {
+        storeAndNotify(this.notifierBuffer, notifierIndex, this.callResults.return.length);
+    }
+
+    /**
+     * Writes the call return data to the given memory offset
+     *
+     * @private
+     * @param {number} notifierIndex
+     * @param {number} resultOffset
+     * @param {number} dataOffset
+     * @param {number} length
+     * @memberof Context
+     */
+    private returnDataCopy(notifierIndex: number, resultOffset: number, dataOffset: number, length: number) {
+        const data = this.callResults.return.slice(dataOffset, dataOffset + length);
+        this.mem.write(resultOffset, length, data);
+
+        storeAndNotify(this.notifierBuffer, notifierIndex, 1);
+    }
+
     private getExternalBalance(addressOffset: number, resultOffset: number){
-
         const address = this.mem.read(addressOffset, 20);
-
-        // TODO: Get an account sync from db
-        // const toAccount = Account.getFromAddress(toHex(address));
-        // console.log(toAccount)
-
-        // this.mem.write(resultOffset, 32, data);
-
+        // Should walk the DAG backwards from a random transaction and calculate the balance from that point.
     }
 
 
@@ -201,7 +233,7 @@ class Context {
      */
     private getCallValue(notifierIndex: number, resultOffset: number){
         // We should not yet use u128 for values since they need to be supported in WASM.
-        // We either need to
+        // We either wait for WASM to support Big numbers or create a WASM module for this
         this.mem.write(resultOffset, 8, this.value.toArray(undefined, 8));
         storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }
@@ -239,7 +271,8 @@ class Context {
 
         this.results.exception = 0;
         this.results.exceptionError = VM_ERROR.REVERT;
-        this.results.return = '0x' + toHex(ret);
+        this.results.return = ret;
+        this.results.returnHex = toHex(ret);
 
         throw new VmError(VM_ERROR.REVERT);
     }
@@ -254,12 +287,14 @@ class Context {
      */
     private finish(notifierIndex: number, dataOffset: number, dataLength: number) {
         let ret = new Uint8Array([]);
+
         if (dataLength) {
             ret = this.mem.read(dataOffset, dataLength);
         }
 
         this.results.exception = 0;
-        this.results.return = '0x' + toHex(ret);
+        this.results.return = ret;
+        this.results.returnHex = toHex(ret);
 
         throw new FinishExecution('Finished execution');
     }
@@ -271,7 +306,88 @@ class Context {
         storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }
 
-    // Start debug methods
+    /**
+     * Calls the wasm code located at the given address
+     *
+     * 1 = success
+     * 2 = failure
+     * 3 = revert
+     *
+     * @private
+     * @param {number} notifierIndex
+     * @param {CallKind} callKind
+     * @param {number} gas
+     * @param {number} addressOffset
+     * @param {number} valueOffset
+     * @param {number} dataOffset
+     * @param {number} dataLength
+     * @returns
+     * @memberof Context
+     */
+    private async call(notifierIndex: number, callKind: CallKind, gas: number, addressOffset: number, valueOffset: number, dataOffset: number, dataLength: number) {
+        const address = this.mem.read(addressOffset, 20);
+        const destination = '0x' + toHex(address);
+
+        const callMessage = new CallMessage();
+        callMessage.destination = destination;
+        callMessage.flags = 1; // TODO: create flag enum and get flag from previous: m_msg.flags & EVMC_STATIC;
+        callMessage.depth = this.message.depth + 1;
+        callMessage.kind = callKind;
+
+        switch(callKind){
+            case CallKind.Call:
+            case CallKind.CallCode:
+                // callMessage.sender = this.message.destination;
+
+                // const value = this.mem.read(valueOffset, 32);
+                // callMessage.value = parseInt(toHex(value), 16);
+
+                // if(callKind === CallKind.Call && callMessage.value !== 0){
+                //     // TODO: ensureCondition exception
+
+                // }
+            break;
+        }
+
+        // TODO: Take gas for internal functions
+
+        // Messages should not call infinitely
+        // TODO: Throw an exception instead..
+        if (callMessage.depth >= 1024) {
+            storeAndNotify(this.notifierBuffer, notifierIndex, 2);
+            return;
+        }
+
+        callMessage.gas = gas;
+
+        if (dataLength) {
+            callMessage.inputData = this.mem.read(dataOffset, dataLength);
+            callMessage.inputSize = dataLength;
+        } else {
+            callMessage.inputData = new Uint8Array();
+            callMessage.inputSize = 0;
+        }
+
+        // TODO: Should depending on the result throw the exception to above
+        const result = await execute(callMessage);
+
+        if (result.exceptionError === VM_ERROR.REVERT) {
+            storeAndNotify(this.notifierBuffer, notifierIndex, 3);
+            return;
+        } else if (result.exceptionError == VM_ERROR.OUT_OF_GAS) {
+            // TODO: Out of gas error
+            storeAndNotify(this.notifierBuffer, notifierIndex, 3);
+            return;
+        }
+
+        // Finish execution should not be notified
+        // TODO: The logs should however
+        storeAndNotify(this.notifierBuffer, notifierIndex, 1);
+    }
+
+    // ---------------------------------------------------------------------
+    // ------------------------ Start debug methods ------------------------
+    // ---------------------------------------------------------------------
 
     /**
      * Prints a 32bit integer
@@ -287,7 +403,7 @@ class Context {
     }
 
     /**
-     * Prints a 64bit integer
+     * Prints a 64bit integer (Not supported for now..)
      *
      * @private
      * @param {number} notifierIndex
@@ -319,7 +435,7 @@ class Context {
             getAddress: this.getAddress.bind(this),
             getExternalBalance: this.getExternalBalance.bind(this),
             getMilestoneHash: () => {},
-            call: () => {},
+            call: this.call.bind(this),
             callDataCopy: this.callDataCopy.bind(this),
             getCallDataSize: this.getCallDataSize.bind(this),
             callCode: () => {},
@@ -344,8 +460,8 @@ class Context {
             getTxOrigin: () => {},
             finish: this.finish.bind(this),
             revert: this.revert.bind(this),
-            getReturnDataSize: () => {},
-            returnDataCopy: () => {},
+            getReturnDataSize: this.getReturnDataSize.bind(this),
+            returnDataCopy: this.returnDataCopy.bind(this),
             selfDestruct: () => {},
             getTransactionTimestamp: () => {},
             useGas: this.useGas.bind(this),

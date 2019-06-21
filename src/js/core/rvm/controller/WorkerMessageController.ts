@@ -14,11 +14,10 @@ class WorkerMessageController {
         addEventListenerOnWorker(worker, 'message', this.onMessage.bind(this));
     }
 
-    public start(transaction: Transaction, wasmBinary: Uint8Array): Promise<Results> {
+    public start(wasmBinary: Uint8Array): Promise<Results> {
         this.worker.postMessage({
             type: 'START',
             value: {
-                transaction,
                 wasm: wasmBinary,
             },
         });

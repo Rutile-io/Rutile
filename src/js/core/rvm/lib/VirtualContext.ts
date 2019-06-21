@@ -2,6 +2,7 @@ import { workerRequest } from "../utils/workerUtils";
 import Transaction from "../../../models/Transaction";
 import { waitAndLoad, reset } from "../utils/sharedBufferUtils";
 import { Memory, synchroniseBufferToMemory, synchroniseMemoryToBuffer } from "./memory";
+import { CallKind } from "./CallMessage";
 
 /**
  * Virtual Context is meant as a way to expose functions to WASM while posting requests
@@ -63,6 +64,18 @@ class VirtualContext {
         return value;
     }
 
+    call(gas: number, addressOffset: number, valueOffset: number, dataOffset: number, dataLength: number){
+        const executionResult = this.callContext('call', [CallKind.Call, gas, addressOffset, valueOffset, dataOffset, dataLength]);
+
+        // 1 = success
+        // 2 = failure
+        // 3 = revert
+        // Since 0 is not supported for the sharedbuffer synchronisation
+        // we chose to just add 1 to the execution statuses
+        // Now we just subtract with 1 to go to the original statuses where 0 = success
+        return (executionResult - 1);
+    }
+
     useGas(gas: number) {
         // We allow gas to be async called
         // Since useGas is at init time called while notifierBuffer is not
@@ -86,6 +99,7 @@ class VirtualContext {
             ethereum: {},
             env: {
                 useGas: this.useGas.bind(this),
+                call: this.call.bind(this),
                 revert: (...args: any[]) => this.callContext('revert', args),
                 getCallDataSize: (...args: any[]) => this.callContext('getCallDataSize', args),
                 callDataCopy: (...args: any[]) => this.callContext('callDataCopy', args),
@@ -95,6 +109,12 @@ class VirtualContext {
                 getCaller: (...args: any[]) => this.callContext('getCaller', args),
                 log: (...args: any[]) => this.callContext('log', args),
                 getCallValue: (...args: any[]) => this.callContext('getCallValue', args),
+                getAddress: (...args: any[]) => this.callContext('getAddress', args),
+                getReturnDataSize: (...args: any[]) => this.callContext('getReturnDataSize', args),
+                returnDataCopy: (...args: any[]) => this.callContext('returnDataCopy', args),
+                abort: (...args: any[]) => {
+                    console.log('[Abort] args -> ', args);
+                }
             },
             debug: {
                 print32: (...args: any[]) => this.callContext('print32', args),

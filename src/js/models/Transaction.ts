@@ -13,6 +13,9 @@ import { rlpHash } from "../utils/keccak256";
 import { hexStringToString } from "../utils/hexUtils";
 import { Results } from '../core/rvm/context';
 import getSystemContract from '../services/getSystemContract';
+import CallMessage from '../core/rvm/lib/CallMessage';
+import createCallMessage from '../services/createCallMessage';
+import { hexStringToByte } from '../core/rvm/utils/hexUtils';
 const BN = require('bn.js');
 
 interface TransactionParams {
@@ -132,7 +135,8 @@ class Transaction {
                     exception: 0,
                     exceptionError: null,
                     gasUsed: 0,
-                    return: contractAccount.address,
+                    returnHex: contractAccount.address,
+                    return: hexStringToByte(contractAccount.address),
                 }
             }
 
@@ -155,8 +159,10 @@ class Transaction {
                 wasm = stringToByteArray(contents);
             }
 
+            const callMessage = createCallMessage(this);
+
             // Possibly have to save the result in the transaction.
-            const executionResults = await execute(this, wasm);
+            const executionResults = await execute(callMessage);
             this.gasUsed = executionResults.gasUsed;
 
             return executionResults;
