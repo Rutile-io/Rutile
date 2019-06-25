@@ -3,6 +3,9 @@ import Transaction from "../../../models/Transaction";
 import { waitAndLoad, reset } from "../utils/sharedBufferUtils";
 import { Memory, synchroniseBufferToMemory, synchroniseMemoryToBuffer } from "./memory";
 import { CallKind } from "./CallMessage";
+import fromI64 from "./services/fromI64";
+
+const i64Transformer = require('../../../../wasm/i64-transformer');
 
 /**
  * Virtual Context is meant as a way to expose functions to WASM while posting requests
@@ -14,9 +17,27 @@ class VirtualContext {
     sharedMemory: SharedArrayBuffer;
     sharedNotifier: SharedArrayBuffer;
     wasm: WebAssembly.ResultObject;
+    transformer: WebAssembly.Instance;
 
     constructor() {
         this.sharedNotifier = new SharedArrayBuffer(4);
+        this.transformer = new WebAssembly.Instance(new WebAssembly.Module(i64Transformer), {
+            interface: {
+                useGas: this._useGas.bind(this),
+                getGasLeftHigh: this._getGasLeftHigh.bind(this),
+                getGasLeftLow: this._getGasLeftLow.bind(this),
+                call: this._call.bind(this),
+                callCode: this._callCode.bind(this),
+                callDelegate: this._callDelegate.bind(this),
+                callStatic: this._callStatic.bind(this),
+                getBlockNumberHigh: this._getBlockNumberHigh.bind(this),
+                getBlockNumberLow: this._getBlockNumberLow.bind(this),
+                getBlockTimestampHigh: this._getBlockTimestampHigh.bind(this),
+                getBlockTimestampLow: this._getBlockTimestampLow.bind(this),
+                getBlockGasLimitHigh: this._getBlockGasLimitHigh.bind(this),
+                getBlockGasLimitLow: this._getBlockGasLimitLow.bind(this)
+            }
+        });
     }
 
     async init(wasm: WebAssembly.ResultObject) {
@@ -37,6 +58,20 @@ class VirtualContext {
         this.sharedMemory = sharedMemory;
     }
 
+    growSharedMemory() {
+        const length = Uint8Array.BYTES_PER_ELEMENT * this.wasm.instance.exports.memory.buffer.byteLength;
+        this.sharedMemory = new SharedArrayBuffer(length);
+
+        workerRequest({
+            type: 'SHAREDMEMORY_GROW',
+            value: this.sharedMemory,
+            bufferIndex: 0,
+        });
+
+        waitAndLoad(this.sharedNotifier, 0);
+        reset(this.sharedNotifier, 0);
+    }
+
     /**
      * Calls a function on the main thread and gets it's value
      *
@@ -46,6 +81,13 @@ class VirtualContext {
      * @memberof VirtualContext
      */
     callContext(method: string, args?: any[]) {
+        // It's possible that the WASM module called the memory.grow opcode
+        // If this is the case we need to replace our shared buffer with a new one
+        // Otherwise we would run in out of bounds errors
+        if (this.wasm.instance.exports.memory.buffer.byteLength !== this.sharedMemory.byteLength) {
+            this.growSharedMemory();
+        }
+
         // First synchronise the WebAssembly Memory with the SharedBuffer memory
         synchroniseMemoryToBuffer(this.wasm.instance.exports.memory, this.sharedMemory);
 
@@ -87,6 +129,59 @@ class VirtualContext {
         });
     }
 
+    _useGas(high: number, low: number) {
+        const amount = fromI64(high, low);
+        this.useGas(amount);
+    }
+
+    _getGasLeftHigh() {
+
+    }
+
+    _getGasLeftLow() {
+
+    }
+
+    _call() {
+
+    }
+
+    _callCode() {
+
+    }
+
+    _callDelegate() {
+
+    }
+
+    _callStatic() {
+
+    }
+
+    _getBlockNumberHigh() {
+
+    }
+
+    _getBlockNumberLow() {
+
+    }
+
+    _getBlockTimestampHigh() {
+
+    }
+
+    _getBlockTimestampLow() {
+
+    }
+
+    _getBlockGasLimitHigh() {
+
+    }
+
+    _getBlockGasLimitLow() {
+
+    }
+
     /**
      * Passes all arguments to the this.callContext function
      * All functions will be handled on the main thread.
@@ -98,7 +193,7 @@ class VirtualContext {
         const exposedFunctions = {
             ethereum: {},
             env: {
-                useGas: this.useGas.bind(this),
+                useGas: this.transformer.exports.useGas,
                 call: this.call.bind(this),
                 revert: (...args: any[]) => this.callContext('revert', args),
                 getCallDataSize: (...args: any[]) => this.callContext('getCallDataSize', args),
