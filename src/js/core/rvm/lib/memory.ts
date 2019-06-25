@@ -53,6 +53,10 @@ export function synchroniseMemoryToBuffer(memory: WebAssembly.Memory, buffer: Sh
     const ui8Shared = new Uint8Array(buffer);
     const ui8Memory = new Uint8Array(memory.buffer);
 
+    if (ui8Shared.length !== ui8Memory.length) {
+        throw new Error('Memory and shared buffer are not the same size, out of bounds');
+    }
+
     for (let index = 0; index < ui8Memory.length; index++) {
         Atomics.store(ui8Shared, index, ui8Memory[index]);
     }
@@ -61,6 +65,10 @@ export function synchroniseMemoryToBuffer(memory: WebAssembly.Memory, buffer: Sh
 export function synchroniseBufferToMemory(memory: WebAssembly.Memory, buffer: SharedArrayBuffer) {
     const ui8Shared = new Uint8Array(buffer);
     const ui8Memory = new Uint8Array(memory.buffer);
+
+    if (ui8Shared.length !== ui8Memory.length) {
+        throw new Error('Memory and shared buffer are not the same size, out of bounds');
+    }
 
     for (let index = 0; index < ui8Shared.length; index++) {
         ui8Memory[index] = Atomics.load(ui8Shared, index);

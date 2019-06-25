@@ -1,6 +1,7 @@
 import { addEventListenerOnWorker, RequestMessage, postMessageOnWorker, extractMessageFromEvent } from "../utils/workerUtils";
 import Context, { Results } from "../context";
 import Transaction from "../../../models/Transaction";
+import { storeAndNotify } from "../utils/sharedBufferUtils";
 
 class WorkerMessageController {
     context: Context;
@@ -67,6 +68,10 @@ class WorkerMessageController {
             switch(message.type) {
                 case 'CONTEXT_INIT':
                     this.contextInit(message);
+                    break;
+                case 'SHAREDMEMORY_GROW':
+                    this.context.updateMemory(message.value);
+                    storeAndNotify(this.context.notifierBuffer, message.bufferIndex, 1);
                     break;
                 default:
                     console.error('[onMessage] Could not understand message type: ', message.type);
