@@ -2,13 +2,20 @@ import Rutile from './Rutile';
 import { applyArgv, configuration } from './Configuration';
 import isNodeJs from './services/isNodeJs';
 import Wallet from './models/Wallet';
-import { startDatabase, databaseCreate, createOrUpdate } from './services/DatabaseService';
+import { startDatabase, databaseCreate, createOrUpdate, databaseFind } from './services/DatabaseService';
 import Account from './models/Account';
 import * as Logger from 'js-logger';
 import getTransactionCumulativeWeights from './core/dag/lib/services/CumulativeWeightService';
 import { stringToHex, hexStringToBuffer } from './utils/hexUtils';
 import stringToByteArray from './utils/stringToByteArray';
 import keccak256 from './utils/keccak256';
+import { toHex } from './core/rvm/utils/hexUtils';
+import execute from './core/rvm/execute';
+import MerkleTree from './models/MerkleTree';
+import PouchDbLevelDbMapping from './models/PouchDbLevelDbMapping';
+import getAllBlocksStream from './core/dag/lib/transaction/getAllBlocksStream';
+import Block from './models/Block';
+import Transaction from './models/Transaction';
 // import RutileContext from './models/RutileContext';
 // import * as fs from 'fs';
 // import { validateTransaction, applyTransaction } from './services/_TransactionService';
@@ -36,6 +43,7 @@ function sleep(ms: number) {
 }
 
 async function sendDummyTransaction () {
+
     wallet = new Wallet(configuration.privateKey);
     account = await wallet.getAccountInfo();
 
@@ -139,12 +147,33 @@ async function deployEvmContract() {
     console.log('[EVM] result -> ', results);
 }
 
+async function testExecution() {
+    console.log('Executing...');
+    const block = new Block({});
+    const tx = new Transaction({
+        to: '0x0000000000000000000000000000000000000001',
+        gasPrice: 1,
+        data: '0x00000001',
+        value: '32',
+    });
+
+    tx.sign(wallet.keyPair);
+
+    block.addTransactions([tx]);
+    const results = await block.execute();
+
+    console.log('[] results -> ', results);
+}
+
 async function run() {
     applyArgv();
-    startDatabase();
+    let db = startDatabase();
+    let mapping = new PouchDbLevelDbMapping(db);
 
     wallet = new Wallet('10DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE');
     account = await wallet.getAccountInfo();
+
+    // testExecution();
 
     // Testing..
     if (isNodeJs()) {
@@ -158,7 +187,7 @@ async function run() {
             console.error('Oh well', e);
         }
 
-        // deployContract();
+        deployContract();
 
         // setInterval(() => {
         //     sendDummyTransaction();

@@ -16,11 +16,11 @@ class Milestone {
     }
 
     onBlockAdded(block: Block) {
-        console.log('[Milestone] block -> ', block);
+        // console.log('[Milestone] block -> ', block);
 
-        if (block.number > this.currentBlock.number) {
-            console.log('Block number changed, someone mined it');
-        }
+        // if (block.number > this.currentBlock.number) {
+        //     console.log('Block number changed, someone mined it');
+        // }
     }
 
     async prepareNextBlock() {
@@ -30,7 +30,6 @@ class Milestone {
         });
 
         // TODO: Should add transactions that change the state of the shards..
-
         const randomReferenceBlock = await this.dag.walker.getBlocksToValidate(this.currentBlock.number, 1);
         const blocksToAdd = [this.currentBlock];
         blocksToAdd.push(...randomReferenceBlock);

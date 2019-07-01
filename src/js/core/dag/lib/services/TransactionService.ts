@@ -57,7 +57,7 @@ export function getTransactionId(transaction: Transaction) {
         transaction.s,
     ];
 
-    return rlpHash(transactionIdData);
+    return '0x' + rlpHash(transactionIdData);
 }
 
 /**
@@ -124,6 +124,7 @@ export async function validateTransaction(transaction: Transaction, noExecution:
         milestoneIndex: transaction.milestoneIndex,
         value: transaction.value,
         parents: transaction.parents,
+        inputStateRoot: transaction.inputStateRoot,
     });
 
     // TODO: Check if transaction is a milestone transaction

@@ -116,6 +116,7 @@ class TipValidator {
 
             for (const transaction of block.transactions) {
                 if (!transaction.value.isZero()) {
+                    // This may not be needed..
                     await validateTransaction(transaction, true);
                     this.applyTransactionToState(transaction, state);
                 }

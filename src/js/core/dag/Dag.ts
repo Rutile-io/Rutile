@@ -106,16 +106,27 @@ class Dag extends EventHandler {
             return;
         }
 
+        // We need to find a block that has the output we want to continue on.
+        // This is usually considerd as the latest block that interacted with that system.
+        // TODO: Currently only 1 transaction is supported per block
+        if (block.transactions[0].to) {
+            const parentInputBlock = await this.walker.getLatestBlockForAddress(block.transactions[0].to);
+            parentBlocks.unshift(parentInputBlock);
+
+            // set the inputs block output as our new input
+            const outputRoot = parentInputBlock.outputs[0];
+            block.setInputs([outputRoot]);
+        }
+
         Logger.debug(`Attaching to ${parentBlocks.map(b => b.id)}`);
         await block.addParents(parentBlocks);
 
         // transaction.sign(keyPair);
+        Logger.debug(`Executing block ${block.id}`);
+        const results = await block.execute();
 
         Logger.debug(`Applying PoW to block ${block.getBlockId()}`);
         block.proofOfWork();
-
-        Logger.debug(`Executing block ${block.id}`);
-        const results = await block.execute();
 
         // Make sure all is ok with our Block before sending it off
         Logger.debug(`Re-validating block before sending ${block.id}`);
@@ -170,7 +181,7 @@ class Dag extends EventHandler {
         let genesisBlock = await getBlockByNumber(GENESIS_MILESTONE);
 
         if (!genesisBlock) {
-            genesisBlock = createGenesisBlock();
+            genesisBlock = await createGenesisBlock();
             await genesisBlock.save();
         }
 
