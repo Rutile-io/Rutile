@@ -16,6 +16,7 @@ export default function createCallMessage(transaction: Transaction): CallMessage
     callMessage.kind = CallKind.Call;
     callMessage.flags = 1;
     callMessage.gas = transaction.gasLimit;
+    callMessage.inputRoot = transaction.inputStateRoot;
 
     return callMessage;
 }

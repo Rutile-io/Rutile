@@ -11,6 +11,7 @@ interface AccountParams {
     codeHash?: string;
     storageRoot?: string;
     alias?: string;
+    creationTransactionId?: string;
 }
 
 class Account {
@@ -22,6 +23,7 @@ class Account {
     storage: MerkleTree;
     alias: string;
     isFilled: boolean;
+    creationTransactionId: string;
 
     constructor(params: AccountParams) {
         this.address = params.address;
@@ -31,6 +33,7 @@ class Account {
         this.storageRoot = params.storageRoot;
         this.alias = params.alias || '';
         this.storage = new MerkleTree(Database.getDatabaseLevelDbMapping(), this.storageRoot);
+        this.creationTransactionId = params.creationTransactionId || '0x';
     }
 
     /**
@@ -49,6 +52,7 @@ class Account {
         const transactionIndex = storageData.get('transactionIndex') || [0];
         const address = storageData.get('address') || [0];
         const codeHash = storageData.get('codeHash') || [0];
+        const creationTransactionId = storageData.get('creationTransactionId') || [0];
 
         const hexBalance = '0x' + toHex(balance);
         const hexTransactionIndex = '0x' + toHex(transactionIndex);
@@ -57,6 +61,7 @@ class Account {
         this.balance = parseInt(hexBalance, 16);
         this.transactionIndex = parseInt(hexTransactionIndex, 16);
         this.codeHash = '0x' + toHex(codeHash);
+        this.creationTransactionId = '0x' + toHex(creationTransactionId);
 
         this.isFilled = true;
 
@@ -120,7 +125,17 @@ class Account {
         return Account.create(address);
     }
 
-    static async create(address: string, codeHash?: string) {
+    /**
+     * Creates an account
+     *
+     * @static
+     * @param {string} address The address of the new account
+     * @param {string} [codeHash] The IPFS Hash if available (Location of the code)
+     * @param {string} [transactionId] The transaction id where the contract was created
+     * @returns
+     * @memberof Account
+     */
+    static async create(address: string, codeHash?: string, creationTransactionId?: string) {
         const merkleTree = new MerkleTree(Database.getDatabaseLevelDbMapping());
         const zeroBuffer = hexStringToBuffer('0x00');
 
@@ -129,7 +144,12 @@ class Account {
         await merkleTree.put('transactionIndex', zeroBuffer);
 
         if (codeHash) {
+            if (!creationTransactionId) {
+                throw new Error('Contract creations should have a transaction id attached to it');
+            }
+
             await merkleTree.put('codeHash', hexStringToBuffer(codeHash));
+            await merkleTree.put('creationTransactionId', hexStringToBuffer(creationTransactionId));
         }
 
         const storageRoot = await merkleTree.getMerkleRoot();

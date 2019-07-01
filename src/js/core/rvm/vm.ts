@@ -24,7 +24,7 @@ async function runWasm(wasmBinary: Uint8Array) {
         });
 
         // Grow memory to 64Kib
-        wasm.instance.exports.memory.grow(20);
+        wasm.instance.exports.memory.grow(1);
 
         // Get the context ready on the client side
         // It is responsible of actually executing tasks.
@@ -48,7 +48,7 @@ async function runWasm(wasmBinary: Uint8Array) {
             mainFunc();
         }
 
-        saferEval(`${sandboxInitator}()`, {
+        let s = saferEval(`${sandboxInitator}()`, {
             wasmExports: exports,
         });
 

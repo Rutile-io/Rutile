@@ -8,6 +8,8 @@ import { databaseCreate } from "../services/DatabaseService";
 
 interface BlockParams {
     parents?: string[];
+    inputs?: string[];
+    outputs?: string[];
     transactions?: Transaction[];
     timestamp?: number;
     difficulty?: number;
@@ -30,6 +32,8 @@ class Block {
      * @memberof Block
      */
     parents: string[] = [];
+    inputs: string[] = [];
+    outputs: string[] = [];
     transactions: Transaction[] = [];
     timestamp: number = 0;
     difficulty: number = configuration.difficulty;
@@ -45,6 +49,8 @@ class Block {
 
     constructor(params: BlockParams) {
         this.parents = params.parents || [];
+        this.inputs = params.inputs || [];
+        this.outputs = params.outputs || [];
         this.transactions = params.transactions || [];
         this.timestamp = params.timestamp || 0;
         this.difficulty = params.difficulty || configuration.difficulty;
@@ -63,10 +69,30 @@ class Block {
         let results = [];
 
         for (const transaction of this.transactions) {
-            results.push(await transaction.execute());
+            const result = await transaction.execute();
+
+            results.push(result);
+            this.outputs.push(result.outputRoot);
         }
 
         return results;
+    }
+
+    /**
+     * Sets the state inputs for the current block
+     *
+     * @param {string[]} inputRoots Merkle root inputs to execute on
+     * @memberof Block
+     */
+    setInputs(inputRoots: string[]): void {
+        if (!this.transactions.length) {
+            throw new Error('Inputs should be set when transactions are set');
+        }
+
+        inputRoots.forEach((input, index) => {
+            this.inputs.push(input);
+            this.transactions[index].inputStateRoot = input;
+        });
     }
 
     addParents(blocks: Block[]) {
@@ -81,6 +107,13 @@ class Block {
         this.transactions.push(...transactions);
     }
 
+    /**
+     * Checks if the current block is the genesis block
+     *
+     * @todo Make sure that the block ids also match..
+     * @returns
+     * @memberof Block
+     */
     isGenesis() {
         return this.number === 1;
     }
@@ -103,16 +136,23 @@ class Block {
     }
 
     getBlockId() {
+        if (this.id) {
+            return this.id;
+        }
+
+        this.timestamp = Date.now();
+
         const data = [
             numberToHex(this.number),
             this.parents,
             // TODO: Convert to the actual transactions
             this.transactions.map(tx => tx.id),
             numberToHex(this.timestamp),
-            this.difficulty,
             this.stateRoot,
             this.transactionRoot,
             numberToHex(this.gasUsed),
+            this.inputs,
+            this.outputs,
         ];
 
         this.id = '0x' + rlpHash(data);
@@ -137,12 +177,23 @@ class Block {
             gasUsed: this.gasUsed,
             gasLimit: this.gasLimit,
             number: this.number,
+            inputs: this.inputs,
+            outputs: this.outputs,
         });
     }
 
+    /**
+     * Validates this block
+     *
+     * @memberof Block
+     */
     async validate() {
-        if (!this.isGenesis() && (this.parents.length < 2 || this.parents.length > 2)) {
-            throw new Error(`Block ${this.id} should validate 2 other transactions.`);
+        if (!this.isGenesis() && (this.parents.length < 2 || this.parents.length > 3)) {
+            throw new Error(`Block ${this.id} should validate 2 other transactions`);
+        }
+
+        if (!this.transactions.length || this.transactions.length > 1) {
+            throw new Error('Block should only have 1 transaction included in them');
         }
 
         // For effeciency sake, first check the proof of work.

@@ -2,7 +2,7 @@ import Transaction from "../../../../models/Transaction";
 import { configuration } from "../../../../Configuration";
 import Block from "../../../../models/Block";
 
-export default function createGenesisBlock() {
+export default async function createGenesisBlock() {
     const block = new Block({
         number: 1,
     });
@@ -28,6 +28,8 @@ export default function createGenesisBlock() {
 
         block.addTransactions([allocTransaction]);
     });
+
+    await block.execute();
 
     block.proofOfWork();
 

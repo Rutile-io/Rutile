@@ -58,6 +58,11 @@ class VirtualContext {
         this.sharedMemory = sharedMemory;
     }
 
+    /**
+     * Grows the shared memory and waits for the worker starter to accept the changes
+     *
+     * @memberof VirtualContext
+     */
     growSharedMemory() {
         const length = Uint8Array.BYTES_PER_ELEMENT * this.wasm.instance.exports.memory.buffer.byteLength;
         this.sharedMemory = new SharedArrayBuffer(length);

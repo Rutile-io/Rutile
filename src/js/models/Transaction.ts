@@ -33,6 +33,8 @@ interface TransactionParams {
     value?: number | string | BNtype;
     transIndex?: number;
     milestoneIndex?: number;
+    outputStateRoot?: string;
+    inputStateRoot?: string;
     parents?: string[];
 }
 
@@ -70,6 +72,12 @@ class Transaction {
     // The milestone index. Only apply's to milestone creators.
     milestoneIndex?: number = null;
 
+    // The root of the state after execution
+    outputStateRoot: string;
+
+    // The root of the state before execution
+    inputStateRoot: string;
+
     // To which address to send tokens to.
     // Can also be a function address
     to?: string;
@@ -96,6 +104,8 @@ class Transaction {
         this.value = params.value ? new BN(params.value, 10) : new BN(0, 10);
         this.transIndex = params.transIndex || 0;
         this.parents = params.parents || [];
+        this.outputStateRoot = params.outputStateRoot;
+        this.inputStateRoot = params.inputStateRoot;
     }
 
     async deployContract(): Promise<Account> {
@@ -110,7 +120,7 @@ class Transaction {
             addresses.from,
         ]).slice(24);
 
-        return Account.create(contractAddress, this.data);
+        return Account.create(contractAddress, this.data, this.id);
     }
 
     async execute(): Promise<Results> {
@@ -137,6 +147,7 @@ class Transaction {
                     gasUsed: 0,
                     returnHex: contractAccount.address,
                     return: hexStringToByte(contractAccount.address),
+                    outputRoot: contractAccount.storageRoot,
                 }
             }
 
@@ -150,7 +161,14 @@ class Transaction {
                 // It's possible that an account does not have any contract attached to it
                 // This means we do not have to execute any functions but should just transfer value
                 if (!account.codeHash || account.codeHash === '0x00') {
-                    return null;
+                    return {
+                        exception: 0,
+                        exceptionError: null,
+                        gasUsed: 0,
+                        returnHex: '0x',
+                        return: new Uint8Array(0),
+                        outputRoot: '0x',
+                    }
                 }
 
                 const ipfsHash = hexStringToString(account.codeHash);
@@ -163,12 +181,14 @@ class Transaction {
 
             // Possibly have to save the result in the transaction.
             const executionResults = await execute(callMessage);
+
             this.gasUsed = executionResults.gasUsed;
+            this.outputStateRoot = executionResults.outputRoot;
 
             return executionResults;
         } catch (error) {
-            Logger.error('Executing transaction failed ->', error);
-            return null;
+            Logger.error('Executing transaction failed: ', error);
+            throw error;
         }
     }
 
@@ -235,6 +255,8 @@ class Transaction {
             r: this.r,
             s: this.s,
             v: this.v,
+            inputStateRoot: this.inputStateRoot,
+            outputStateRoot: this.outputStateRoot,
         });
     }
 

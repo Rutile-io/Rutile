@@ -1,14 +1,11 @@
 import { startDatabase } from "../../../services/DatabaseService";
 import getBlocksCumulativeWeights from "./services/CumulativeWeightService";
 import * as Logger from 'js-logger';
-import { getBlockByNumber, getBlockById } from "./services/BlockService";
+import { getBlockByNumber, getBlockById, getAccountCreationBlock, getRandomWeightedBlock, getStateInputBlockTip } from "./services/BlockService";
 import Block from "../../../models/Block";
+import getRandomInt from "../../../utils/getRandomInt";
 
-function getRandomInt(min: number, max: number) {
-    min = Math.ceil(min);
-    max = Math.floor(max);
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
+
 
 /**
  * Walks backwards from the last milestone to determine a confirmation rate.
@@ -41,37 +38,6 @@ class Walker {
     }
 
     /**
-     * Gets a random weighted transaction from the dag
-     *
-     * @param {Transaction[]} transactions
-     * @returns {Transaction}
-     * @memberof Walker
-     */
-    getRandomWeightedBlock(blocks: Block[]): Block {
-        let sumOfWeight = 0;
-
-        blocks.forEach((block) => {
-            sumOfWeight += this.transactionCumulativeWeights.get(block.id);
-        });
-
-        let randomNum = getRandomInt(0, sumOfWeight);
-
-        const weightedBlock = blocks.find((block) => {
-            if (randomNum < this.transactionCumulativeWeights.get(block.id)) {
-                return true;
-            }
-
-            randomNum -= this.transactionCumulativeWeights.get(block.id);
-        });
-
-        if (!weightedBlock) {
-            return blocks[0];
-        }
-
-        return weightedBlock;
-    }
-
-    /**
      * Finds a block tip that we can use to validate.
      *
      * @param {Block} block
@@ -86,9 +52,32 @@ class Walker {
             return block;
         }
 
-        const nextBlock = this.getRandomWeightedBlock(attachedBlocks);
+        const nextBlock = getRandomWeightedBlock(attachedBlocks, this.transactionCumulativeWeights);
 
         return this.getBlockTip(nextBlock);
+    }
+
+    /**
+     * Finds the latest block that was attached to the chain of the given address
+     * this can be used to select an input state root which is used for WASM execution
+     *
+     * @param {string} address
+     * @memberof Walker
+     */
+    async getLatestBlockForAddress(address: string): Promise<Block> {
+        if (!address) {
+            throw new Error('Address is missing');
+        }
+
+        // First find the "genesis" block of the given address
+        // we call it genesis since it has been te first interaction of the contract.
+        const accountGenesisBlock = await getAccountCreationBlock(address);
+
+        // Now follow the DAG back to the latest block.
+        // We can do this with the weighted random walk in mind.
+        this.transactionCumulativeWeights = await getBlocksCumulativeWeights();
+
+        return getStateInputBlockTip(accountGenesisBlock, this.transactionCumulativeWeights);
     }
 
     /**

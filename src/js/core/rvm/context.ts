@@ -28,6 +28,7 @@ export interface Results {
     gasUsed: number;
     return: Uint8Array;
     returnHex: string;
+    outputRoot: string;
 }
 
 
@@ -49,6 +50,7 @@ class Context {
     results: Results = {
         exception: 0,
         gasUsed: 0,
+        outputRoot: '0x',
         return: new Uint8Array(),
         returnHex: '0x',
     };
@@ -76,7 +78,7 @@ class Context {
 
         this.notifierBuffer = notifier;
         this.toAccount = await Account.findOrCreate(this.toAddress);
-        this.state = new MerkleTree(database, this.toAccount.storageRoot);
+        this.state = new MerkleTree(database, this.message.inputRoot);
 
         await this.state.fill();
         this.updateMemory(memory);
@@ -92,7 +94,11 @@ class Context {
     }
 
     public async close() {
-        this.toAccount.storageRoot = await this.state.getMerkleRoot();
+        let root = await this.state.getMerkleRoot();
+
+        this.toAccount.storageRoot = root;
+        this.results.outputRoot = root;
+
         await this.toAccount.save();
     }
 
@@ -115,6 +121,14 @@ class Context {
      * @memberof Context
      */
     private async storageStore(notifierIndex: number, pathOffset: number, valueOffset: number, pathLength: number = 32, valueLength: number = 32) {
+        if (pathLength === 0) {
+            pathLength = 32;
+        }
+
+        if (valueLength === 0) {
+            valueLength = 32;
+        }
+
         const path = Buffer.from(this.mem.read(pathOffset, pathLength));
         const value = Buffer.from(this.mem.read(valueOffset, valueLength));
 
@@ -272,7 +286,7 @@ class Context {
         this.results.exception = 0;
         this.results.exceptionError = VM_ERROR.REVERT;
         this.results.return = ret;
-        this.results.returnHex = toHex(ret);
+        this.results.returnHex = '0x' + toHex(ret);
 
         throw new VmError(VM_ERROR.REVERT);
     }
@@ -294,7 +308,7 @@ class Context {
 
         this.results.exception = 0;
         this.results.return = ret;
-        this.results.returnHex = toHex(ret);
+        this.results.returnHex = '0x' + toHex(ret);
 
         throw new FinishExecution('Finished execution');
     }
@@ -366,10 +380,12 @@ class Context {
         } else {
             callMessage.inputData = new Uint8Array();
             callMessage.inputSize = 0;
-        }
+        };
 
         // TODO: Should depending on the result throw the exception to above
         const result = await execute(callMessage);
+
+        this.callResults = result;
 
         if (result.exceptionError === VM_ERROR.REVERT) {
             storeAndNotify(this.notifierBuffer, notifierIndex, 3);
@@ -417,7 +433,9 @@ class Context {
 
     private printString(notifierIndex: number, offset: number, length: number) {
         const value = this.mem.read(offset, length);
+
         Logger.info(`vm.printString ${byteArrayToString(value)}`);
+
         storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }
 

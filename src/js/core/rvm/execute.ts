@@ -30,8 +30,6 @@ interface ExecuteSecureResults {
 export default async function execute(callMessage: CallMessage) {
     const ipfs = Ipfs.getInstance(configuration.ipfs);
 
-    console.log('[Execute] callMessage -> ', callMessage);
-
     // It's possible that we are just calling a system contract
     let binary: Uint8Array = getSystemContract(callMessage.destination);
 
