@@ -16,6 +16,7 @@ import PouchDbLevelDbMapping from './models/PouchDbLevelDbMapping';
 import getAllBlocksStream from './core/dag/lib/transaction/getAllBlocksStream';
 import Block from './models/Block';
 import Transaction from './models/Transaction';
+import createGenesisBlock from './core/dag/lib/transaction/createGenesisBlock';
 // import RutileContext from './models/RutileContext';
 // import * as fs from 'fs';
 // import { validateTransaction, applyTransaction } from './services/_TransactionService';

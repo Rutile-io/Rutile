@@ -8,8 +8,6 @@ export default async function createGenesisBlock() {
     });
 
     Object.keys(configuration.genesis.alloc).forEach((address) => {
-        console.log('[] configuration.genesis.alloc[address].balance -> ', configuration.genesis.alloc[address].balance);
-
         const allocTransaction = new Transaction({
             to: address,
             value: configuration.genesis.alloc[address].balance,

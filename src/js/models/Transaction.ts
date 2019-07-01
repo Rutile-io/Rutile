@@ -104,8 +104,8 @@ class Transaction {
         this.value = params.value ? new BN(params.value, 10) : new BN(0, 10);
         this.transIndex = params.transIndex || 0;
         this.parents = params.parents || [];
-        this.outputStateRoot = params.outputStateRoot;
-        this.inputStateRoot = params.inputStateRoot;
+        this.outputStateRoot = params.outputStateRoot || '0x';
+        this.inputStateRoot = params.inputStateRoot || '0x';
     }
 
     async deployContract(): Promise<Account> {
