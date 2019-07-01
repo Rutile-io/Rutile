@@ -140,7 +140,10 @@ class Block {
             return this.id;
         }
 
-        this.timestamp = Date.now();
+        // Genesis blocks do not have a timestamp
+        if (!this.isGenesis()) {
+            this.timestamp = Date.now();
+        }
 
         const data = [
             numberToHex(this.number),
@@ -156,6 +159,7 @@ class Block {
         ];
 
         this.id = '0x' + rlpHash(data);
+
         return this.id;
     }
 
