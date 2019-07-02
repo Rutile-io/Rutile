@@ -238,6 +238,10 @@ class Block {
     static fromRaw(rawBlock: string) {
         const blockParams: BlockParams = JSON.parse(rawBlock);
 
+        if (!blockParams.transactions || !blockParams.transactions.length) {
+            throw new Error('Block without transactions is not allowed');
+        }
+
         // First convert all transactions back to the classes
         const transactions = blockParams.transactions.map(tx => Transaction.fromRaw(JSON.stringify(tx)));
         blockParams.transactions = transactions;
