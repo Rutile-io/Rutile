@@ -5,10 +5,10 @@ import { configuration } from "../Configuration";
 import { applyProofOfWork, isProofOfWorkValid } from "../services/transaction/ProofOfWork";
 import { validateTransaction } from "../core/dag/lib/services/TransactionService";
 import { databaseCreate } from "../services/DatabaseService";
+import { getBlockById } from "../core/dag/lib/services/BlockService";
 
 interface BlockParams {
     parents?: string[];
-    inputs?: string[];
     outputs?: string[];
     transactions?: Transaction[];
     timestamp?: number;
@@ -32,7 +32,6 @@ class Block {
      * @memberof Block
      */
     parents: string[] = [];
-    inputs: string[] = [];
     outputs: string[] = [];
     transactions: Transaction[] = [];
     timestamp: number = 0;
@@ -49,7 +48,6 @@ class Block {
 
     constructor(params: BlockParams) {
         this.parents = params.parents || [];
-        this.inputs = params.inputs || [];
         this.outputs = params.outputs || [];
         this.transactions = params.transactions || [];
         this.timestamp = params.timestamp || 0;
@@ -90,7 +88,6 @@ class Block {
         }
 
         inputRoots.forEach((input, index) => {
-            this.inputs.push(input);
             this.transactions[index].inputStateRoot = input;
         });
     }
@@ -100,7 +97,13 @@ class Block {
             throw new Error('2 blocks should be given');
         }
 
-        blocks.forEach(block => this.parents.push(block.getBlockId()));
+        blocks.forEach((block, index) => {
+            this.parents.push(block.getBlockId());
+
+            if (this.transactions[index]) {
+                this.transactions[index].inputStateRoot = block.outputs[0];
+            }
+        });
     }
 
     addTransactions(transactions: Transaction[]) {
@@ -154,7 +157,6 @@ class Block {
             this.stateRoot,
             this.transactionRoot,
             numberToHex(this.gasUsed),
-            this.inputs,
             this.outputs,
         ];
 
@@ -181,7 +183,6 @@ class Block {
             gasUsed: this.gasUsed,
             gasLimit: this.gasLimit,
             number: this.number,
-            inputs: this.inputs,
             outputs: this.outputs,
         });
     }
@@ -206,7 +207,20 @@ class Block {
             throw new Error('Proof of work is not valid');
         }
 
-        for (const transaction of this.transactions) {
+        for (const [index, transaction] of this.transactions.entries()) {
+            // We need to make sure the parents that where used are used as state root
+            if (!this.isGenesis()) {
+                const parentBlock = await getBlockById(this.parents[index]);
+
+                if (!parentBlock) {
+                    throw new Error(`Could not find block ${this.parents[index]}`);
+                }
+
+                if (parentBlock.outputs[0] !== transaction.inputStateRoot) {
+                    throw new Error('Input does not match the output of the parent blocks');
+                }
+            }
+
             await validateTransaction(transaction);
         }
     }
