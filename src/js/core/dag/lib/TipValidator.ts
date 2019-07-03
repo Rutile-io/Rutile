@@ -6,8 +6,12 @@ import Block from '../../../models/Block';
 import { getBlockById } from './services/BlockService';
 const BN = require('bn.js');
 
-interface AddressBalancePair {
-    [key: string]: BNType;
+interface AddressInfo {
+    [adress: string]: {
+        value: BNType,
+        merkleRoot: string,
+        nonce: number,
+    };
 };
 
 const BASE10_RADIX = 10;
@@ -38,18 +42,18 @@ class TipValidator {
     /**
      * Checks in the pairs if any accounts ended up with a negative balance
      *
-     * @param {AddressBalancePair} addressBalancePair
+     * @param {AddressInfo} addressInfo
      * @returns {boolean} true if valid, false otherwise
      * @memberof TipValidator
      */
-    validateForNegativeBalances(addressBalancePair: AddressBalancePair): boolean {
-        const addresses = Object.keys(addressBalancePair);
+    validateForNegativeBalances(addressInfo: AddressInfo): boolean {
+        const addresses = Object.keys(addressInfo);
 
         for (let index = 0; index < addresses.length; index++) {
             const address = addresses[index];
-            const value = addressBalancePair[address];
+            const info = addressInfo[address];
 
-            if (value.isNeg()) {
+            if (info.value.isNeg()) {
                 return false;
             }
         }
@@ -65,28 +69,43 @@ class TipValidator {
      * @param {AddressBalancePair} state
      * @memberof TipValidator
      */
-    applyTransactionToState(transaction: Transaction, state: AddressBalancePair) {
+    applyTransactionToState(transaction: Transaction, block: Block, state: AddressInfo) {
         const addresses = getAddressFromTransaction(transaction);
+
+        // Since we are walking backwards in the Dag we can use the first transactions as the merkle root output.
+        if (!state[addresses.to]) {
+            state[addresses.to] = {
+                value: new BN(0),
+                merkleRoot: transaction.outputStateRoot || '0x',
+                nonce: 0,
+            };
+        }
 
         // First we subtract the number from the address state to the new state.
         // We currently do allow negative balances at this stage
         // once we are at the final stage we have to check if some balances are negative
         // if they are we must not use the tip
         if (state[addresses.from]) {
-            state[addresses.from] = state[addresses.from].sub(transaction.value);
+            state[addresses.from].value = state[addresses.from].value.sub(transaction.value);
         } else {
-            // Genesis transactions do not have any address
-            if (!transaction.isGenesis()) {
+            // Genesis transactions does not have an address
+            if (!block.isGenesis()) {
+                state[addresses.from] = {
+                    value: new BN(0),
+                    merkleRoot: '0x',
+                    nonce: transaction.nonce,
+                };
+
                 // Going into the negatives.
-                state[addresses.from] = new BN(0, BASE10_RADIX).sub(transaction.value);
+                state[addresses.from].value = new BN(0, BASE10_RADIX).sub(transaction.value);
             }
         }
 
         // Now for the receiver
         if (state[addresses.to]) {
-            state[addresses.to] = state[addresses.to].add(transaction.value);
+            state[addresses.to].value = state[addresses.to].value.add(transaction.value);
         } else {
-            state[addresses.to] = transaction.value;
+            state[addresses.to].value = transaction.value;
         }
     }
 
@@ -97,14 +116,14 @@ class TipValidator {
      * @returns {Promise<AddressBalancePair>}
      * @memberof TipValidator
      */
-    async generateAccountBalances(startBlockId: string): Promise<AddressBalancePair> {
+    async generateAccountBalances(startBlockId: string): Promise<AddressInfo> {
         const visitedBlocks: string[] = [];
 
         const blockIdsToCheck: string[] = [startBlockId];
-        const state: AddressBalancePair = {};
+        const state: AddressInfo = {};
 
         for (const blockId of blockIdsToCheck) {
-            // Make sure we don't validate the same transactions twice
+            // Make sure we don't validate the same block twice
             if (visitedBlocks.includes(blockId)) {
                 continue;
             }
@@ -118,7 +137,7 @@ class TipValidator {
                 if (!transaction.value.isZero()) {
                     // This may not be needed..
                     await validateTransaction(transaction, true);
-                    this.applyTransactionToState(transaction, state);
+                    this.applyTransactionToState(transaction, block, state);
                 }
             }
 

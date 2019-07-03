@@ -13,6 +13,7 @@ import * as Logger from 'js-logger';
 import Block from './models/Block';
 import { NodeType } from './models/interfaces/IConfig';
 import Validator from './core/milestone/Validator';
+import Snapshot from './core/dag/lib/Snapshot';
 
 /**
  * Glue between all core modules.
@@ -49,6 +50,10 @@ class Rutile {
 
     static get Account() {
         return Account;
+    }
+
+    static get Snapshot() {
+        return Snapshot;
     }
 
     constructor() {
@@ -90,11 +95,11 @@ class Rutile {
 
         const balances = await this.dag.getAccountBalance(address);
 
-        if (!balances[address]) {
+        if (!balances[address] || !balances[address].value) {
             return '0';
         }
 
-        return balances[address].toString();
+        return balances[address].value.toString();
     }
 }
 

@@ -4,6 +4,11 @@
         <title>Boilerplayer</title>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
         <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.5.3/cytoscape.min.js"></script>
+        <style>
+            * {
+                font-family: 'Open Sans';
+            }
+        </style>
     </head>
     <body>
         <div id="dagspace" style="height: 500px;"></div>
@@ -54,6 +59,14 @@
             </div>
             <button onclick="sendValue()">Send transaction</button>
         </section>
+        <h2>Snapshot creator</h2>
+        <section>
+            <div>
+                <label>Block ID</label>
+                <input type="text" id="blockSnapshotId" value="0x" />
+            </div>
+            <button onclick="takeSnapshot()">Take Snapshot</button>
+        </section>
 
         <div id="app"></div>
         <script src="build/rutile.js" charset="utf-8"></script>
@@ -64,11 +77,17 @@
             setPrivateKey();
             getAddressInfo();
 
+            async function takeSnapshot() {
+                const blockId = document.getElementById('blockSnapshotId').value;
+
+                await Rutile.Snapshot.takeSnapshot(blockId);
+            }
+
             async function run() {
                 try {
                     rutile = new Rutile();
                     await rutile.start();
-                    rutile.dag.on('transactionAdded', (event) => {
+                    rutile.dag.on('blockAdded', (event) => {
                         addTransaction(event.transaction)
                     });
 
@@ -113,7 +132,7 @@
                     to: toAddress,
                     value,
                     data,
-                    transIndex,
+                    nonce: transIndex,
                 });
 
                 transaction.sign(keyPair);

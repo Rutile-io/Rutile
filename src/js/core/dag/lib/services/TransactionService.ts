@@ -1,9 +1,6 @@
-import * as Logger from 'js-logger';
 import Transaction from "../../../../models/Transaction";
 import { configuration } from "../../../../Configuration";
 import KeyPair from "../../../../models/KeyPair";
-import Account from "../../../../models/Account";
-import { isProofOfWorkValid } from "../../../../services/transaction/ProofOfWork";
 import { getById, createOrUpdate, databaseCreate, databaseFind } from "../../../../services/DatabaseService";
 import { rlpHash } from "../../../../utils/keccak256";
 import { numberToHex } from "../../../../utils/hexUtils";
@@ -21,7 +18,7 @@ const GENESIS_MILESTONE = 1;
  */
 export function getUnsignedTransactionHash(transaction: Transaction): string {
     const data = [
-        numberToHex(transaction.transIndex),
+        numberToHex(transaction.nonce),
         numberToHex(transaction.gasPrice),
         numberToHex(transaction.gasLimit),
         transaction.to ? transaction.to : '0x0',
@@ -29,7 +26,6 @@ export function getUnsignedTransactionHash(transaction: Transaction): string {
         transaction.data,
         numberToHex(transaction.gasUsed),
         numberToHex(transaction.timestamp),
-        transaction.parents,
         numberToHex(configuration.genesis.config.chainId),
     ];
 
@@ -92,6 +88,7 @@ export async function validateTransaction(transaction: Transaction, noExecution:
         });
 
         if (!isSignatureValid) {
+            console.log('[] transaction -> ', transaction);
             throw new Error(`Transaction ${transaction.id} has an invalid signature`);
         }
     }
@@ -120,10 +117,7 @@ export async function validateTransaction(transaction: Transaction, noExecution:
         v: transaction.v,
         timestamp: transaction.timestamp,
         nonce: transaction.nonce,
-        transIndex: transaction.transIndex,
-        milestoneIndex: transaction.milestoneIndex,
         value: transaction.value,
-        parents: transaction.parents,
         inputStateRoot: transaction.inputStateRoot,
     });
 
@@ -151,7 +145,7 @@ export async function validateTransaction(transaction: Transaction, noExecution:
 
 export function getAddressFromTransaction(transaction: Transaction) {
     // Genesis milestones don't have a from
-    if (transaction.milestoneIndex === GENESIS_MILESTONE) {
+    if (transaction.isGenesis()) {
         return {
             to: transaction.to,
             from: null,
@@ -190,18 +184,6 @@ export async function applyTransaction(transaction: Transaction) {
     // const toAccount = await Account.findOrCreate(addresses.to);
     const results = [];
 
-    // There is no from in a genesis milestone
-    // if (transaction.milestoneIndex !== GENESIS_MILESTONE) {
-    //     const fromAccount = await Account.findOrCreate(addresses.from);
-
-    //     await fromAccount.setBalance(fromAccount.balance - transaction.value);
-    //     await fromAccount.setTransactionIndex(transaction.transIndex);
-
-    //     results.push(fromAccount.save());
-    // }
-
-    // await toAccount.setBalance(toAccount.balance + transaction.value);
-    // results.push(toAccount.save());
     results.push(saveTransaction(transaction));
 
     await Promise.all(results);

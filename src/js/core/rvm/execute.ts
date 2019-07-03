@@ -1,10 +1,9 @@
+import * as Logger from 'js-logger';
 import './context';
 import Context from './context';
 import { configuration } from '../../Configuration'
-import Transaction from '../../models/Transaction';
 import { createWorker } from './utils/workerUtils';
 import WorkerMessageController from './controller/WorkerMessageController';
-import { getAddressFromTransaction } from '../dag/lib/services/TransactionService';
 import isWasmBinary from './lib/services/isWasmBinary';
 import CallMessage from './lib/CallMessage';
 import getSystemContract from '../../services/getSystemContract';
@@ -46,9 +45,12 @@ export default async function execute(callMessage: CallMessage) {
         }
 
         const ipfsHash = hexStringToString(account.codeHash);
-        const contents = await ipfs.cat(ipfsHash);
-
-        binary = stringToByteArray(contents);
+        try {
+            const contents = await ipfs.cat(ipfsHash);
+            binary = stringToByteArray(contents);
+        } catch (error) {
+            Logger.error(`Error while executing: ${error.message}`);
+        }
     }
 
     if (!isWasmBinary(binary)) {

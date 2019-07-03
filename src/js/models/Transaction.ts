@@ -31,11 +31,8 @@ interface TransactionParams {
     v?: number;
     timestamp?: number;
     value?: number | string | BNtype;
-    transIndex?: number;
-    milestoneIndex?: number;
     outputStateRoot?: string;
     inputStateRoot?: string;
-    parents?: string[];
 }
 
 class Transaction {
@@ -63,14 +60,8 @@ class Transaction {
     // Timestamp of transaction
     timestamp?: number = 0;
 
-    // The nonce used to find the PoW hash
-    nonce?: number = 0;
-
     // number of transaction made by the address
-    transIndex?: number = 0;
-
-    // The milestone index. Only apply's to milestone creators.
-    milestoneIndex?: number = null;
+    nonce?: number = 0;
 
     // The root of the state after execution
     outputStateRoot: string;
@@ -85,9 +76,6 @@ class Transaction {
     // data as arguments or a message to send along with the transactions
     data?: string;
 
-    // Parents of the transaction
-    parents: string[] = [];
-
     constructor(params: TransactionParams) {
         this.data = params.data;
         this.to = params.to;
@@ -99,11 +87,8 @@ class Transaction {
         this.r = params.r;
         this.s = params.s;
         this.v = params.v;
-        this.milestoneIndex = params.milestoneIndex || null;
         this.timestamp = params.timestamp || 0;
         this.value = params.value ? new BN(params.value, 10) : new BN(0, 10);
-        this.transIndex = params.transIndex || 0;
-        this.parents = params.parents || [];
         this.outputStateRoot = params.outputStateRoot || '0x';
         this.inputStateRoot = params.inputStateRoot || '0x';
     }
@@ -170,11 +155,6 @@ class Transaction {
                         outputRoot: '0x',
                     }
                 }
-
-                const ipfsHash = hexStringToString(account.codeHash);
-                const contents = await ipfs.cat(ipfsHash);
-
-                wasm = stringToByteArray(contents);
             }
 
             const callMessage = createCallMessage(this);
@@ -190,30 +170,6 @@ class Transaction {
             Logger.error('Executing transaction failed: ', error);
             throw error;
         }
-    }
-
-    async addParents(transactions: Transaction[]) {
-        if (transactions.length < 2) {
-            throw new Error('2 transactions should be given');
-        }
-
-        for (let i = 0; i < transactions.length; i++) {
-            this.parents.push(transactions[i].id);
-        }
-    }
-
-    /**
-     * Applyies the Proof of Work algorythm to find a nonce that complies to the configuration.
-     *
-     * @returns
-     * @memberof Transaction
-     */
-    proofOfWork(): void {
-        if (!this.id) {
-            throw new Error('Proof of Work requires the transaction to be signed');
-        }
-
-        this.nonce = applyProofOfWork(this.id);
     }
 
     sign(keyPair?: KeyPair) {
@@ -238,6 +194,16 @@ class Transaction {
         this.id = getTransactionId(this);
     }
 
+    /**
+     * Returns true for transactions that were genesis transactions.
+     *
+     * @returns
+     * @memberof Transaction
+     */
+    isGenesis() {
+        return this.s === '0x0000000000000000000000000000000000000000000000000000000000000000';
+    }
+
     toRaw(): string {
         return JSON.stringify({
             id: this.id,
@@ -245,24 +211,16 @@ class Transaction {
             value: this.value.toString(10),
             data: this.data,
             nonce: this.nonce,
-            transIndex: this.transIndex,
             gasPrice: this.gasPrice,
             gasLimit: this.gasLimit,
             gasUsed: this.gasUsed,
             timestamp: this.timestamp,
-            milestoneIndex: this.milestoneIndex,
-            parents: this.parents,
             r: this.r,
             s: this.s,
             v: this.v,
             inputStateRoot: this.inputStateRoot,
             outputStateRoot: this.outputStateRoot,
         });
-    }
-
-    isGenesis() {
-        // TODO: More checks. Such as the id compared to the configuration
-        return this.milestoneIndex === 1;
     }
 
     /**

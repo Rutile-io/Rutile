@@ -23,6 +23,10 @@ class Snapshot {
         return new Map<string, number>();
     }
 
+    saveToDisk() {
+
+    }
+
     static async getLatestSnapshot(): Promise<Snapshot> {
         return new Snapshot();
     }

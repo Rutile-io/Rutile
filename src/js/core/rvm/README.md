@@ -28,7 +28,7 @@ async function run() {
         to: hash,
         data: '0x00000001',
         value: 0,
-        transIndex: 1,
+        nonce: 1,
     });
 
     await transaction.execute();

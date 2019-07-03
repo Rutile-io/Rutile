@@ -14,6 +14,7 @@ import * as Logger from 'js-logger';
 import TipValidator from "./lib/TipValidator";
 import Block from "../../models/Block";
 import { getBlockByNumber, applyBlock, getBlockById, saveBlock } from "./lib/services/BlockService";
+import Snapshot from "./lib/Snapshot";
 
 const GENESIS_MILESTONE = 1;
 const TRANSACTION_AMOUNT_TO_VALIDATE = 2;
@@ -169,6 +170,22 @@ class Dag extends EventHandler {
             this.networkController.sendBlockSyncString(chunk.toString(), peerId);
         })
         // this.networkController.sendTransaction();
+    }
+
+    /**
+     * Takes a snapshot of the current state of the DAG, pruining it's data
+     *
+     * @param {number} blockNumber
+     * @memberof Dag
+     */
+    async takeSnapshot(blockNumber: number) {
+        const block = await getBlockByNumber(blockNumber);
+
+        if (!block) {
+            throw new Error(`Block ${blockNumber} does not exist, snapshot aborted.`);
+        }
+
+        const snapshot = await Snapshot.takeSnapshot(block.id);
     }
 
     /**

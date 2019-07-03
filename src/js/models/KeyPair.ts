@@ -46,8 +46,8 @@ class KeyPair {
             recoveryParam: signature.recoveryParam,
             // r: signature.r.toString(16),
             // s: signature.s.toString(16),
-            r: signature.r.toString(16),
-            s: signature.s.toString(16),
+            r: '0x' + signature.r.toString(16),
+            s: '0x' + signature.s.toString(16),
             v: 27 + signature.recoveryParam,
         }
     }
@@ -60,8 +60,8 @@ class KeyPair {
         const recoveryParam = signature.v - 27;
 
         const rs = {
-            r: signature.r,
-            s: signature.s,
+            r: signature.r.slice(2),
+            s: signature.s.slice(2),
         }
 
         const pubkeyCurve = getCurve().recoverPubKey(arrayify(digest), rs, recoveryParam);
@@ -80,8 +80,8 @@ class KeyPair {
         const recoveryParam = signature.v - 27;
 
         const rs = {
-            r: signature.r,
-            s: signature.s,
+            r: signature.r.slice(2),
+            s: signature.s.slice(2),
         }
 
         const publicKey = getCurve().recoverPubKey(arrayify(digest), rs, recoveryParam).encode('hex', false);

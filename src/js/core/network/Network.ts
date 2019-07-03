@@ -119,13 +119,13 @@ class Network extends EventHandler {
         Logger.info(`New peer is connected (Total: ${this.connections.length})`);
     }
 
-    private onPeerError(error: any, peerId: string) {
+    private onPeerError(error: Error, peerId: string) {
         this.trigger('error', {
             data: error,
             peerId,
         });
 
-        Logger.error('Network error: ', error);
+        Logger.error('Network error: ', error.message);
     }
 
     /**

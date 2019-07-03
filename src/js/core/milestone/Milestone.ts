@@ -16,7 +16,7 @@ class Milestone {
     }
 
     onBlockAdded(block: Block) {
-        // console.log('[Milestone] block -> ', block);
+        // ('[Milestone] block -> ', block);
 
         // if (block.number > this.currentBlock.number) {
         //     console.log('Block number changed, someone mined it');

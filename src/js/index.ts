@@ -21,7 +21,7 @@ import createGenesisBlock from './core/dag/lib/transaction/createGenesisBlock';
 // import * as fs from 'fs';
 // import { validateTransaction, applyTransaction } from './services/_TransactionService';
 
-Logger.setLevel(Logger.TRACE);
+Logger.setLevel(Logger.DEBUG);
 const loggerHandler = Logger.createDefaultHandler({
     formatter: function(message, context) {
         message.unshift(`[${context.level.name.toLowerCase()}]:`);
@@ -57,6 +57,8 @@ async function sendDummyTransaction () {
     //     return;
     // }
 
+
+
 // const file = fs.readFileSync('./examples/wrc20/wrc20-non-debug.wasm');
     // require('/Users/franklinwaller/Desktop/EVM.wasm-master/build/untouched.wasm');
     // const file = fs.readFileSync('/Volumes/Mac Space/Workspace/Rutile/EVM.wasm/build/untouched.wasm');
@@ -76,7 +78,7 @@ async function sendDummyTransaction () {
         data: '0x00000001',
         // data: '0x5d359fbde929cf2544363bdcee4a976515d5f97758ef476c000000000007a120',
         value: 1,
-        transIndex: wallet.account.transactionIndex + 1,
+        nonce: wallet.account.transactionIndex + 1,
     });
 
     transaction.sign(wallet.keyPair);
@@ -180,6 +182,7 @@ async function run() {
     if (isNodeJs()) {
         rutile = new Rutile();
 
+
         Logger.debug('My address is -> ', account.address, ' with balance -> ', account.balance);
 
         try {
@@ -189,6 +192,8 @@ async function run() {
         }
 
         deployContract();
+
+        await rutile.dag.takeSnapshot(1);
 
         // setInterval(() => {
         //     sendDummyTransaction();

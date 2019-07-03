@@ -1,6 +1,7 @@
 import getConfig, { configuration } from "../../../Configuration";
 import fetch from 'node-fetch';
 import isNodeJs from "../../../services/isNodeJs";
+import * as Logger from 'js-logger';
 // import { URL } from 'url';
 
 interface InitialHttpNodeConnectResponse {
@@ -40,7 +41,7 @@ class PeerToPeerService {
 
             return node;
         } catch (error) {
-            console.error(error);
+            Logger.error(`Could not connect to ${configuration.nodesListUrl}`);
             return null;
         }
     }
