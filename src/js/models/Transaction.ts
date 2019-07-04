@@ -102,6 +102,7 @@ class Transaction {
 
         const contractAddress = '0x' + rlpHash([
             this.data,
+            this.id,
             addresses.from,
         ]).slice(24);
 
