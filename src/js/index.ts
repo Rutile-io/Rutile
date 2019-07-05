@@ -191,7 +191,7 @@ async function run() {
             console.error('Oh well', e);
         }
 
-        deployContract();
+        // deployContract();
 
         await rutile.dag.takeSnapshot(1);
 

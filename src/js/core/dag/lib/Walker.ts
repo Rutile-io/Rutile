@@ -73,6 +73,10 @@ class Walker {
         // we call it genesis since it has been te first interaction of the contract.
         const accountGenesisBlock = await getAccountCreationBlock(address);
 
+        if (!accountGenesisBlock) {
+            return null;
+        }
+
         // Now follow the DAG back to the latest block.
         // We can do this with the weighted random walk in mind.
         this.transactionCumulativeWeights = await getBlocksCumulativeWeights();

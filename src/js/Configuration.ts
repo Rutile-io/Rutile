@@ -40,6 +40,15 @@ const config: IConfig = {
             },
         },
 
+        // Make sure the stakes and alloc are balanced. Any tokens that are set in stakes are minted with
+        // the total supply. So if i minted 150000 in the alloc part and added a address at stake for 64
+        // then my total supply would be 150064.
+        stakes: {
+            '0x53ae893e4b22d707943299a8d0c844df0e3d5557': {
+                value: '32',
+            },
+        },
+
         // transaction: {
         //     // Address is a test address.
         //     to: '0x53ae893e4b22d707943299a8d0c844df0e3d5557',

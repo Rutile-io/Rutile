@@ -22,6 +22,12 @@ interface GenesisConfig {
         };
     };
 
+    stakes: {
+        [address: string]: {
+            value: string;
+        }
+    }
+
     config: {
         /**
          * This is a value that is constant in the Rutile public network

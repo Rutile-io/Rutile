@@ -16,6 +16,7 @@ import getSystemContract from '../services/getSystemContract';
 import CallMessage from '../core/rvm/lib/CallMessage';
 import createCallMessage from '../services/createCallMessage';
 import { hexStringToByte } from '../core/rvm/utils/hexUtils';
+import getInternalContract from '../services/getInternalContract';
 const BN = require('bn.js');
 
 interface TransactionParams {
@@ -140,8 +141,22 @@ class Transaction {
             // It's possible that we are just calling a system contract
             let wasm: Uint8Array = getSystemContract(this.to);
 
-            // The address is not a system contract, we'll forward it to IPFS.
+            // The address is not a system contract
             if (!wasm) {
+                // Check if the address is a internal contract
+                const internalContract = getInternalContract(this.to);
+
+                if (internalContract) {
+                    const callMessage = createCallMessage(this);
+                    const executionResults = await internalContract.execute(callMessage, this);
+
+                    this.gasUsed = executionResults.gasUsed;
+                    this.outputStateRoot = executionResults.outputRoot;
+
+                    return executionResults;
+                }
+
+                // The contract is not internal either.. So it's either a deployed contract or a normal address
                 const account = await Account.findOrCreate(this.to);
 
                 // It's possible that an account does not have any contract attached to it
@@ -156,6 +171,7 @@ class Transaction {
                         outputRoot: '0x',
                     }
                 }
+
             }
 
             const callMessage = createCallMessage(this);

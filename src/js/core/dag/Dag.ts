@@ -112,11 +112,14 @@ class Dag extends EventHandler {
         // TODO: Currently only 1 transaction is supported per block
         if (block.transactions[0].to) {
             const parentInputBlock = await this.walker.getLatestBlockForAddress(block.transactions[0].to);
-            parentBlocks.unshift(parentInputBlock);
 
-            // set the inputs block output as our new input
-            const outputRoot = parentInputBlock.outputs[0];
-            block.setInputs([outputRoot]);
+            if (parentInputBlock) {
+                parentBlocks.unshift(parentInputBlock);
+
+                // set the inputs block output as our new input
+                const outputRoot = parentInputBlock.outputs[0];
+                block.setInputs([outputRoot]);
+            }
         }
 
         Logger.debug(`Attaching to ${parentBlocks.map(b => b.id)}`);

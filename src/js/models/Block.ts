@@ -197,8 +197,10 @@ class Block {
             throw new Error(`Block ${this.id} should validate 2 other transactions`);
         }
 
-        if (!this.transactions.length || this.transactions.length > 1) {
-            throw new Error('Block should only have 1 transaction included in them');
+        if (!this.isGenesis()) {
+            if (!this.transactions.length || this.transactions.length > 1) {
+                throw new Error('Block should only have 1 transaction included in them');
+            }
         }
 
         // For effeciency sake, first check the proof of work.
