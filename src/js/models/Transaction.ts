@@ -3,20 +3,17 @@ import Ipfs from "../services/wrappers/Ipfs";
 import { configuration } from "../Configuration";
 import KeyPair from "./KeyPair";
 import { getUnsignedTransactionHash, getTransactionId, getAddressFromTransaction } from "../core/dag/lib/services/TransactionService";
-import { applyProofOfWork } from "../services/transaction/ProofOfWork";
 import execute from "../core/rvm/execute";
-import stringToByteArray from "../utils/stringToByteArray";
 import BNtype from 'bn.js';
 import { NodeType } from "./interfaces/IConfig";
 import Account from "./Account";
 import { rlpHash } from "../utils/keccak256";
-import { hexStringToString } from "../utils/hexUtils";
 import { Results } from '../core/rvm/context';
 import getSystemContract from '../services/getSystemContract';
-import CallMessage from '../core/rvm/lib/CallMessage';
 import createCallMessage from '../services/createCallMessage';
 import { hexStringToByte } from '../core/rvm/utils/hexUtils';
 import getInternalContract from '../services/getInternalContract';
+import { startDatabase } from '../services/DatabaseService';
 const BN = require('bn.js');
 
 interface TransactionParams {
@@ -120,8 +117,6 @@ class Transaction {
             if (configuration.nodeType !== NodeType.FULL) {
                 return null;
             }
-
-            const ipfs = Ipfs.getInstance(configuration.ipfs);
 
             // This is a contract creation because we do not have a receipient
             if (!this.to) {
@@ -258,6 +253,54 @@ class Transaction {
         }
 
         return new Transaction(transaction);
+    }
+
+    /**
+     * Gets a transaction from a block by it's Id
+     *
+     * @static
+     * @param {string} id
+     * @returns {Promise<Transaction>}
+     * @memberof Transaction
+     */
+    static async getById(id: string): Promise<Transaction> {
+        const result = await Transaction.getByIds([id]);
+
+        if (!result.length) {
+            return null;
+        }
+
+        return result[0];
+    }
+
+    /**
+     * Gets multiple transactions by using their Id
+     *
+     * @static
+     * @param {string[]} ids
+     * @returns {Promise<Transaction[]>}
+     * @memberof Transaction
+     */
+    static async getByIds(ids: string[]): Promise<Transaction[]> {
+        const db = await startDatabase();
+        const result = await db.query((doc: any, emit: any) => {
+            // Make sure the doc is a Block
+            if (doc.transactions && doc.transactions.length) {
+                // Find the transaction inside the block
+                const foundTransaction = doc.transactions.find((t: Transaction) => ids.includes(t.id));
+
+                if (foundTransaction) {
+                    emit(foundTransaction.id, foundTransaction);
+                }
+            }
+        });
+
+        if (!result || result.total_rows === 0) {
+            return [];
+        }
+
+        // Convert all objects back to models
+        return result.rows.map(row => Transaction.fromRaw(JSON.stringify(row.value)));
     }
 }
 

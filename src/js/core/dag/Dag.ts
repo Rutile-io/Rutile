@@ -1,8 +1,6 @@
 import Network from "../network/Network";
 import NetworkController from "./controller/NetworkController";
-import Transaction from "../../models/Transaction";
 import KeyPair from "../../models/KeyPair";
-import { getMilestoneTransaction, validateTransaction, applyTransaction, saveTransaction, getTransactionById } from "./lib/services/TransactionService";
 import { configuration } from "../../Configuration";
 import Walker from "./lib/Walker";
 import createGenesisBlock from "./lib/transaction/createGenesisBlock";
@@ -109,18 +107,25 @@ class Dag extends EventHandler {
 
         // We need to find a block that has the output we want to continue on.
         // This is usually considerd as the latest block that interacted with that system.
-        // TODO: Currently only 1 transaction is supported per block
-        if (block.transactions[0].to) {
-            const parentInputBlock = await this.walker.getLatestBlockForAddress(block.transactions[0].to);
+        for (const [index, transaction] of block.transactions.entries()) {
+            if (!transaction.to) {
+                continue;
+            }
+
+            // Find the latest block that interacted with this address
+            const parentInputBlock = await this.walker.getLatestBlockForAddress(transaction.to);
 
             if (parentInputBlock) {
-                parentBlocks.unshift(parentInputBlock);
-
-                // set the inputs block output as our new input
-                const outputRoot = parentInputBlock.outputs[0];
-                block.setInputs([outputRoot]);
+                // Find the transaction that used this address
+                parentInputBlock.transactions.forEach((inputBlockTransaction) => {
+                    if (inputBlockTransaction.to === transaction.to) {
+                        // Set the same index as input
+                        block.inputs[index] = inputBlockTransaction.id;
+                    }
+                });
             }
         }
+
 
         Logger.debug(`Attaching to ${parentBlocks.map(b => b.id)}`);
         await block.addParents(parentBlocks);

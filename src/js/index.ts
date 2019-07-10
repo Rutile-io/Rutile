@@ -170,8 +170,7 @@ async function testExecution() {
 
 async function run() {
     applyArgv();
-    let db = startDatabase();
-    let mapping = new PouchDbLevelDbMapping(db);
+    let db = await startDatabase();
 
     wallet = new Wallet('10DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE');
     account = await wallet.getAccountInfo();

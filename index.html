@@ -74,8 +74,7 @@
             let rutile = null;
             let keyPair = null;
             let cy = null;
-            setPrivateKey();
-            getAddressInfo();
+
 
             async function takeSnapshot() {
                 const blockId = document.getElementById('blockSnapshotId').value;
@@ -90,6 +89,9 @@
                     rutile.dag.on('blockAdded', (event) => {
                         addTransaction(event.transaction)
                     });
+
+                    setPrivateKey();
+                    getAddressInfo();
 
                     document.getElementById('isRutileActive').innerHTML = 'Yes';
                 } catch (error) {

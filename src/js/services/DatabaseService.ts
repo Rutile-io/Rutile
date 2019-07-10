@@ -14,7 +14,7 @@ let pouchDb: PouchDB.Database = null;
  *
  * @export
  */
-export function startDatabase(): PouchDB.Database {
+export async function startDatabase(): Promise<PouchDB.Database> {
     if (pouchDb) {
         return pouchDb;
     }
@@ -204,8 +204,8 @@ export async function databaseFind(propertyKey: string, propertyValue: any) {
  * @export
  * @returns
  */
-export function getDatabaseLevelDbMapping(): PouchDbLevelDbMapping {
-    const db = startDatabase();
+export async function getDatabaseLevelDbMapping(): Promise<PouchDbLevelDbMapping> {
+    const db = await startDatabase();
     return new PouchDbLevelDbMapping(db);
 }
 

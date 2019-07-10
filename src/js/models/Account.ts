@@ -32,7 +32,6 @@ class Account {
         this.codeHash = params.codeHash || '';
         this.storageRoot = params.storageRoot;
         this.alias = params.alias || '';
-        this.storage = new MerkleTree(Database.getDatabaseLevelDbMapping(), this.storageRoot);
         this.creationTransactionId = params.creationTransactionId || '0x';
     }
 
@@ -45,6 +44,9 @@ class Account {
         if (this.isFilled) {
             return;
         }
+
+        const dbMapping = await Database.getDatabaseLevelDbMapping();
+        this.storage = new MerkleTree(dbMapping, this.storageRoot);
 
         const storageData = await this.storage.fill();
 
@@ -136,12 +138,14 @@ class Account {
      * @memberof Account
      */
     static async create(address: string, codeHash?: string, creationTransactionId?: string) {
-        const merkleTree = new MerkleTree(Database.getDatabaseLevelDbMapping());
+        const dbMapping = await Database.getDatabaseLevelDbMapping();
+        const merkleTree = new MerkleTree(dbMapping);
         const zeroBuffer = hexStringToBuffer('0x00');
 
         await merkleTree.put('address', hexStringToBuffer(address));
         await merkleTree.put('balance', zeroBuffer);
         await merkleTree.put('transactionIndex', zeroBuffer);
+        await merkleTree.put('creationTransactionId', hexStringToBuffer(creationTransactionId));
 
         if (codeHash) {
             if (!creationTransactionId) {
@@ -149,7 +153,6 @@ class Account {
             }
 
             await merkleTree.put('codeHash', hexStringToBuffer(codeHash));
-            await merkleTree.put('creationTransactionId', hexStringToBuffer(creationTransactionId));
         }
 
         const storageRoot = await merkleTree.getMerkleRoot();
@@ -158,6 +161,7 @@ class Account {
             address,
             storageRoot,
             codeHash,
+            creationTransactionId,
         });
 
         await newAccount.save();

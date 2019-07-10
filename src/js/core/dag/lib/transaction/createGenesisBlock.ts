@@ -19,8 +19,12 @@ export default async function createGenesisBlock() {
         number: 1,
     });
 
+    console.log('Genesis creation woop!');
+
     // RUT amount creation
     Object.keys(configuration.genesis.alloc).forEach((address) => {
+        block.inputs.push('0x');
+
         const allocTransaction = new Transaction({
             to: address,
             value: configuration.genesis.alloc[address].balance,
@@ -39,15 +43,13 @@ export default async function createGenesisBlock() {
         block.addTransactions([allocTransaction]);
     });
 
-    // We have to create an account for some internal contracts
-    // This way we can save the merkle root
-    for (const internalContract of INTERNAL_CONTRACTS) {
-        await Account.findOrCreate(internalContract);
-    }
+    const internalAddressTransactionIds = new Map<string, string>();
 
     // Validators creation
     Object.keys(configuration.genesis.stakes).forEach((address) => {
         const data = '0x00000001' + address.slice(2);
+
+        block.inputs.push('0x');
 
         const transaction = new Transaction({
             to: '0x0200000000000000000000000000000000000000',
@@ -64,6 +66,8 @@ export default async function createGenesisBlock() {
 
         transaction.sign();
         block.addTransactions([transaction]);
+
+        internalAddressTransactionIds.set(transaction.to, transaction.id);
     });
 
     await block.execute();
@@ -72,7 +76,11 @@ export default async function createGenesisBlock() {
 
     GENESIS_BLOCK_ID = block.id;
 
-    console.log('[] block -> ', block);
+     // We have to create an account for some internal contracts
+    // This way we can save the merkle root
+    for (const internalContract of internalAddressTransactionIds) {
+        await Account.create(internalContract[0], '', internalContract[1]);
+    }
 
     return block;
 }

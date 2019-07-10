@@ -74,7 +74,7 @@ class Context {
     }
 
     public async init(memory: SharedArrayBuffer, notifier: SharedArrayBuffer) {
-        const database = getDatabaseLevelDbMapping();
+        const database = await getDatabaseLevelDbMapping();
 
         this.notifierBuffer = notifier;
         this.toAccount = await Account.findOrCreate(this.toAddress);

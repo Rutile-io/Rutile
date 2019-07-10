@@ -14,27 +14,18 @@ import getRandomInt from "../../../../utils/getRandomInt";
 export async function getAccountCreationBlock(toAddress: string): Promise<Block> {
     const account = await Account.getFromAddress(toAddress);
 
+    console.log('[GetAcc] account -> ', account);
+
     if (!account) {
         return null;
     }
 
-    // const transaction = await getTransactionById(account.creationTransactionId);
-
-    const db = startDatabase();
-    const result = await db.find({
-        selector: {
-            'transactions.0.id': {
-                '$eq': account.creationTransactionId,
-            },
-        },
-    });
-
-    if (!result || !result.docs.length) {
-        return null;
+    // In the begining there was no transactionId for deployment.
+    if (account.creationTransactionId === '0x0000000000000000000000000000000000000000000000000000000000000000') {
+        return getBlockByNumber(1);
     }
 
-    const blocks = result.docs.map(block => Block.fromRaw(JSON.stringify(block)));
-    return blocks[0];
+    return Block.getByTransactionId(account.creationTransactionId);
 }
 
 /**
@@ -82,7 +73,7 @@ export async function getStateInputBlockTip(startBlock: Block, cummulativeWeight
         throw new Error('Start block is required');
     }
 
-    const db = startDatabase()
+    const db = await startDatabase()
     const data = await db.find({
         selector: {
             'parents': {

@@ -24,7 +24,7 @@ class Walker {
      * @memberof Walker
      */
     async getAttachedBlocks(blockId: string): Promise<Block[]> {
-        const db = startDatabase();
+        const db = await startDatabase();
 
         const data = await db.find({
             selector: {
@@ -69,6 +69,8 @@ class Walker {
             throw new Error('Address is missing');
         }
 
+        console.log('[] address -> ', address);
+
         // First find the "genesis" block of the given address
         // we call it genesis since it has been te first interaction of the contract.
         const accountGenesisBlock = await getAccountCreationBlock(address);
@@ -79,7 +81,11 @@ class Walker {
 
         // Now follow the DAG back to the latest block.
         // We can do this with the weighted random walk in mind.
-        this.transactionCumulativeWeights = await getBlocksCumulativeWeights();
+        if (!this.transactionCumulativeWeights) {
+            this.transactionCumulativeWeights = await getBlocksCumulativeWeights();
+        }
+
+        console.log('[] accountGenesisBlock -> ', accountGenesisBlock);
 
         return getStateInputBlockTip(accountGenesisBlock, this.transactionCumulativeWeights);
     }
