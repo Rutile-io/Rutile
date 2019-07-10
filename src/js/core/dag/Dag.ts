@@ -3,16 +3,16 @@ import NetworkController from "./controller/NetworkController";
 import KeyPair from "../../models/KeyPair";
 import { configuration } from "../../Configuration";
 import Walker from "./lib/Walker";
-import createGenesisBlock from "./lib/transaction/createGenesisBlock";
 import EventHandler from "../network/lib/EventHandler";
 import Ipfs from "../../services/wrappers/Ipfs";
 import { databaseGetAll, databaseRemove } from "../../services/DatabaseService";
 import { isProofOfWorkValid } from "../../services/transaction/ProofOfWork";
 import * as Logger from 'js-logger';
 import TipValidator from "./lib/TipValidator";
-import Block from "../../models/Block";
-import { getBlockByNumber, applyBlock, getBlockById, saveBlock } from "./lib/services/BlockService";
 import Snapshot from "./lib/Snapshot";
+import Transaction from "../../models/Transaction";
+import { applyTransaction, saveTransaction } from "./lib/services/TransactionService";
+import createGenesisTransaction from "./lib/transaction/createGenesisTransaction";
 
 const GENESIS_MILESTONE = 1;
 const TRANSACTION_AMOUNT_TO_VALIDATE = 2;
@@ -38,118 +38,109 @@ class Dag extends EventHandler {
      * @param {Transaction} transaction
      * @memberof Dag
      */
-    async addBlock(block: Block, fromPeerId: string) {
+    async addTransaction(transaction: Transaction, fromPeerId: string) {
         try {
             // Make sure we are not storing duplicates.
-            const isBlockInDatabase = !!(await getBlockById(block.id));
+            const isTransactionInDatabase = !!(await Transaction.getById(transaction.id));
 
-            if (isBlockInDatabase) {
-                Logger.debug(`Block ${block.id} already received`);
+            if (isTransactionInDatabase) {
+                Logger.debug(`Transaction ${transaction.id} already received`);
                 return;
             }
 
-            Logger.debug(`Received block ${block.id}`);
+            Logger.debug(`Received transaction ${transaction.id}`);
 
             // Send the transaction to the rest of the nodes.
-            this.networkController.network.broadcastBlock(block, [fromPeerId]);
+            this.networkController.network.broadcastTransaction(transaction, [fromPeerId]);
 
-            await block.validate();
-            await applyBlock(block);
+            await transaction.validate();
+            await applyTransaction(transaction);
 
             // Let the rest of the application know it's valid.
-            this.trigger('blockAdded', {
-                block,
+            this.trigger('transactionAdded', {
+                transaction,
             });
         } catch (error) {
-            Logger.warn('Block with id', block.id, 'failed', error);
+            Logger.warn('Transaction with id', transaction.id, 'failed', error);
         }
     }
 
-    async getAccountBalance(address: string) {
-        const walkedBlocks = await this.walker.getBlocksToValidate(1, 1);
-        const balances = await this.tipValidator.generateAccountBalances(walkedBlocks[0].id);
+    async getAccountBalance() {
+        const walkedTransactions = await this.walker.getTransactionsToValidate(1, 1);
+        const balances = await this.tipValidator.generateAccountBalances(walkedTransactions[0].id);
 
         return balances;
     }
 
     /**
-     * Submits a block to the dag (From a user perspective)
+     * Submits a transaction to the dag (From a user perspective)
      *
-     * @param {Block} block
+     * @param {Transaction} transaction
      * @param {KeyPair} keyPair
      * @memberof Dag
      */
-    async submitBlock(block: Block, depth: number = 0) {
+    async submitTransaction(transaction: Transaction, keyPair: KeyPair, depth: number = 0) {
         // We have tried searching 10 times for a tip but couldn't find a valid one
         // user should submit it on a later time..
         if (depth > 5) {
-            throw new Error(`Could not find valid block tip after ${depth} tries`);
+            throw new Error(`Could not find valid transaction tip after ${depth} tries`);
         }
 
-        // Find blocks using the random weighted walk
-        const parentBlocks = await this.walker.getBlocksToValidate(1, TRANSACTION_AMOUNT_TO_VALIDATE);
+        // Find transaction using the random weighted walk
+        const parentTransactions = await this.walker.getTransactionsToValidate(1, TRANSACTION_AMOUNT_TO_VALIDATE);
 
-        // Validate these blocks by searching for a path that allows the user to spend this amount.
-        const invalidBlock = await this.tipValidator.validateBlockBalances(parentBlocks);
+        // Validate these transactions by searching for a path that allows the user to spend this amount.
+        const invalidTransaction = await this.tipValidator.validateTransactionBalances(parentTransactions);
 
         // One of the tips is considered invalid and should not be used
-        // We retry to submit our block to a different tip
-        if (invalidBlock) {
+        // We retry to submit our transaction to a different tip
+        if (invalidTransaction) {
             depth += 1;
 
-            Logger.debug(`Block ${invalidBlock.id} was not considered valid and will be deleted`);
-            await databaseRemove(invalidBlock.id);
+            Logger.debug(`Transaction ${invalidTransaction.id} was not considered valid and will be deleted`);
+            await databaseRemove(invalidTransaction.id);
 
-            // Now retry our tip selection without the bad block in the way
-            await this.submitBlock(block, depth);
+            // Now retry our tip selection without the bad transaction in the way
+            await this.submitTransaction(transaction, keyPair, depth);
             return;
         }
 
-        // We need to find a block that has the output we want to continue on.
-        // This is usually considerd as the latest block that interacted with that system.
-        for (const [index, transaction] of block.transactions.entries()) {
-            if (!transaction.to) {
-                continue;
-            }
+        // We need to find a transaction that has the output we want to continue on.
+        // This is usually considerd as the latest transaction that interacted with that system.
+        // No transaction to is a deployment
+        if (transaction.to) {
+            // Find the latest transaction that interacted with this address
+            const parentInputTransaction = await this.walker.getLatestTransactionForAddress(transaction.to);
 
-            // Find the latest block that interacted with this address
-            const parentInputBlock = await this.walker.getLatestBlockForAddress(transaction.to);
-
-            if (parentInputBlock) {
-                // Find the transaction that used this address
-                parentInputBlock.transactions.forEach((inputBlockTransaction) => {
-                    if (inputBlockTransaction.to === transaction.to) {
-                        // Set the same index as input
-                        block.inputs[index] = inputBlockTransaction.id;
-                    }
-                });
+            // It's important that the input transaction is the first parent
+            if (parentInputTransaction) {
+                parentTransactions.push(parentInputTransaction);
             }
         }
 
+        Logger.debug(`Attaching to ${parentTransactions.map(tx => tx.id)}`);
+        await transaction.addParents(parentTransactions);
+        transaction.sign(keyPair);
 
-        Logger.debug(`Attaching to ${parentBlocks.map(b => b.id)}`);
-        await block.addParents(parentBlocks);
+        Logger.debug(`Executing transaction ${transaction.id}`);
+        const results = await transaction.execute();
 
-        // transaction.sign(keyPair);
-        Logger.debug(`Executing block ${block.id}`);
-        const results = await block.execute();
+        Logger.debug(`Applying PoW to transaction ${transaction.id}`);
+        transaction.proofOfWork();
 
-        Logger.debug(`Applying PoW to block ${block.getBlockId()}`);
-        block.proofOfWork();
+        // Make sure all is ok with our Transaction before sending it off
+        Logger.debug(`Re-validating transaction before sending ${transaction.id}`);
+        await transaction.validate();
 
-        // Make sure all is ok with our Block before sending it off
-        Logger.debug(`Re-validating block before sending ${block.id}`);
-        await block.validate();
-
-        Logger.debug(`Applying block ${block.id}`);
-        await applyBlock(block);
+        Logger.debug(`Applying transaction ${transaction.id}`);
+        await applyTransaction(transaction);
 
         // Apply the transaction to our local node
-        this.networkController.broadcastBlock(block);
+        this.networkController.broadcastTransaction(transaction);
 
         // Let the rest of the application know it's valid.
-        this.trigger('blockAdded', {
-            block,
+        this.trigger('transactionAdded', {
+            transaction,
         });
 
         return results;
@@ -163,7 +154,7 @@ class Dag extends EventHandler {
      * @memberof Dag
      */
     async synchroniseTo(number: number, peerId: string) {
-        Logger.debug(`Synchronising to peer ${peerId} starting from block #${number}`);
+        Logger.debug(`Synchronising to peer ${peerId} starting from transaction #${number}`);
 
         // TODO: Synchronise from the beginMilestoneIndex instead of sending all.
         const stream = databaseGetAll({
@@ -175,7 +166,7 @@ class Dag extends EventHandler {
         });
 
         stream.on('data', (chunk: Buffer) => {
-            this.networkController.sendBlockSyncString(chunk.toString(), peerId);
+            this.networkController.sendTransactionSyncString(chunk.toString(), peerId);
         })
         // this.networkController.sendTransaction();
     }
@@ -183,17 +174,17 @@ class Dag extends EventHandler {
     /**
      * Takes a snapshot of the current state of the DAG, pruining it's data
      *
-     * @param {number} blockNumber
+     * @param {number} milestoneIndex
      * @memberof Dag
      */
-    async takeSnapshot(blockNumber: number) {
-        const block = await getBlockByNumber(blockNumber);
+    async takeSnapshot(milestoneIndex: number) {
+        const milestoneTransaction = await Transaction.getByMilestoneIndex(milestoneIndex);
 
-        if (!block) {
-            throw new Error(`Block ${blockNumber} does not exist, snapshot aborted.`);
+        if (!milestoneTransaction) {
+            throw new Error(`Milestone #${milestoneIndex} does not exist, snapshot aborted.`);
         }
 
-        const snapshot = await Snapshot.takeSnapshot(block.id);
+        const snapshot = await Snapshot.takeSnapshot(milestoneTransaction.id);
     }
 
     /**
@@ -203,11 +194,11 @@ class Dag extends EventHandler {
      * @memberof Dag
      */
     async synchronise() {
-        let genesisBlock = await getBlockByNumber(GENESIS_MILESTONE);
+        let genesisTransaction = await Transaction.getByMilestoneIndex(GENESIS_MILESTONE);
 
-        if (!genesisBlock) {
-            genesisBlock = await createGenesisBlock();
-            await genesisBlock.save();
+        if (!genesisTransaction) {
+            genesisTransaction = await createGenesisTransaction();
+            await genesisTransaction.save();
         }
 
         // Make sure we have a peer that can accept the request
@@ -218,15 +209,15 @@ class Dag extends EventHandler {
         });
     }
 
-    async onBlockSyncMessage(block: Block) {
+    async onTransactionSyncMessage(transaction: Transaction) {
         try {
             // TODO: Check more than only the PoW.
-            if (!isProofOfWorkValid(block.id, block.nonce)) {
-                console.error(`Block ${block.id} is invalid. Not adding.`);
+            if (!isProofOfWorkValid(transaction.id, transaction.nonce)) {
+                console.error(`Transaction ${transaction.id} is invalid. Not adding.`);
                 return;
             }
 
-            await saveBlock(block);
+            await saveTransaction(transaction);
         } catch (error) {
 
         }

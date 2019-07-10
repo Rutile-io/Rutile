@@ -10,7 +10,6 @@ import byteArrayToString from './utils/byteArrayToString';
 import Wallet from './models/Wallet';
 import * as Database from './services/DatabaseService';
 import * as Logger from 'js-logger';
-import Block from './models/Block';
 import { NodeType } from './models/interfaces/IConfig';
 import Validator from './core/milestone/Validator';
 import Snapshot from './core/dag/lib/Snapshot';
@@ -34,10 +33,6 @@ class Rutile {
 
     static get Transaction() {
         return Transaction;
-    }
-
-    static get Block() {
-        return Block;
     }
 
     static get KeyPair() {
@@ -84,8 +79,8 @@ class Rutile {
         return this.ipfs.add(byteArrayToString(binary));
     }
 
-    async sendBlock(block: Block) {
-        return this.dag.submitBlock(block);
+    async sendTransaction(transaction: Transaction, keyPair: KeyPair) {
+        return this.dag.submitTransaction(transaction, keyPair);
     }
 
     async getAccountBalance(address: string) {
@@ -93,7 +88,7 @@ class Rutile {
             throw new Error('Rutile should be started first');
         }
 
-        const balances = await this.dag.getAccountBalance(address);
+        const balances = await this.dag.getAccountBalance();
 
         if (!balances[address] || !balances[address].value) {
             return '0';

@@ -39,6 +39,7 @@ class MilestoneInternalContract implements IInternalContract {
         outputRoot: '0x',
         return: new Uint8Array(),
         returnHex: '0x',
+        createdAddress: false,
     };
 
     async registerAsValidator(): Promise<Results> {

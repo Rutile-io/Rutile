@@ -62,7 +62,7 @@
         <h2>Snapshot creator</h2>
         <section>
             <div>
-                <label>Block ID</label>
+                <label>Transaction ID</label>
                 <input type="text" id="blockSnapshotId" value="0x" />
             </div>
             <button onclick="takeSnapshot()">Take Snapshot</button>
@@ -86,7 +86,7 @@
                 try {
                     rutile = new Rutile();
                     await rutile.start();
-                    rutile.dag.on('blockAdded', (event) => {
+                    rutile.dag.on('transactionAdded', (event) => {
                         addTransaction(event.transaction)
                     });
 
@@ -128,20 +128,14 @@
                 const account = await Rutile.Account.getFromAddress(keyPair.getAddress());
                 let transIndex = account.transactionIndex + 1;
 
-                const block = new Rutile.Block({});
-
                 const transaction = new Rutile.Transaction({
                     to: toAddress,
                     value,
                     data,
-                    nonce: transIndex,
+                    transIndex,
                 });
 
-                transaction.sign(keyPair);
-
-                block.addTransactions([transaction]);
-
-                const txResult = await rutile.sendBlock(block);
+                const txResult = await rutile.sendTransaction(transaction, keyPair);
 
                 console.log('[] txResult -> ', txResult);
             }

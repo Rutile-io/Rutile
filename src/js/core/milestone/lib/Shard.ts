@@ -1,4 +1,4 @@
-import Block from "../../../models/Block";
+import Transaction from "../../../models/Transaction";
 
 /**
  * Shards are nodes that focuses on chains that represent a range of addresses.
@@ -6,7 +6,7 @@ import Block from "../../../models/Block";
  * @class Shard
  */
 class Shard {
-    currentBlock: Block;
+    currentMilestone: Transaction;
 
     constructor() {
 

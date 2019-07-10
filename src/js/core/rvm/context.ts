@@ -29,6 +29,7 @@ export interface Results {
     return: Uint8Array;
     returnHex: string;
     outputRoot: string;
+    createdAddress: boolean;
 }
 
 
@@ -53,6 +54,7 @@ class Context {
         outputRoot: '0x',
         return: new Uint8Array(),
         returnHex: '0x',
+        createdAddress: false,
     };
 
     data: string;

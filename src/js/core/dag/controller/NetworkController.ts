@@ -2,7 +2,6 @@ import Dag from "../Dag";
 import Network from "../../network/Network";
 import { NetworkMessageEvent } from "../../network/lib/types/Events";
 import Transaction from "../../../models/Transaction";
-import Block from "../../../models/Block";
 
 class NetworkController {
     dag: Dag;
@@ -15,13 +14,13 @@ class NetworkController {
     }
 
     /**
-     * Broadcasts a block to the connected peers
+     * Broadcasts a transaction to the connected peers
      *
-     * @param {Block} block
+     * @param {Transaction} transaction
      * @memberof NetworkController
      */
-    broadcastBlock(block: Block) {
-        this.network.broadcastBlock(block);
+    broadcastTransaction(transaction: Transaction) {
+        this.network.broadcastTransaction(transaction);
     }
 
     /**
@@ -31,10 +30,10 @@ class NetworkController {
      * @param {string} peerId
      * @memberof NetworkController
      */
-    sendBlockSyncString(block: string | Buffer, peerId: string) {
+    sendTransactionSyncString(transaction: string | Buffer, peerId: string) {
         const message = JSON.stringify({
-            type: 'BLOCK_SYNC',
-            value: block,
+            type: 'TRANSACTION_SYNC',
+            value: transaction,
         });
 
         this.network.sendDataToPeer(peerId, message);
@@ -54,16 +53,16 @@ class NetworkController {
     private onNetworkMessage(event: NetworkMessageEvent) {
         const data = JSON.parse(event.data.toString());
 
-        if (data.type === 'BLOCK') {
-            const block = Block.fromRaw(data.value);
+        if (data.type === 'TRANSACTION') {
+            const transaction = Transaction.fromRaw(data.value);
 
-            this.dag.addBlock(block, event.peerId);
+            this.dag.addTransaction(transaction, event.peerId);
         } else if (data.type === 'SYNC_FROM_MILESTONE') {
             // A node sent us a request to synchronise our database.
             this.dag.synchroniseTo(data.value.number, event.peerId);
-        } else if (data.type === 'BLOCK_SYNC') {
-            const block = Block.fromRaw(data.value);
-            this.dag.onBlockSyncMessage(block);
+        } else if (data.type === 'TRANSACTION_SYNC') {
+            const transaction = Transaction.fromRaw(data.value);
+            this.dag.onTransactionSyncMessage(transaction);
         }
     }
 }
