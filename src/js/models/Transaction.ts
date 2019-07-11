@@ -31,8 +31,8 @@ interface TransactionParams {
     timestamp?: number;
     value?: number | string | BNtype;
     parents?: string[];
-    outputStateRoot?: string;
-    inputStateRoot?: string;
+    inputs?: string[];
+    outputs?: string[]
     milestoneIndex?: number;
     transIndex?: number;
 }
@@ -43,6 +43,13 @@ class Transaction {
 
     // Parents of the transactions, used for attachting to the DAG
     parents: string[];
+
+    // Transaction Ids that are the input of this transaction
+    inputs: string[];
+    inputStateRoot: string;
+
+    // The result after the execution took place.
+    outputs: string[];
 
     // Gas used for function execution
     gasUsed: number = 0;
@@ -73,12 +80,6 @@ class Transaction {
     // The index of the milestone
     milestoneIndex?: number;
 
-    // The root of the state after execution
-    outputStateRoot: string;
-
-    // The root of the state before execution
-    inputStateRoot: string;
-
     // To which address to send tokens to.
     // Can also be a function address
     to?: string;
@@ -99,9 +100,9 @@ class Transaction {
         this.v = params.v;
         this.timestamp = params.timestamp || 0;
         this.value = params.value ? new BN(params.value, 10) : new BN(0, 10);
-        this.outputStateRoot = params.outputStateRoot || '0x';
-        this.inputStateRoot = params.inputStateRoot || '0x';
         this.parents = params.parents || [];
+        this.inputs = params.inputs || [];
+        this.outputs = params.outputs || [];
         this.milestoneIndex = params.milestoneIndex || 0;
         this.transIndex = params.transIndex || 0;
     }
@@ -160,15 +161,6 @@ class Transaction {
                 }
             }
 
-            if (!this.isGenesis()) {
-                // Our first parent is always our input
-                const inputTransaction = await Transaction.getById(this.parents[0]);
-
-                if (inputTransaction) {
-                    this.inputStateRoot = inputTransaction.outputStateRoot;
-                }
-            }
-
             // It's possible that we are just calling a system contract
             let wasm: Uint8Array = getSystemContract(this.to);
 
@@ -178,11 +170,11 @@ class Transaction {
                 const internalContract = getInternalContract(this.to);
 
                 if (internalContract) {
-                    const callMessage = createCallMessage(this);
+                    const callMessage = await createCallMessage(this);
                     const executionResults = await internalContract.execute(callMessage, this);
 
                     this.gasUsed = executionResults.gasUsed;
-                    this.outputStateRoot = executionResults.outputRoot;
+                    this.outputs.push(executionResults.outputRoot);
 
                     return executionResults;
                 }
@@ -206,13 +198,13 @@ class Transaction {
 
             }
 
-            const callMessage = createCallMessage(this);
+            const callMessage = await createCallMessage(this);
 
             // Possibly have to save the result in the transaction.
             const executionResults = await execute(callMessage);
 
             this.gasUsed = executionResults.gasUsed;
-            this.outputStateRoot = executionResults.outputRoot;
+            this.outputs.push(executionResults.outputRoot);
 
             return executionResults;
         } catch (error) {
@@ -267,11 +259,11 @@ class Transaction {
             r: this.r,
             s: this.s,
             v: this.v,
-            inputStateRoot: this.inputStateRoot,
-            outputStateRoot: this.outputStateRoot,
             parents: this.parents,
             milestoneIndex: this.milestoneIndex,
             transIndex: this.transIndex,
+            inputs: this.inputs,
+            outputs: this.outputs,
         });
     }
 
@@ -303,7 +295,6 @@ class Transaction {
 
         // TODO: Validate more types..
         if (typeof transaction.value !== 'string') {
-            console.log('[] transaction -> ', transaction);
             throw new TypeError('transaction.value should be a string');
         }
 

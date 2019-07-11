@@ -31,6 +31,7 @@ export function getUnsignedTransactionHash(transaction: Transaction): string {
         numberToHex(transaction.timestamp),
         numberToHex(configuration.genesis.config.chainId),
         transaction.parents,
+        transaction.inputs,
         numberToHex(transaction.milestoneIndex),
     ];
 
@@ -121,7 +122,7 @@ export async function validateTransaction(transaction: Transaction, noExecution:
         timestamp: transaction.timestamp,
         nonce: transaction.nonce,
         value: transaction.value,
-        inputStateRoot: transaction.inputStateRoot,
+        inputs: transaction.inputs,
         parents: transaction.parents,
         milestoneIndex: transaction.milestoneIndex,
         transIndex: transaction.transIndex,
@@ -244,24 +245,20 @@ export async function getAccountCreationTransaction(toAddress: string): Promise<
     return Transaction.getById(account.creationTransactionId);
 }
 
-export async function getStateInputTransactionTip(startTransaction: Transaction, cummulativeWeights: Map<string, number>): Promise<Transaction> {
+export async function getStateInputTransactionTip(startTransaction: Transaction, address: string, cummulativeWeights: Map<string, number>): Promise<Transaction> {
     if (!startTransaction) {
         throw new Error('Start transaction is required');
     }
-
-    console.log('CHECK THE DATABASE QUERY!!');
 
     const db = await startDatabase()
     const data = await db.find({
         selector: {
             // The first transaction of the parent should be the input transaction
-            'parents': {
+            'inputs': {
                 '$in': [startTransaction.id],
             }
         }
     });
-
-    console.log('[] data -> ', data);
 
     const parentTransactions = data.docs.map(tx => Transaction.fromRaw(JSON.stringify(tx)));
 
@@ -273,7 +270,7 @@ export async function getStateInputTransactionTip(startTransaction: Transaction,
     // We need a weighted choice between these transactions..
     const nextTransaction = getRandomWeightedTransaction(parentTransactions, cummulativeWeights);
 
-    return getStateInputTransactionTip(nextTransaction, cummulativeWeights);
+    return getStateInputTransactionTip(nextTransaction, address, cummulativeWeights);
 }
 
 /**

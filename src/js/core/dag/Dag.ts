@@ -110,11 +110,11 @@ class Dag extends EventHandler {
         // No transaction to is a deployment
         if (transaction.to) {
             // Find the latest transaction that interacted with this address
-            const parentInputTransaction = await this.walker.getLatestTransactionForAddress(transaction.to);
+            const inputTransaction = await this.walker.getLatestTransactionForAddress(transaction.to);
 
             // It's important that the input transaction is the first parent
-            if (parentInputTransaction) {
-                parentTransactions.push(parentInputTransaction);
+            if (inputTransaction) {
+                transaction.inputs.push(inputTransaction.id);
             }
         }
 

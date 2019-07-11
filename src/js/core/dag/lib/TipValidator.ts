@@ -74,7 +74,7 @@ class TipValidator {
         if (!state[addresses.to]) {
             state[addresses.to] = {
                 value: new BN(0),
-                merkleRoot: transaction.outputStateRoot || '0x',
+                merkleRoot: transaction.outputs[0] || '0x',
                 nonce: 0,
             };
         }
@@ -129,10 +129,15 @@ class TipValidator {
             visitedTransactions.push(transactionId);
 
             const transaction = await Transaction.getById(transactionId);
+
             await transaction.validate(true);
 
             if (!transaction.value.isZero()) {
                 this.applyTransactionToState(transaction, state);
+            }
+
+            if (!transaction.isGenesis() && transactionIdsToCheck.includes('0x')) {
+                throw new Error('Non Genesis transaction tried to set 0x as parent');
             }
 
             transactionIdsToCheck.push(...transaction.parents);

@@ -27,15 +27,19 @@ class MilestoneSlots {
     }
 
     async init(inputRoot: string) {
-        let inputRootBuffer = Buffer.from(inputRoot, 'hex')
         const database = await getDatabaseLevelDbMapping();
 
-        if (!inputRootBuffer.length) {
-            inputRootBuffer = null;
+        if (inputRoot && inputRoot !== '0x' && inputRoot.length !== 66) {
+            throw new Error('input root is not 32 bytes long');
         }
 
+        if (!inputRoot || inputRoot === '0x') {
+            inputRoot = null;
+        }
+
+
         // Merkle tree should probabbly have the input sorted out..
-        this.merkleTree = new MerkleTree(database, inputRootBuffer);
+        this.merkleTree = new MerkleTree(database, inputRoot);
 
         let length = await this.merkleTree.get('length');
 
@@ -47,7 +51,6 @@ class MilestoneSlots {
         }
 
         this.length = parseInt(toHex(length), 16);
-        console.log('[] this.length -> ', this.length);
     }
 
     async addSlot(address: string, valueDespoited: BNType) {

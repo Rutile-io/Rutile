@@ -68,8 +68,6 @@ class Walker {
             throw new Error('Address is missing');
         }
 
-        console.log('[] address -> ', address);
-
         // First find the "genesis" transaction of the given address
         // we call it genesis since it has been te first interaction of the contract.
         const accountGenesisTransaction = await getAccountCreationTransaction(address);
@@ -84,9 +82,7 @@ class Walker {
             this.transactionCumulativeWeights = await getTransactionCumulativeWeights();
         }
 
-        console.log('[] accountGenesisTransaction -> ', accountGenesisTransaction);
-
-        return getStateInputTransactionTip(accountGenesisTransaction, this.transactionCumulativeWeights);
+        return getStateInputTransactionTip(accountGenesisTransaction, address, this.transactionCumulativeWeights);
     }
 
     /**
@@ -107,8 +103,6 @@ class Walker {
         if (!milestoneTransaction) {
             throw new Error(`Milestone index #${milestoneIndex} could not be found`);
         }
-
-        console.log('[Tx] transactionParentsAmount -> ', transactionParentsAmount);
 
         // for of loops (required for async loops) only have support for iterables and not ranges
         // this is why we create an empty array of x length and iterate over that

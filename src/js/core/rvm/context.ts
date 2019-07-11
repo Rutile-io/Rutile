@@ -290,6 +290,9 @@ class Context {
         this.results.return = ret;
         this.results.returnHex = '0x' + toHex(ret);
 
+        // Everything was reverted so no new state
+        this.results.outputRoot = this.message.inputRoot;
+
         throw new VmError(VM_ERROR.REVERT);
     }
 

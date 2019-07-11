@@ -15,8 +15,6 @@ import Transaction from "../../../../models/Transaction";
 export async function getAccountCreationBlock(toAddress: string): Promise<Block> {
     const account = await Account.getFromAddress(toAddress);
 
-    console.log('[GetAcc] account -> ', account);
-
     if (!account) {
         return null;
     }

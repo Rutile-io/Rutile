@@ -3,8 +3,6 @@ import { configuration } from "../../../../Configuration";
 import Account from "../../../../models/Account";
 
 export default async function createGenesisTransaction(): Promise<Transaction> {
-    console.log('Genesis creation woop!');
-
     let previousTransaction: Transaction = null;
     const allGenesisTransactions: Transaction[] = [];
 
@@ -25,7 +23,10 @@ export default async function createGenesisTransaction(): Promise<Transaction> {
 
         // Making sure we attach the transaction to something
         if (previousTransaction) {
-            allocTransaction.parents.push(previousTransaction.id);
+            allocTransaction.parents = [
+                previousTransaction.id,
+                previousTransaction.id,
+            ];
         }
 
         await allocTransaction.execute();
@@ -58,7 +59,10 @@ export default async function createGenesisTransaction(): Promise<Transaction> {
 
         // Making sure we attach the transaction to something
         if (previousTransaction) {
-            transaction.parents.push(previousTransaction.id);
+            transaction.parents = [
+                previousTransaction.id,
+                previousTransaction.id,
+            ];
         }
 
         await transaction.execute();
@@ -74,7 +78,6 @@ export default async function createGenesisTransaction(): Promise<Transaction> {
     // We have to create an account for some internal contracts
     // This way we can save the merkle root
     for (const internalContract of internalAddressTransactionIds) {
-        console.log('[] internalContract -> ', internalContract);
         await Account.create(internalContract[0], '', internalContract[1]);
     }
 

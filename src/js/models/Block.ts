@@ -101,7 +101,7 @@ class Block {
             const input = inputTransactions.find(tx => tx.id === this.inputs[index]);
 
             if (input) {
-                transaction.inputStateRoot = input.outputStateRoot;
+                // transaction.inputStateRoot = input.outputStateRoot;
             } else {
                 Logger.debug(`(execute) Could not find transaction ${this.inputs[index]} as input, going with an empty input`);
             }
@@ -127,7 +127,7 @@ class Block {
         }
 
         inputRoots.forEach((input, index) => {
-            this.transactions[index].inputStateRoot = input;
+            // this.transactions[index].inputStateRoot = input;
         });
     }
 
@@ -201,7 +201,7 @@ class Block {
             // TODO: Convert to the actual transactions
             this.transactions.map(tx => tx.id),
             numberToHex(this.timestamp),
-            this.stateRoot,
+            // this.stateRoot,
             this.transactionRoot,
             numberToHex(this.gasUsed),
             this.outputs,
@@ -278,9 +278,9 @@ class Block {
                 // }
 
                 // Also make sure the block output matches the transaction output
-                if (this.outputs[index] !== transaction.outputStateRoot) {
-                    throw new Error('Output in block does not match the outputStateRoot of the transaction');
-                }
+                // if (this.outputs[index] !== transaction.outputStateRoot) {
+                //     throw new Error('Output in block does not match the outputStateRoot of the transaction');
+                // }
             }
 
             await validateTransaction(transaction);

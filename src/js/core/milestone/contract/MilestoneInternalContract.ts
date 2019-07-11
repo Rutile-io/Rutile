@@ -50,14 +50,16 @@ class MilestoneInternalContract implements IInternalContract {
 
         const address = '0x' + toHex(this.callMessage.inputData.slice(4));
 
+        if (address.length !== 42) {
+            this.results.exceptionError = VM_ERROR.REVERT;
+            return this.results;
+        }
+
         // Each deposit put the address in 1 slot
         await this.milestoneSlots.addSlot(address, this.callMessage.value);
         const outputRoot = await this.milestoneSlots.merkleTree.getMerkleRoot();
 
         this.results.outputRoot = outputRoot;
-
-        console.log('[] this.callMessage -> ', this.callMessage);
-        console.log('[] this.results -> ', this.results);
 
         return this.results;
     }
@@ -77,6 +79,10 @@ class MilestoneInternalContract implements IInternalContract {
 
         this.callMessage = callMessage;
         this.transaction = transaction;
+
+        // Just in case the contract failed we are going to set the input root as the new outputroot
+        this.results.outputRoot = callMessage.inputRoot;
+
         this.milestoneSlots = new MilestoneSlots(transaction);
         await this.milestoneSlots.init(callMessage.inputRoot);
 
