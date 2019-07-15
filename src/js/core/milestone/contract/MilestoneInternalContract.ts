@@ -64,6 +64,10 @@ class MilestoneInternalContract implements IInternalContract {
         return this.results;
     }
 
+    async getNextValidator() {
+        // We use the previous milestone as a seed
+    }
+
     private async selectFunction(selector: Uint8Array): Promise<Results> {
         const selectorHex = '0x' + toHex(selector);
 

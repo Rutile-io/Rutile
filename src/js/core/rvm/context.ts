@@ -10,6 +10,7 @@ import { storeAndNotify } from "./utils/sharedBufferUtils";
 import byteArrayToString from '../../utils/byteArrayToString';
 import CallMessage, { CallKind } from './lib/CallMessage';
 import execute from './execute';
+import { configuration } from '../../Configuration';
 const ethUtil = require('ethereumjs-util');
 const BN = require('bn.js');
 
@@ -66,12 +67,12 @@ class Context {
     notifierBuffer: SharedArrayBuffer;
     wasmInstance: WebAssembly.ResultObject;
 
-    constructor(options: ContextOptions, callMessage: CallMessage) {
-        this.fromAddress = options.fromAddress;
-        this.toAddress = options.toAddress;
-        this.dataParsed = options.data;
-        this.value = options.value;
-        this.transactionDifficulty = options.transactionDifficulty;
+    constructor(callMessage: CallMessage) {
+        this.fromAddress = callMessage.sender;
+        this.toAddress = callMessage.destination;
+        this.dataParsed = callMessage.inputData;
+        this.value = callMessage.value;
+        this.transactionDifficulty = configuration.difficulty;
         this.message = callMessage;
     }
 
