@@ -101,6 +101,10 @@ class Rutile {
 
         return balances[address].value.toString();
     }
+
+    get Ipfs(){
+        return this.ipfs;
+    }
 }
 
 export default Rutile;

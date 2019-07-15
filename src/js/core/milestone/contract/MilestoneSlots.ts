@@ -24,7 +24,7 @@ class MilestoneSlots {
     }
 
     addSlot(address: string, valueDespoited: BNType) {
-        this.merkleTree.put('');
+        // this.merkleTree.put('');
 
         const slot: Slot = {
             address,
