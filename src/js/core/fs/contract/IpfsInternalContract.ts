@@ -26,7 +26,7 @@ const MINIMAL_DEPOSIT: BNType = new BN(0.001);
  * Params:
  * [5 - 25] Address of the register
  * value: Minimal of MINIMAL_DEPOSIT
- * 
+ *
  * 0x00 00 00 02
  * Register as file host
  * Params:
@@ -74,10 +74,10 @@ class IpfsInteralContract implements IInternalContract {
         }
 
         // Add the stored Rutile to the file
-        ipfsFileObject.value = ipfsFileObject.value.add(this.callMessage.value); 
+        ipfsFileObject.value = ipfsFileObject.value.add(this.callMessage.value);
 
         // Convert BN to string before we create or update
-        ipfsFileObject.value = ipfsFileObject.value.toString();      
+        ipfsFileObject.value = ipfsFileObject.value.toString();
         createOrUpdate(ipfsHash, ipfsFileObject);
 
         return this.results;
@@ -127,7 +127,7 @@ class IpfsInteralContract implements IInternalContract {
         return this.results;
     }
 
-    
+
 
     async execute(callMessage: CallMessage, transaction: Transaction): Promise<Results> {
         const selector = callMessage.inputData.slice(0, 4);
