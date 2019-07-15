@@ -17,6 +17,7 @@ import getAllBlocksStream from './core/dag/lib/transaction/getAllBlocksStream';
 import Block from './models/Block';
 import Transaction from './models/Transaction';
 import createGenesisBlock from './core/dag/lib/transaction/createGenesisBlock';
+import {startIpfsClient} from './services/IpfsService';
 // import RutileContext from './models/RutileContext';
 // import * as fs from 'fs';
 // import { validateTransaction, applyTransaction } from './services/_TransactionService';
@@ -80,7 +81,6 @@ async function sendDummyTransaction () {
         value: 1,
         nonce: wallet.account.transactionIndex + 1,
     });
-
     transaction.sign(wallet.keyPair);
 
     block.addTransactions([transaction]);
@@ -171,6 +171,7 @@ async function testExecution() {
 async function run() {
     applyArgv();
     let db = startDatabase();
+    await startIpfsClient();
     let mapping = new PouchDbLevelDbMapping(db);
 
     wallet = new Wallet('10DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE');
@@ -181,7 +182,6 @@ async function run() {
     // Testing..
     if (isNodeJs()) {
         rutile = new Rutile();
-
 
         Logger.debug('My address is -> ', account.address, ' with balance -> ', account.balance);
 
