@@ -46,6 +46,7 @@ class IpfsInteralContract implements IInternalContract {
         outputRoot: '0x',
         return: new Uint8Array(),
         returnHex: '0x',
+        createdAddress: false
     };
 
     async depositToFile(): Promise<Results> {

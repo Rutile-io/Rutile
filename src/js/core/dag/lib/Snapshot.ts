@@ -9,7 +9,7 @@ import TipValidator from "./TipValidator";
  */
 class Snapshot {
     accounts: any[];
-    blockId: string;
+    transactionId: string;
 
     constructor() {
 
@@ -31,9 +31,9 @@ class Snapshot {
         return new Snapshot();
     }
 
-    static async takeSnapshot(blockId: string): Promise<Snapshot> {
+    static async takeSnapshot(transactionId: string): Promise<Snapshot> {
         const tipValidator = new TipValidator();
-        const accountBalances = await tipValidator.generateAccountBalances(blockId);
+        const accountBalances = await tipValidator.generateAccountBalances(transactionId);
 
         return null;
     }

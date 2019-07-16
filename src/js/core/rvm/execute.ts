@@ -63,13 +63,7 @@ export default async function execute(callMessage: CallMessage) {
     // needed to execute a smart contract. It lives on the main thread
     // since database calls and asynchronous calls cannot be done on the
     // worker thread.
-    const context = new Context({
-        fromAddress: callMessage.sender,
-        toAddress: callMessage.destination,
-        data: callMessage.inputData,
-        value: callMessage.value,
-        transactionDifficulty: configuration.difficulty
-    }, callMessage);
+    const context = new Context(callMessage);
 
     const controller = new WorkerMessageController(worker, context);
     const result = await controller.start(binary);

@@ -1,6 +1,5 @@
 class Receipt {
-    blockHash: string;
-    blockNumber: number;
+    transactionNumber: number;
     transactionHash: string;
     transactionIndex: number;
     from: string;

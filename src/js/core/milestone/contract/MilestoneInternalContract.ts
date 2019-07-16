@@ -5,6 +5,7 @@ import { toHex } from "../../rvm/utils/hexUtils";
 import BNType from 'bn.js';
 import { VM_ERROR } from "../../rvm/lib/exceptions";
 import Transaction from "../../../models/Transaction";
+import MilestoneSlots from "./MilestoneSlots";
 const BN = require('bn.js');
 
 const MINIMAL_DEPOSIT: BNType = new BN(32);
@@ -30,6 +31,7 @@ const MINIMAL_DEPOSIT: BNType = new BN(32);
 class MilestoneInternalContract implements IInternalContract {
     callMessage: CallMessage;
     transaction: Transaction;
+    milestoneSlots: MilestoneSlots;
     results: Results = {
         exception: 0,
         exceptionError: null,
@@ -37,6 +39,7 @@ class MilestoneInternalContract implements IInternalContract {
         outputRoot: '0x',
         return: new Uint8Array(),
         returnHex: '0x',
+        createdAddress: false,
     };
 
     async registerAsValidator(): Promise<Results> {
@@ -45,12 +48,24 @@ class MilestoneInternalContract implements IInternalContract {
             return this.results;
         }
 
+        const address = '0x' + toHex(this.callMessage.inputData.slice(4));
 
+        if (address.length !== 42) {
+            this.results.exceptionError = VM_ERROR.REVERT;
+            return this.results;
+        }
 
         // Each deposit put the address in 1 slot
-        console.log('DEPOSITTTT :D');
+        await this.milestoneSlots.addSlot(address, this.callMessage.value);
+        const outputRoot = await this.milestoneSlots.merkleTree.getMerkleRoot();
+
+        this.results.outputRoot = outputRoot;
 
         return this.results;
+    }
+
+    async getNextValidator() {
+        // We use the previous milestone as a seed
     }
 
     private async selectFunction(selector: Uint8Array): Promise<Results> {
@@ -68,6 +83,12 @@ class MilestoneInternalContract implements IInternalContract {
 
         this.callMessage = callMessage;
         this.transaction = transaction;
+
+        // Just in case the contract failed we are going to set the input root as the new outputroot
+        this.results.outputRoot = callMessage.inputRoot;
+
+        this.milestoneSlots = new MilestoneSlots(transaction);
+        await this.milestoneSlots.init(callMessage.inputRoot);
 
         return this.selectFunction(selector);
     }

@@ -3,6 +3,7 @@ import Block from "../../../../models/Block";
 import Account from "../../../../models/Account";
 import { getTransactionById } from "./TransactionService";
 import getRandomInt from "../../../../utils/getRandomInt";
+import Transaction from "../../../../models/Transaction";
 
 /**
  * Finds the block that created the given address, only applys to smart contracts
@@ -18,92 +19,13 @@ export async function getAccountCreationBlock(toAddress: string): Promise<Block>
         return null;
     }
 
-    // const transaction = await getTransactionById(account.creationTransactionId);
-
-    const db = startDatabase();
-    const result = await db.find({
-        selector: {
-            'transactions.0.id': {
-                '$eq': account.creationTransactionId,
-            },
-        },
-    });
-
-    if (!result || !result.docs.length) {
-        return null;
+    // In the begining there was no transactionId for deployment.
+    if (account.creationTransactionId === '0x0000000000000000000000000000000000000000000000000000000000000000') {
+        return getBlockByNumber(1);
     }
 
-    const blocks = result.docs.map(block => Block.fromRaw(JSON.stringify(block)));
-    return blocks[0];
+    return Block.getByTransactionId(account.creationTransactionId);
 }
-
-/**
- * Gets a random weighted block from the array
- *
- * @export
- * @param {Block[]} blocks
- * @param {Map<string, number>} cummulativeWeights
- * @returns {Block}
- */
-export function getRandomWeightedBlock(blocks: Block[], cummulativeWeights: Map<string, number>): Block {
-    let sumOfWeight = 0;
-
-    blocks.forEach((block) => {
-        sumOfWeight += cummulativeWeights.get(block.id);
-    });
-
-    let randomNum = getRandomInt(0, sumOfWeight);
-
-    const weightedBlock = blocks.find((block) => {
-        if (randomNum < cummulativeWeights.get(block.id)) {
-            return true;
-        }
-
-        randomNum -= cummulativeWeights.get(block.id);
-    });
-
-    if (!weightedBlock) {
-        return blocks[0];
-    }
-
-    return weightedBlock;
-}
-
-/**
- * Finds a block tip that can act as the state input
- *
- * @export
- * @param {Block} startBlock
- * @param {Map<string, number>} cummulativeWeights
- * @returns {Promise<Block>}
- */
-export async function getStateInputBlockTip(startBlock: Block, cummulativeWeights: Map<string, number>): Promise<Block> {
-    if (!startBlock) {
-        throw new Error('Start block is required');
-    }
-
-    const db = startDatabase()
-    const data = await db.find({
-        selector: {
-            'parents': {
-                '$in': [startBlock.id],
-            }
-        }
-    });
-
-    const parentBlocks = data.docs.map(b => Block.fromRaw(JSON.stringify(b)));
-
-    // We found our tip
-    if (!parentBlocks.length) {
-        return startBlock;
-    }
-
-    // We need a weighted choice between these blocks..
-    const nextBlock = getRandomWeightedBlock(parentBlocks, cummulativeWeights);
-
-    return getStateInputBlockTip(nextBlock, cummulativeWeights);
-}
-
 
 /**
  * Searches the database for a block with the given number

@@ -1,22 +1,26 @@
 import * as Logger from 'js-logger';
-import getAllBlocksStream from '../transaction/getAllBlocksStream';
-import Block from '../../../../models/Block';
-import { getBlockById } from './BlockService';
+import getAllTransactionsStream from '../transaction/getAllTransactionsStream';
+import Transaction from '../../../../models/Transaction';
 const toposort = require('toposort');
 
-function getBlocksInTopologicalOrder(): Promise<string[]> {
+/**
+ * Sorts all transactions in topological order
+ *
+ * @returns {Promise<string[]>}
+ */
+function getTransactionsInTopologicalOrder(): Promise<string[]> {
     return new Promise((resolve) => {
         const graph: [string, string][] = [];
-        const blocks = getAllBlocksStream();
+        const transactions = getAllTransactionsStream();
 
-        blocks.on('data', (blockBuffer: Buffer) => {
-            const block = Block.fromRaw(blockBuffer.toString());
-            block.parents.forEach((parentBlockId) => {
-                graph.push([block.id, parentBlockId]);
+        transactions.on('data', (transactionBuffer: Buffer) => {
+            const transaction = Transaction.fromRaw(transactionBuffer.toString());
+            transaction.parents.forEach((parentTxId) => {
+                graph.push([transaction.id, parentTxId]);
             });
         });
 
-        blocks.on('end', () => {
+        transactions.on('end', () => {
             const sorted: string[] = toposort(graph);
 
             // Make sure we don't get any undefined items.
@@ -27,29 +31,29 @@ function getBlocksInTopologicalOrder(): Promise<string[]> {
     });
 }
 
-async function updateApprovers(blockApprovers: Map<string, string[]>, blockId: string): Promise<Map<string, string[]>>  {
-    const approvers = blockApprovers.get(blockId);
-    const block = await getBlockById(blockId);
+async function updateApprovers(transactionApprovers: Map<string, string[]>, transactionId: string): Promise<Map<string, string[]>>  {
+    const approvers = transactionApprovers.get(transactionId);
+    const transaction = await Transaction.getById(transactionId);
 
-    if (!block) {
-        Logger.debug(`Missing block ${blockId}`);
-        return blockApprovers;
+    if (!transaction) {
+        Logger.debug(`Missing transaction ${transactionId}`);
+        return transactionApprovers;
     }
 
-    block.parents.forEach((parentBlockId) => {
-        const parentApprovers = createApprovers(blockApprovers, blockId, approvers, parentBlockId);
-        blockApprovers.set(parentBlockId, parentApprovers);
+    transaction.parents.forEach((parentTransactionId) => {
+        const parentApprovers = createApprovers(transactionApprovers, transactionId, approvers, parentTransactionId);
+        transactionApprovers.set(parentTransactionId, parentApprovers);
     });
 
     // We've already calculated this transactionId. We can forget it.
-    blockApprovers.delete(blockId);
+    transactionApprovers.delete(transactionId);
 
-    return blockApprovers;
+    return transactionApprovers;
 }
 
-function createApprovers(blockApprovers: Map<string, string[]>, blockId: string, approvers: string[], trunkHash: string): string[] {
+function createApprovers(transactionApprovers: Map<string, string[]>, transactionId: string, approvers: string[], trunkHash: string): string[] {
     const approverSet: string[] = (approvers && approvers.length) ? approvers : [];
-    const hashesToAdd = blockApprovers.get(trunkHash);
+    const hashesToAdd = transactionApprovers.get(trunkHash);
 
     if (hashesToAdd) {
         for (let i = 0; i < hashesToAdd.length; i++) {
@@ -59,34 +63,34 @@ function createApprovers(blockApprovers: Map<string, string[]>, blockId: string,
         }
     }
 
-    // Since the block that points to it confirms this block
-    approverSet.push(blockId);
+    // Since the transaction that points to it confirms this transaction
+    approverSet.push(transactionId);
 
     return approverSet;
 }
 
-function updateCumulativeWeight(blockApprovers: Map<string, string[]>, blockCumulativeWeights: Map<string, number>, blockId: string): Map<string, number> {
-    const approvers = blockApprovers.get(blockId);
+function updateCumulativeWeight(transactionApprovers: Map<string, string[]>, transactionCumulativeWeights: Map<string, number>, transactionId: string): Map<string, number> {
+    const approvers = transactionApprovers.get(transactionId);
     let cumulativeWeight = (approvers ? approvers.length : 0) + 1;
 
-    blockCumulativeWeights.set(blockId, cumulativeWeight);
-    return blockCumulativeWeights;
+    transactionCumulativeWeights.set(transactionId, cumulativeWeight);
+    return transactionCumulativeWeights;
 }
 
-async function calculateCumulativeWeight(blockIds: string[]) {
-    let blockApprovers = new Map<string, string[]>();
-    let blockCumulativeWeights = new Map<string, number>();
+async function calculateCumulativeWeight(transactionIds: string[]) {
+    let transactionApprovers = new Map<string, string[]>();
+    let transactionCumulativeWeights = new Map<string, number>();
 
-    for (const blockId of blockIds) {
-        blockCumulativeWeights = updateCumulativeWeight(blockApprovers, blockCumulativeWeights, blockId);
-        blockApprovers = await updateApprovers(blockApprovers, blockId);
+    for (const transactionId of transactionIds) {
+        transactionCumulativeWeights = updateCumulativeWeight(transactionApprovers, transactionCumulativeWeights, transactionId);
+        transactionApprovers = await updateApprovers(transactionApprovers, transactionId);
     }
 
-    return blockCumulativeWeights;
+    return transactionCumulativeWeights;
 }
 
-export default async function getBlocksCumulativeWeights() {
+export default async function getTransactionCumulativeWeights() {
     Logger.debug(`Calculating cumulative weight`);
-    const sortedBlocks = await getBlocksInTopologicalOrder();
-    return calculateCumulativeWeight(sortedBlocks);
+    const sortedTransactions = await getTransactionsInTopologicalOrder();
+    return calculateCumulativeWeight(sortedTransactions);
 }

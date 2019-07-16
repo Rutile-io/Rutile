@@ -2,21 +2,19 @@ import * as Logger from 'js-logger';
 import Ipfs from "../services/wrappers/Ipfs";
 import { configuration } from "../Configuration";
 import KeyPair from "./KeyPair";
-import { getUnsignedTransactionHash, getTransactionId, getAddressFromTransaction } from "../core/dag/lib/services/TransactionService";
-import { applyProofOfWork } from "../services/transaction/ProofOfWork";
+import { getUnsignedTransactionHash, getTransactionId, getAddressFromTransaction, validateTransaction } from "../core/dag/lib/services/TransactionService";
 import execute from "../core/rvm/execute";
-import stringToByteArray from "../utils/stringToByteArray";
 import BNtype from 'bn.js';
 import { NodeType } from "./interfaces/IConfig";
 import Account from "./Account";
 import { rlpHash } from "../utils/keccak256";
-import { hexStringToString } from "../utils/hexUtils";
 import { Results } from '../core/rvm/context';
 import getSystemContract from '../services/getSystemContract';
-import CallMessage from '../core/rvm/lib/CallMessage';
 import createCallMessage from '../services/createCallMessage';
 import { hexStringToByte } from '../core/rvm/utils/hexUtils';
 import getInternalContract from '../services/getInternalContract';
+import { startDatabase, databaseFind, createOrUpdate } from '../services/DatabaseService';
+import { applyProofOfWork } from '../services/transaction/ProofOfWork';
 const BN = require('bn.js');
 
 interface TransactionParams {
@@ -32,13 +30,26 @@ interface TransactionParams {
     v?: number;
     timestamp?: number;
     value?: number | string | BNtype;
-    outputStateRoot?: string;
-    inputStateRoot?: string;
+    parents?: string[];
+    inputs?: string[];
+    outputs?: string[]
+    milestoneIndex?: number;
+    transIndex?: number;
 }
 
 class Transaction {
     // The hash of the transaction (Not by PoW)
     id?: string;
+
+    // Parents of the transactions, used for attachting to the DAG
+    parents: string[];
+
+    // Transaction Ids that are the input of this transaction
+    inputs: string[];
+    inputStateRoot: string;
+
+    // The result after the execution took place.
+    outputs: string[];
 
     // Gas used for function execution
     gasUsed: number = 0;
@@ -61,14 +72,13 @@ class Transaction {
     // Timestamp of transaction
     timestamp?: number = 0;
 
-    // number of transaction made by the address
+    // Proof of work nonce of transaction
     nonce?: number = 0;
 
-    // The root of the state after execution
-    outputStateRoot: string;
+    transIndex?: number = 0;
 
-    // The root of the state before execution
-    inputStateRoot: string;
+    // The index of the milestone
+    milestoneIndex?: number;
 
     // To which address to send tokens to.
     // Can also be a function address
@@ -90,11 +100,14 @@ class Transaction {
         this.v = params.v;
         this.timestamp = params.timestamp || 0;
         this.value = params.value ? new BN(params.value, 10) : new BN(0, 10);
-        this.outputStateRoot = params.outputStateRoot || '0x';
-        this.inputStateRoot = params.inputStateRoot || '0x';
+        this.parents = params.parents || [];
+        this.inputs = params.inputs || [];
+        this.outputs = params.outputs || [];
+        this.milestoneIndex = params.milestoneIndex || 0;
+        this.transIndex = params.transIndex || 0;
     }
 
-    async deployContract(): Promise<Account> {
+    async deployContract(): Promise<string> {
         if (this.to) {
             throw new Error(`Contract deploys should not have a 'to' property attached to it`);
         }
@@ -102,39 +115,49 @@ class Transaction {
         const addresses = getAddressFromTransaction(this);
 
         const contractAddress = '0x' + rlpHash([
-            this.data,
-            this.id,
+            this.transIndex,
             addresses.from,
+            this.data,
         ]).slice(24);
 
-        return Account.create(contractAddress, this.data, this.id);
+        return contractAddress;
+        // return Account.create(contractAddress, this.data, this.id);
     }
 
-    async execute(): Promise<Results> {
+    public addParents(transactions: Transaction[]) {
+        if (transactions.length < 2) {
+            throw new Error('2 transactions should be given');
+        }
+
+        transactions.forEach((tx) => {
+            this.parents.push(tx.id);
+        });
+    }
+
+    public proofOfWork() {
+        this.nonce = applyProofOfWork(this.id);
+    }
+
+    public async execute(): Promise<Results> {
         try {
-            // Make sure validations can set their time.
-            // if (!this.timestamp && !this.isGenesis()) {
-            //     this.timestamp = Date.now();
-            // }
             // non full nodes do not need to execute the function
             if (configuration.nodeType !== NodeType.FULL) {
                 return null;
             }
 
-            const ipfs = Ipfs.getInstance(configuration.ipfs);
-
             // This is a contract creation because we do not have a receipient
             if (!this.to) {
                 // Logger.debug('Creating new contract address');
-                const contractAccount = await this.deployContract();
+                const createdContractAddress = await this.deployContract();
 
                 return {
                     exception: 0,
                     exceptionError: null,
                     gasUsed: 0,
-                    returnHex: contractAccount.address,
-                    return: hexStringToByte(contractAccount.address),
-                    outputRoot: contractAccount.storageRoot,
+                    returnHex: createdContractAddress,
+                    return: hexStringToByte(createdContractAddress),
+                    outputRoot: '0x',
+                    createdAddress: true,
                 }
             }
 
@@ -147,11 +170,11 @@ class Transaction {
                 const internalContract = getInternalContract(this.to);
 
                 if (internalContract) {
-                    const callMessage = createCallMessage(this);
+                    const callMessage = await createCallMessage(this);
                     const executionResults = await internalContract.execute(callMessage, this);
 
                     this.gasUsed = executionResults.gasUsed;
-                    this.outputStateRoot = executionResults.outputRoot;
+                    this.outputs.push(executionResults.outputRoot);
 
                     return executionResults;
                 }
@@ -169,18 +192,19 @@ class Transaction {
                         returnHex: '0x',
                         return: new Uint8Array(0),
                         outputRoot: '0x',
+                        createdAddress: false,
                     }
                 }
 
             }
 
-            const callMessage = createCallMessage(this);
+            const callMessage = await createCallMessage(this);
 
             // Possibly have to save the result in the transaction.
             const executionResults = await execute(callMessage);
 
             this.gasUsed = executionResults.gasUsed;
-            this.outputStateRoot = executionResults.outputRoot;
+            this.outputs.push(executionResults.outputRoot);
 
             return executionResults;
         } catch (error) {
@@ -235,9 +259,26 @@ class Transaction {
             r: this.r,
             s: this.s,
             v: this.v,
-            inputStateRoot: this.inputStateRoot,
-            outputStateRoot: this.outputStateRoot,
+            parents: this.parents,
+            milestoneIndex: this.milestoneIndex,
+            transIndex: this.transIndex,
+            inputs: this.inputs,
+            outputs: this.outputs,
         });
+    }
+
+    async validate(noExecution: boolean = false) {
+        return validateTransaction(this, noExecution);
+    }
+
+    /**
+     * Saves the transaction to the database (updates it if it already exists)
+     *
+     * @memberof Transaction
+     */
+    async save() {
+        const rawTransaction = this.toRaw();
+        await createOrUpdate(this.id, JSON.parse(rawTransaction));
     }
 
     /**
@@ -258,6 +299,66 @@ class Transaction {
         }
 
         return new Transaction(transaction);
+    }
+
+    /**
+     * Gets a transaction by it's Id
+     *
+     * @static
+     * @param {string} id
+     * @returns {Promise<Transaction>}
+     * @memberof Transaction
+     */
+    static async getById(id: string): Promise<Transaction> {
+        const result = await Transaction.getByIds([id]);
+
+        if (!result.length) {
+            return null;
+        }
+
+        return result[0];
+    }
+
+    /**
+     * Gets multiple transactions by using their Id
+     *
+     * @static
+     * @param {string[]} ids
+     * @returns {Promise<Transaction[]>}
+     * @memberof Transaction
+     */
+    static async getByIds(ids: string[]): Promise<Transaction[]> {
+        const db = await startDatabase();
+        const result = await db.query((doc: any, emit: any) => {
+            if (ids.includes(doc.id)) {
+                emit(doc.id, doc);
+            }
+        });
+
+        if (!result || result.total_rows === 0) {
+            return [];
+        }
+
+        // Convert all objects back to models
+        return result.rows.map(row => Transaction.fromRaw(JSON.stringify(row.value)));
+    }
+
+    /**
+     * Gets a transaction by it's milestone index
+     *
+     * @static
+     * @param {number} milestoneIndex
+     * @returns
+     * @memberof Transaction
+     */
+    static async getByMilestoneIndex(milestoneIndex: number) {
+        const result = await databaseFind('milestoneIndex', milestoneIndex);
+
+        if (!result || !result.docs.length) {
+            return null;
+        }
+
+        return Transaction.fromRaw(JSON.stringify(result.docs[0]));
     }
 }
 

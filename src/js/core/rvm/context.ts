@@ -10,6 +10,7 @@ import { storeAndNotify } from "./utils/sharedBufferUtils";
 import byteArrayToString from '../../utils/byteArrayToString';
 import CallMessage, { CallKind } from './lib/CallMessage';
 import execute from './execute';
+import { configuration } from '../../Configuration';
 const ethUtil = require('ethereumjs-util');
 const BN = require('bn.js');
 
@@ -29,6 +30,7 @@ export interface Results {
     return: Uint8Array;
     returnHex: string;
     outputRoot: string;
+    createdAddress: boolean;
 }
 
 
@@ -53,6 +55,7 @@ class Context {
         outputRoot: '0x',
         return: new Uint8Array(),
         returnHex: '0x',
+        createdAddress: false,
     };
 
     data: string;
@@ -64,17 +67,17 @@ class Context {
     notifierBuffer: SharedArrayBuffer;
     wasmInstance: WebAssembly.ResultObject;
 
-    constructor(options: ContextOptions, callMessage: CallMessage) {
-        this.fromAddress = options.fromAddress;
-        this.toAddress = options.toAddress;
-        this.dataParsed = options.data;
-        this.value = options.value;
-        this.transactionDifficulty = options.transactionDifficulty;
+    constructor(callMessage: CallMessage) {
+        this.fromAddress = callMessage.sender;
+        this.toAddress = callMessage.destination;
+        this.dataParsed = callMessage.inputData;
+        this.value = callMessage.value;
+        this.transactionDifficulty = configuration.difficulty;
         this.message = callMessage;
     }
 
     public async init(memory: SharedArrayBuffer, notifier: SharedArrayBuffer) {
-        const database = getDatabaseLevelDbMapping();
+        const database = await getDatabaseLevelDbMapping();
 
         this.notifierBuffer = notifier;
         this.toAccount = await Account.findOrCreate(this.toAddress);
@@ -287,6 +290,9 @@ class Context {
         this.results.exceptionError = VM_ERROR.REVERT;
         this.results.return = ret;
         this.results.returnHex = '0x' + toHex(ret);
+
+        // Everything was reverted so no new state
+        this.results.outputRoot = this.message.inputRoot;
 
         throw new VmError(VM_ERROR.REVERT);
     }

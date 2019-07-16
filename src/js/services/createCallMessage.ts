@@ -3,9 +3,19 @@ import CallMessage, { CallKind } from '../core/rvm/lib/CallMessage';
 import { getAddressFromTransaction } from '../core/dag/lib/services/TransactionService';
 import { hexStringToBuffer } from '../utils/hexUtils';
 
-export default function createCallMessage(transaction: Transaction): CallMessage {
+export default async function createCallMessage(transaction: Transaction): Promise<CallMessage> {
     const callMessage = new CallMessage();
     const addresses = getAddressFromTransaction(transaction);
+
+    callMessage.inputRoot = '0x';
+
+    if (!transaction.isGenesis()) {
+        const inputTransaction = await Transaction.getById(transaction.inputs[0]);
+
+        if (inputTransaction) {
+            callMessage.inputRoot = inputTransaction.outputs[0];
+        }
+    }
 
     callMessage.value = transaction.value;
     callMessage.destination = addresses.to;
@@ -16,7 +26,6 @@ export default function createCallMessage(transaction: Transaction): CallMessage
     callMessage.kind = CallKind.Call;
     callMessage.flags = 1;
     callMessage.gas = transaction.gasLimit;
-    callMessage.inputRoot = transaction.inputStateRoot;
 
     return callMessage;
 }
