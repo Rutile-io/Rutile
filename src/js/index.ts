@@ -65,9 +65,10 @@ async function deployContract() {
 
 async function run() {
     applyArgv();
-    await startIpfsClient();
     let db = await startDatabase();
     let mapping = new PouchDbLevelDbMapping(db);
+
+    await startIpfsClient();
 
     wallet = new Wallet('10DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE');
     account = await wallet.getAccountInfo();

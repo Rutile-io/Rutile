@@ -143,13 +143,11 @@
 
                     const privateKey = document.getElementById('privateKey').value;
                     const toAddress = '0x0300000000000000000000000000000000000000';
-                    const value = 1;
+                    const value = '1';
                     const data = '0x00000001' + convertToHex(hash);
                     const keyPair = new Rutile.KeyPair(privateKey);
                     const account = await Rutile.Account.getFromAddress(keyPair.getAddress());
                     let transIndex = account.transactionIndex + 1;
-
-                    const block = new Rutile.Block({});
 
                     const transaction = new Rutile.Transaction({
                         to: toAddress,
@@ -160,9 +158,8 @@
 
                     transaction.sign(keyPair);
 
-                    block.addTransactions([transaction]);
-
-                    const txResult = await rutile.sendBlock(block);
+                    const results = await transaction.execute();
+                    const result = await rutile.sendTransaction(transaction, wallet.keyPair);
                 }
                 r.readAsText(f);
                 } else { 
@@ -173,13 +170,11 @@
                 const hash = document.getElementById('valueHash').value;
                 const privateKey = document.getElementById('privateKey').value;
                 const toAddress = '0x0300000000000000000000000000000000000000';
-                const value = 1;
+                const value = '1';
                 const data = '0x00000002' + convertToHex(hash);
                 const keyPair = new Rutile.KeyPair(privateKey);
                 const account = await Rutile.Account.getFromAddress(keyPair.getAddress());
                 let transIndex = account.transactionIndex + 1;
-
-                const block = new Rutile.Block({});
 
                 const transaction = new Rutile.Transaction({
                     to: toAddress,
@@ -190,9 +185,8 @@
 
                 transaction.sign(keyPair);
 
-                block.addTransactions([transaction]);
-
-                const txResult = await rutile.sendBlock(block);
+                const results = await transaction.execute();
+                const result = await rutile.sendTransaction(transaction, wallet.keyPair);
             }
 
             document.getElementById('valueFile').addEventListener('change', uploadFileToLocalIPFS, false);
