@@ -10,10 +10,14 @@ export default async function createCallMessage(transaction: Transaction): Promi
     callMessage.inputRoot = '0x';
 
     if (!transaction.isGenesis()) {
-        const inputTransaction = await Transaction.getById(transaction.inputs[0]);
+        // It's possible that the input of the transaction does not exist
+        // (Either because it's the beginning of this address or because there couldnt be one found)
+        if (transaction.inputs[0]) {
+            const inputTransaction = await Transaction.getById(transaction.inputs[0]);
 
-        if (inputTransaction) {
-            callMessage.inputRoot = inputTransaction.outputs[0];
+            if (inputTransaction) {
+                callMessage.inputRoot = inputTransaction.outputs[0];
+            }
         }
     }
 

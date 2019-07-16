@@ -134,10 +134,10 @@
             }
 
             async function uploadFileToLocalIPFS(evt) {
-                var f = evt.target.files[0]; 
+                var f = evt.target.files[0];
                 if (f) {
                 var r = new FileReader();
-                r.onload = async function(e) { 
+                r.onload = async function(e) {
                     var content = e.target.result;
                     var hash = await rutile.Ipfs.add(content);
 
@@ -158,11 +158,10 @@
 
                     transaction.sign(keyPair);
 
-                    const results = await transaction.execute();
-                    const result = await rutile.sendTransaction(transaction, wallet.keyPair);
+                    const result = await rutile.sendTransaction(transaction, keyPair);
                 }
                 r.readAsText(f);
-                } else { 
+                } else {
                     alert("Failed to load file");
                 }
             }
@@ -185,8 +184,7 @@
 
                 transaction.sign(keyPair);
 
-                const results = await transaction.execute();
-                const result = await rutile.sendTransaction(transaction, wallet.keyPair);
+                const result = await rutile.sendTransaction(transaction, keyPair);
             }
 
             document.getElementById('valueFile').addEventListener('change', uploadFileToLocalIPFS, false);

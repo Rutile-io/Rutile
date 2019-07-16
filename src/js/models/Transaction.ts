@@ -195,7 +195,6 @@ class Transaction {
                         createdAddress: false,
                     }
                 }
-
             }
 
             const callMessage = await createCallMessage(this);
@@ -310,6 +309,11 @@ class Transaction {
      * @memberof Transaction
      */
     static async getById(id: string): Promise<Transaction> {
+        if (!id) {
+            Logger.debug('Faulty -> ', id);
+            throw new Error('getById cannot be called with undefined as given parameter');
+        }
+
         const result = await Transaction.getByIds([id]);
 
         if (!result.length) {
@@ -328,6 +332,11 @@ class Transaction {
      * @memberof Transaction
      */
     static async getByIds(ids: string[]): Promise<Transaction[]> {
+        if (ids.includes(undefined)) {
+            Logger.debug('Faulty -> ', ids);
+            throw new Error('getByIds cannot be called with undefined as given parameter');
+        }
+
         const db = await startDatabase();
         const result = await db.query((doc: any, emit: any) => {
             if (ids.includes(doc.id)) {
