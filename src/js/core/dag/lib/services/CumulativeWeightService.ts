@@ -89,8 +89,38 @@ async function calculateCumulativeWeight(transactionIds: string[]) {
     return transactionCumulativeWeights;
 }
 
-export default async function getTransactionCumulativeWeights() {
+
+const cachedWeights: {
+    timestamp: number,
+    result: Map<string, number>
+} = {
+    timestamp: Date.now(),
+    result: null,
+};
+
+/**
+ * Gets the transaction current cumulative weights of the DAG
+ *
+ * @export
+ * @param {number} [staleTime=0] allows you to use a cached version of the weights or a fresh one
+ * @returns
+ */
+export default async function getTransactionCumulativeWeights(staleTime: number = 0): Promise<Map<string, number>> {
+    if (staleTime > 0) {
+        const delta =  Date.now() - cachedWeights.timestamp;
+
+        console.log('[] detlat -> ', delta);
+
+        if (staleTime > delta && cachedWeights.result !== null) {
+            return cachedWeights.result;
+        }
+    }
+
     Logger.debug(`Calculating cumulative weight`);
     const sortedTransactions = await getTransactionsInTopologicalOrder();
-    return calculateCumulativeWeight(sortedTransactions);
+    cachedWeights.result = await calculateCumulativeWeight(sortedTransactions);
+    Logger.debug(`Calculated`);
+    cachedWeights.timestamp = Date.now();
+
+    return cachedWeights.result;
 }

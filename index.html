@@ -55,7 +55,7 @@
             </div>
             <div>
                 <label>Data</label>
-                <input type="text" id="valueData" value="0x00000001" />
+                <input type="text" id="valueData" value="0x0000000153ae893e4b22d707943299a8d0c844df0e3d5557" />
             </div>
             <button onclick="sendValue()">Send transaction</button>
         </section>
@@ -84,6 +84,12 @@
         </section>
 
         <div id="app"></div>
+        <style>
+            .foo {
+                color: green;
+                background: orange;
+            }
+        </style>
         <script src="build/rutile.js" charset="utf-8"></script>
         <script>
             let rutile = null;
@@ -255,8 +261,10 @@
 
                     elements.push({
                         data: {
+                            label: transaction.milestoneIndex !== null ? transaction.milestoneIndex : undefined,
                             id: transaction.id,
-                        }
+                        },
+                        classes: transaction.milestoneIndex !== null ? ['milestone'] : [],
                     });
 
                     if (transaction.parents.length) {
@@ -285,15 +293,42 @@
                     },
                     style: [
                         {
+                            selector: '.milestone',
+                            style: {
+                                'background-color': 'blue',
+                            },
+                        },
+                        {
                             selector: 'node',
                             style: {
                                 // 'label': 'data(id)'
                             }
                         },
                         {
+                            "selector": "node[label]",
+                            "style": {
+                                "label": "data(label)",
+                                "text-valign": "center",
+                                "text-halign": "center",
+                                "color": "white",
+                            }
+                        },
+
+                        {
+                            "selector": "edge[label]",
+                            "style": {
+                            "label": "data(label)",
+                                "width": 3,
+                                "text-valign": "center",
+                                "text-halign": "center",
+                                "color": "white",
+                            }
+                        },
+                        {
                             selector: 'edge',
                             style: {
                                 'width': 3,
+
                                 'line-color': '#ccc',
                                 'curve-style': 'bezier',
                                 'target-arrow-color': '#ccc',

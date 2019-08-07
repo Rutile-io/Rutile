@@ -8,8 +8,6 @@ class Validator {
         this.milestone = new Milestone(dag);
     }
 
-
-
     start() {
         this.milestone.start();
     }

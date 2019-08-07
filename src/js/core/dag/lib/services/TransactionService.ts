@@ -32,7 +32,6 @@ export function getUnsignedTransactionHash(transaction: Transaction): string {
         numberToHex(configuration.genesis.config.chainId),
         transaction.parents,
         transaction.inputs,
-        numberToHex(transaction.milestoneIndex),
     ];
 
     return rlpHash(data);

@@ -78,7 +78,10 @@ class Transaction {
     transIndex?: number = 0;
 
     // The index of the milestone
+    // It's an internal index that can change overtime but should be permenant after
+    // x time.
     milestoneIndex?: number;
+    tempMilestonIndex?: number;
 
     // To which address to send tokens to.
     // Can also be a function address
@@ -103,7 +106,7 @@ class Transaction {
         this.parents = params.parents || [];
         this.inputs = params.inputs || [];
         this.outputs = params.outputs || [];
-        this.milestoneIndex = params.milestoneIndex || 0;
+        this.milestoneIndex = params.milestoneIndex === undefined ? null : params.milestoneIndex;
         this.transIndex = params.transIndex || 0;
     }
 
@@ -244,6 +247,16 @@ class Transaction {
         return this.s === '0x0000000000000000000000000000000000000000000000000000000000000000';
     }
 
+    /**
+     * Checks whether the current transaction is part of the milestone chain
+     *
+     * @returns {Promise<boolean>}
+     * @memberof Transaction
+     */
+    async isMilestone(): Promise<boolean> {
+        return true;
+    }
+
     toRaw(): string {
         return JSON.stringify({
             id: this.id,
@@ -368,6 +381,27 @@ class Transaction {
         }
 
         return Transaction.fromRaw(JSON.stringify(result.docs[0]));
+    }
+
+    /**
+     * Finds transaction that includes the transactionId as it's parent
+     *
+     * @param {string} transactionId
+     * @returns {Promise<Transaction[]>}
+     * @memberof Transaction
+     */
+    static async getChildren(transactionId: string): Promise<Transaction[]> {
+        const db = await startDatabase();
+
+        const data = await db.find({
+            selector: {
+                'parents': {
+                    '$in': [transactionId],
+                }
+            }
+        });
+
+        return data.docs.map(tx => Transaction.fromRaw(JSON.stringify(tx)))
     }
 }
 

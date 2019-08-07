@@ -45,6 +45,7 @@ class MilestoneInternalContract implements IInternalContract {
     async registerAsValidator(): Promise<Results> {
         if (this.callMessage.value.lt(MINIMAL_DEPOSIT)) {
             this.results.exceptionError = VM_ERROR.REVERT;
+            this.results.return[0] = 1;
             return this.results;
         }
 
@@ -52,6 +53,7 @@ class MilestoneInternalContract implements IInternalContract {
 
         if (address.length !== 42) {
             this.results.exceptionError = VM_ERROR.REVERT;
+            this.results.return[0] = 2;
             return this.results;
         }
 
@@ -64,8 +66,9 @@ class MilestoneInternalContract implements IInternalContract {
         return this.results;
     }
 
-    async getNextValidator() {
+    public async getNextValidator() {
         // We use the previous milestone as a seed
+
     }
 
     private async selectFunction(selector: Uint8Array): Promise<Results> {
@@ -90,7 +93,9 @@ class MilestoneInternalContract implements IInternalContract {
         this.milestoneSlots = new MilestoneSlots(transaction);
         await this.milestoneSlots.init(callMessage.inputRoot);
 
-        return this.selectFunction(selector);
+        const result = await this.selectFunction(selector);
+        result.returnHex = '0x' + toHex(result.return);
+        return result;
     }
 }
 
