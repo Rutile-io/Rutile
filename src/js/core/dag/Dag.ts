@@ -171,6 +171,22 @@ class Dag extends EventHandler {
         // this.networkController.sendTransaction();
     }
 
+    // /**
+    //  * Gets all the transactions between two points in the DAG
+    //  *
+    //  * @param {Transaction} startTransaction
+    //  * @param {Transaction} endTransaction
+    //  * @returns {Promise<Transaction[]>}
+    //  * @memberof Walker
+    //  */
+    // getTransactionsBetween(startTransaction: Transaction, endTransaction: Transaction): Promise<Transaction[]> {
+    //     const list: string[] = [];
+
+    //     endTransaction.parents.forEach((txId) => {
+    //         list.push(txId);
+    //     });
+    // }
+
     /**
      * Takes a snapshot of the current state of the DAG, pruining it's data
      *

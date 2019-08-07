@@ -63,6 +63,17 @@ async function deployContract() {
     console.log('[WASM] result -> ', results);
 }
 
+async function sendTestTransaction() {
+    const transaction = new Transaction({
+        to: '0x63ae893e4b22d707943299a8d0c844df0e3d5557',
+        value: '1',
+        gasPrice: 1,
+    });
+
+    const result = await rutile.sendTransaction(transaction, wallet.keyPair);
+    console.log('[SendTestTransaction] result -> ', result);
+}
+
 async function run() {
     applyArgv();
     let db = await startDatabase();
@@ -70,7 +81,7 @@ async function run() {
 
     await startIpfsClient();
 
-    wallet = new Wallet('10DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE');
+    wallet = new Wallet('C0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE');
     account = await wallet.getAccountInfo();
 
     // testExecution();
@@ -92,8 +103,8 @@ async function run() {
         await rutile.dag.takeSnapshot(1);
 
         // setInterval(() => {
-        //     sendDummyTransaction();
-        // }, 10000);
+        //     sendTestTransaction();
+        // }, 6500);
 
         rutile.dag.networkController.network.on('peerConnected', () => {
             // deployContract();

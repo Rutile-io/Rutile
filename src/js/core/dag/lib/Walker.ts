@@ -86,6 +86,41 @@ class Walker {
     }
 
     /**
+     * Searches for the latest milestone in the DAG
+     *
+     * @param {Transaction} startMilestone
+     * @returns {Promise<Transaction>}
+     * @memberof Walker
+     */
+    async getLatestMilestone(startMilestone: Transaction): Promise<Transaction> {
+        // Find the next transaction that has a higher milestone index and continue walking
+        const transactions = await this.getAttachedTransactions(startMilestone.id);
+        const nextMilestoneIndex = startMilestone.milestoneIndex + 1;
+        let nextMilestone: Transaction = null;
+
+        for (const tx of transactions) {
+            if (tx.milestoneIndex !== nextMilestoneIndex) {
+                continue;
+            }
+
+            const isMilestone = await tx.isMilestone();
+            if (!isMilestone) {
+                continue;
+            }
+
+            nextMilestone = tx;
+        }
+
+        if (nextMilestone) {
+            return this.getLatestMilestone(nextMilestone);
+        }
+
+        return startMilestone;
+    }
+
+
+
+    /**
      * Finds transactions that can be validated. Will not give duplicates (Unless it's the genesis transaction)
      *
      * @param {number} milestoneIndex
@@ -97,7 +132,7 @@ class Walker {
         let transactionsToValidate: Transaction[] = [];
 
         // First we have to get the milestone transaction with the given milestoneIndex
-        this.transactionCumulativeWeights = await getTransactionCumulativeWeights();
+        this.transactionCumulativeWeights = await getTransactionCumulativeWeights(5000);
         const milestoneTransaction = await Transaction.getByMilestoneIndex(milestoneIndex);
 
         if (!milestoneTransaction) {

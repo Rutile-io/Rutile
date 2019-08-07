@@ -1,5 +1,8 @@
+import * as Logger from 'js-logger';
 import Dag from "../dag/Dag";
 import Transaction from "../../models/Transaction";
+import Account from "../../models/Account";
+import MilestoneWalker from './lib/MilestoneWalker';
 
 /**
  * Milestone represents the main chain inside the network.
@@ -9,18 +12,18 @@ import Transaction from "../../models/Transaction";
  */
 class Milestone {
     currentMilestone: Transaction;
+    nextValidator: Account;
     dag: Dag;
+    milestoneWalker: MilestoneWalker;
 
     constructor(dag: Dag) {
         this.dag = dag;
     }
 
-    onTransactionAdded(transaction: Transaction) {
-        // ('[Milestone] block -> ', block);
-
-        // if (block.number > this.currentBlock.number) {
-        //     console.log('Block number changed, someone mined it');
-        // }
+    async onTransactionAdded(transaction: Transaction) {
+        // Once a transaction is added we should adjust our milestone view
+        await this.milestoneWalker.findNext();
+        console.log('[] this.milestoneWalker -> ', this.milestoneWalker);
     }
 
     // async prepareNextBlock() {
@@ -38,9 +41,14 @@ class Milestone {
     //     block.proofOfWork(true);
     // }
 
-    start() {
+    async start() {
+        // First find the very first transaction
+        const firstTransaction = await Transaction.getByMilestoneIndex(1);
+        this.milestoneWalker = new MilestoneWalker(firstTransaction);
+        this.milestoneWalker.findNext();
+
         // Let the rest of the application know it's valid.
-        // this.dag.on('blockAdded', (block: Block) => this.onBlockAdded(block));
+        this.dag.on('transactionAdded', (transaction: Transaction) => this.onTransactionAdded(transaction));
     }
 }
 
