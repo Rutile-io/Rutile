@@ -15,6 +15,7 @@ import { hexStringToByte } from '../core/rvm/utils/hexUtils';
 import getInternalContract from '../services/getInternalContract';
 import { startDatabase, databaseFind, createOrUpdate } from '../services/DatabaseService';
 import { applyProofOfWork } from '../services/transaction/ProofOfWork';
+import { VM_ERROR } from '../core/rvm/lib/exceptions';
 const BN = require('bn.js');
 
 interface TransactionParams {
@@ -34,6 +35,7 @@ interface TransactionParams {
     inputs?: string[];
     outputs?: string[]
     milestoneIndex?: number;
+    referencedMilestonIndex?: number;
     transIndex?: number;
 }
 
@@ -81,7 +83,7 @@ class Transaction {
     // It's an internal index that can change overtime but should be permenant after
     // x time.
     milestoneIndex?: number;
-    tempMilestonIndex?: number;
+    referencedMilestonIndex?: number;
 
     // To which address to send tokens to.
     // Can also be a function address
@@ -107,6 +109,7 @@ class Transaction {
         this.inputs = params.inputs || [];
         this.outputs = params.outputs || [];
         this.milestoneIndex = params.milestoneIndex === undefined ? null : params.milestoneIndex;
+        this.referencedMilestonIndex = params.referencedMilestonIndex || null;
         this.transIndex = params.transIndex || 0;
     }
 
@@ -141,7 +144,7 @@ class Transaction {
         this.nonce = applyProofOfWork(this.id);
     }
 
-    public async execute(): Promise<Results> {
+    public async execute(useAccountAsInput: boolean = false): Promise<Results> {
         try {
             // non full nodes do not need to execute the function
             if (configuration.nodeType !== NodeType.FULL) {
@@ -166,6 +169,10 @@ class Transaction {
 
             // It's possible that we are just calling a system contract
             let wasm: Uint8Array = getSystemContract(this.to);
+            const callMessage = await createCallMessage(this, useAccountAsInput);
+
+            // The contract is not internal either.. So it's either a deployed contract or a normal address
+            const account = await Account.findOrCreate(this.to);
 
             // The address is not a system contract
             if (!wasm) {
@@ -173,7 +180,6 @@ class Transaction {
                 const internalContract = getInternalContract(this.to);
 
                 if (internalContract) {
-                    const callMessage = await createCallMessage(this);
                     const executionResults = await internalContract.execute(callMessage, this);
 
                     this.gasUsed = executionResults.gasUsed;
@@ -182,8 +188,6 @@ class Transaction {
                     return executionResults;
                 }
 
-                // The contract is not internal either.. So it's either a deployed contract or a normal address
-                const account = await Account.findOrCreate(this.to);
 
                 // It's possible that an account does not have any contract attached to it
                 // This means we do not have to execute any functions but should just transfer value
@@ -200,13 +204,20 @@ class Transaction {
                 }
             }
 
-            const callMessage = await createCallMessage(this);
-
             // Possibly have to save the result in the transaction.
             const executionResults = await execute(callMessage);
-
             this.gasUsed = executionResults.gasUsed;
-            this.outputs.push(executionResults.outputRoot);
+
+            if (executionResults.exceptionError !== VM_ERROR.REVERT) {
+                if (useAccountAsInput) {
+                    account.storageRoot = executionResults.outputRoot;
+                    await account.save();
+                } else {
+                    this.outputs.push(executionResults.outputRoot);
+                }
+            } else {
+                this.outputs.push(this.inputs[0]);
+            }
 
             return executionResults;
         } catch (error) {
@@ -273,6 +284,7 @@ class Transaction {
             v: this.v,
             parents: this.parents,
             milestoneIndex: this.milestoneIndex,
+            referencedMilestonIndex: this.referencedMilestonIndex,
             transIndex: this.transIndex,
             inputs: this.inputs,
             outputs: this.outputs,
