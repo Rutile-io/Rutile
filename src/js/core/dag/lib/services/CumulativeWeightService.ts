@@ -109,8 +109,6 @@ export default async function getTransactionCumulativeWeights(staleTime: number 
     if (staleTime > 0) {
         const delta =  Date.now() - cachedWeights.timestamp;
 
-        console.log('[] detlat -> ', delta);
-
         if (staleTime > delta && cachedWeights.result !== null) {
             return cachedWeights.result;
         }
@@ -119,7 +117,6 @@ export default async function getTransactionCumulativeWeights(staleTime: number 
     Logger.debug(`Calculating cumulative weight`);
     const sortedTransactions = await getTransactionsInTopologicalOrder();
     cachedWeights.result = await calculateCumulativeWeight(sortedTransactions);
-    Logger.debug(`Calculated`);
     cachedWeights.timestamp = Date.now();
 
     return cachedWeights.result;

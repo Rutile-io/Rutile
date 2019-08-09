@@ -1,3 +1,4 @@
+import * as Logger from 'js-logger';
 import Transaction from "../../../models/Transaction";
 import getTransactionCumulativeWeights from "../../dag/lib/services/CumulativeWeightService";
 
@@ -74,6 +75,51 @@ class MilestoneWalker {
         return this.updateMilestoneChain(heighestWeightedChild, cumulativeWeights, milestoneList);
     }
 
+    async getTransactionsInOrder(beginMilestone: Transaction, endMilestone: Transaction): Promise<Transaction[]> {
+        const amountOfMilestones = endMilestone.milestoneIndex - beginMilestone.milestoneIndex;
+        const lengthArr = new Array(amountOfMilestones);
+        const transactionOrder: Transaction[] = [];
+
+        for (const [index] of lengthArr.entries()) {
+            const milestoneIndex = endMilestone.milestoneIndex - index;
+
+            // This may not be the most reliable function, since the continous shifting the main chain
+            // resulting in two or more milestones receiving the milestone status. We have to chose between them
+            const milestoneTransaction = await Transaction.getByMilestoneIndex(milestoneIndex);
+
+            if (!milestoneTransaction) {
+                throw new Error(`MilestoneWalker: The milestone index #${milestoneIndex} was requested but it does not exist`);
+            }
+
+            transactionOrder.push(milestoneTransaction);
+
+            // Now we are walking all the transactions that where not yet referenced by a milestone before
+            const transactionsToWalk = milestoneTransaction.parents;
+
+            // Now we keep walking all transaction that where referenced by the parents
+            for (const transactionId of transactionsToWalk) {
+                // We should stop at the begin milestone id
+                if (transactionId === beginMilestone.id) {
+                    continue;
+                }
+
+                const transaction = await Transaction.getById(transactionId);
+
+                // Transactions that are milestones should be picked up by the loop above
+                if (transaction.milestoneIndex !== null) {
+                    continue;
+                }
+
+                transaction.referencedMilestonIndex = milestoneIndex;
+                transactionOrder.push(transaction);
+                transactionsToWalk.push(...transaction.parents);
+                await transaction.save();
+            }
+        }
+
+        return transactionOrder;
+    }
+
     /**
      * Searches for the next milestone
      *
@@ -81,11 +127,30 @@ class MilestoneWalker {
      * @memberof MilestoneWalker
      */
     async findNext(): Promise<void> {
+        Logger.debug(`Calculating next milestone and executing the order starting from ${this.currentMilestone.milestoneIndex}`);
         const cumulativeWeights = await getTransactionCumulativeWeights(5000);
-        this.updateMilestoneChain(this.currentMilestone, cumulativeWeights, [this.currentMilestone]);
+        const milestoneList = await this.updateMilestoneChain(this.currentMilestone, cumulativeWeights, [this.currentMilestone]);
+        const startingPoint = this.currentMilestone;
 
+        // Update our milestone pointer
+        if (milestoneList.length) {
+            this.currentMilestone = milestoneList[milestoneList.length - 1];
+        }
 
+        const endPoint = this.currentMilestone;
 
+        // Make sure the two transaction points are
+        if (startingPoint.id !== endPoint.id) {
+            const orderedTransactions = await this.getTransactionsInOrder(startingPoint, endPoint);
+
+            console.log('[] orderedTransactions -> ', orderedTransactions);
+
+            for (const transaction of orderedTransactions.reverse()) {
+                await transaction.execute(true);
+            }
+        }
+
+        Logger.debug(`Done, new milestone height is ${this.currentMilestone.milestoneIndex}`);
         // Update our internal milestones
         // this.previousMilestone = this.currentMilestone.id !== heighestWeightedChild.id ? this.currentMilestone : this.previousMilestone;
         // this.currentMilestone = heighestWeightedChild ? heighestWeightedChild : this.currentMilestone;

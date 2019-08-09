@@ -233,6 +233,10 @@ class Dag extends EventHandler {
                 return;
             }
 
+            // Make sure we are not influenced by other nodes
+            transaction.milestoneIndex = null;
+            transaction.referencedMilestonIndex = null;
+
             await saveTransaction(transaction);
         } catch (error) {
 

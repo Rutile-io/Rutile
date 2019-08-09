@@ -259,12 +259,25 @@
                 for (let index = 0; index < transactions.length; index++) {
                     const transaction = transactions[index];
 
+                    const className = [];
+                    let label = undefined;
+
+                    if (transaction.referencedMilestonIndex !== null) {
+                        label = '[' + transaction.referencedMilestonIndex + ']';
+                        className.push('reference');
+                    }
+
+                    if (transaction.milestoneIndex !== null) {
+                        label = transaction.milestoneIndex;
+                        className.push('milestone');
+                    }
+
                     elements.push({
                         data: {
-                            label: transaction.milestoneIndex !== null ? transaction.milestoneIndex : undefined,
+                            label,
                             id: transaction.id,
                         },
-                        classes: transaction.milestoneIndex !== null ? ['milestone'] : [],
+                        classes: className,
                     });
 
                     if (transaction.parents.length) {
@@ -292,6 +305,12 @@
                         // rows: 1,
                     },
                     style: [
+                        {
+                            selector: '.reference',
+                            style: {
+                                'background-color': 'red',
+                            },
+                        },
                         {
                             selector: '.milestone',
                             style: {
