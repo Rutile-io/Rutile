@@ -21,7 +21,7 @@
     <script>
         let rutile = null;
         let wallet = null;
-        const dbookApi = '0xa39659fab1df5370ca5f9dd2cd19afc4c8b554c6';
+        const dbookApi = '0x294e8b1e1fe1aef6664895c102e6d152f86e3c0a';
         const dbookPostApi = '0x10000001';
         const dbookGetAllApi = '0x10000002';
 
@@ -32,7 +32,7 @@
         async function post() {
             const tx = new Rutile.Transaction({
                 to: dbookApi,
-                data: dbookPostApi + '12345',
+                data: dbookPostApi + '355381861f6610530ad4fb6f0e814874af203e8f47ddacf95804e532109acec8',
             });
 
             const result = await rutile.sendTransaction(tx, wallet.keyPair);
@@ -42,7 +42,7 @@
         async function getPosts() {
             const tx = new Rutile.Transaction({
                 to: dbookApi,
-                data: dbookGetAllApi + '12345',
+                data: dbookGetAllApi + '355381861f6610530ad4fb6f0e814874af203e8f47ddacf95804e532109acec8',
             });
 
             const result = await rutile.sendTransaction(tx, wallet.keyPair);

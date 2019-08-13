@@ -36,27 +36,24 @@ async function runWasm(wasmBinary: Uint8Array) {
 
         const exports = wasm.instance.exports;
 
-        // Since we cannot trust the environment we have to sandbox the code.
-        // This code cannot access anything outside it's environment.
-        const sandboxInitator = () => {
-            // We know that wasmExports is available in this sandbox code
-            // See 'saferEval' call later in this code.
-            // @ts-ignore
-            const wasmContext = wasmExports;
-
-            if (!wasmContext.main && !wasmContext._main) {
-                throw new Error(`Could not find entry 'main' on WASM binary`);
-            }
-
-            const mainFunc = wasmContext.main || wasmContext._main;
-            mainFunc();
+        if (!exports.main && !exports._main) {
+            throw new Error(`Could not find entry 'main' on WASM binary`);
         }
 
-        console.log('[] sandboxInitator -> ', sandboxInitator);
+        const main = exports.main || exports._main;
+        main();
 
-        let s = saferEval(`${sandboxInitator}()`, {
-            wasmExports: exports,
-        });
+        // In WASM it's not required to use a extra layer of sandboxing
+        // // Since we cannot trust the environment we have to sandbox the code.
+        // // This code cannot access anything outside it's environment.
+        // const sandboxInitator = () => {
+        //     // We know that wasmExports is available in this sandbox code
+        //     // See 'saferEval' call later in this code.
+        //     // @ts-ignore
+        //     const wasmContext = wasmExports;
+        //     const mainFunc = wasmContext.main || wasmContext._main;
+        //     mainFunc();
+        // }
 
         // Execution was completed without any errors
         // The code probbably didn't call finish() on it's own

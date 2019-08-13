@@ -115,6 +115,8 @@ class Transaction {
             this.data,
         ]).slice(24);
 
+        await Account.findOrCreate(contractAddress, this.data, this.id);
+
         return contractAddress;
         // return Account.create(contractAddress, this.data, this.id);
     }

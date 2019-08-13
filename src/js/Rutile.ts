@@ -72,9 +72,9 @@ class Rutile {
 
         this.dag = new Dag(this.network);
 
-        if (configuration.nodeType !== NodeType.CLIENT) {
+        // if (configuration.nodeType !== NodeType.CLIENT) {
             await this.dag.synchronise();
-        }
+        // }
 
         if (configuration.nodeType === NodeType.FULL) {
             this.validator = new Validator(this.dag);
