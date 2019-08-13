@@ -1,8 +1,7 @@
 import isNodeJs from './isNodeJs';
-import { configuration } from '../Configuration';
-import { promises } from 'fs';
-import { resolve } from 'url';
-let node:any = null;
+import * as Logger from 'js-logger';
+
+let node: any = null;
 
 /**
  * Starts the database
@@ -10,14 +9,14 @@ let node:any = null;
  * @export
  */
 export async function startIpfsClient() {
-    return new Promise(function(resolve, reject) {
+    return new Promise(async (resolve, reject) => {
         if (isNodeJs()) {
             try {
-                startIpfsDaemon();
+                await startIpfsDaemon();
                 resolve();
               } catch (error) {
                 console.error('Node failed to start!', error)
-                reject();
+                reject(error);
               }
         } else {
             const IPFS = require('ipfs-mini');
@@ -26,18 +25,30 @@ export async function startIpfsClient() {
     });
 }
 
-function startIpfsDaemon(){    
-    const IPFSFactory = __non_webpack_require__('ipfsd-ctl')
-    IPFSFactory.create({ type: 'go' })
-    .spawn({start:false, defaultAddrs: true}, function (err:any, ipfsd:any) {
-        if (err) { throw err }
-        
-        ipfsd.start((err:any) => {
-            if (err) { console.log(err); throw err }
-          
-            console.log('Ipfs endpoint is running')
-          })        
-    })
+function startIpfsDaemon() {
+    return new Promise((resolve, reject) => {
+        const IpfsFactory = __non_webpack_require__('ipfsd-ctl');
+
+        IpfsFactory.create({ type: 'go' }).spawn({
+            start:false,
+            defaultAddrs: true,
+        }, function (err: any, ipfsd: any) {
+            if (err) {
+                return reject(err);
+            }
+
+            ipfsd.start((err: any) => {
+                if (err) {
+                    Logger.error('Ipfs could not start: ' + err);
+                    return reject(err);
+                }
+
+                Logger.info('Ipfs endpoint is running')
+
+                resolve();
+            })
+        })
+    });
 }
 
 export async function addFileFromPath(){

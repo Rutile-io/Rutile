@@ -26,11 +26,15 @@ interface ExecuteSecureResults {
  * @param {Uint8Array} binary
  * @returns
  */
-export default async function execute(callMessage: CallMessage) {
+export default async function execute(callMessage: CallMessage, bin?: Uint8Array) {
     const ipfs = Ipfs.getInstance(configuration.ipfs);
 
     // It's possible that we are just calling a system contract
     let binary: Uint8Array = getSystemContract(callMessage.destination);
+
+    if (bin) {
+        binary = bin;
+    }
 
     // The address is not a system contract, we'll forward it to IPFS.
     if (!binary) {

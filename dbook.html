@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>DBook</title>
+    <script src="build/rutile.js" charset="utf-8"></script>
+</head>
+<body>
+    <h1>Decentralised Book</h1>
+    <p>Is Rutile active? <span id="isRutileActive">Loading..</span></p>
+    <input type="text" id="content" /><button onclick="post()">Post</button>
+    <button onclick="refresh()">Refresh</button>
+
+    <section>
+        <h2>Content wall</h2>
+    </section>
+
+
+    <script>
+        let rutile = null;
+        let wallet = null;
+        const dbookApi = '0xa39659fab1df5370ca5f9dd2cd19afc4c8b554c6';
+        const dbookPostApi = '0x10000001';
+        const dbookGetAllApi = '0x10000002';
+
+        async function refresh() {
+            await getPosts();
+        }
+
+        async function post() {
+            const tx = new Rutile.Transaction({
+                to: dbookApi,
+                data: dbookPostApi + '12345',
+            });
+
+            const result = await rutile.sendTransaction(tx, wallet.keyPair);
+            console.log('[] result -> ', result);
+        }
+
+        async function getPosts() {
+            const tx = new Rutile.Transaction({
+                to: dbookApi,
+                data: dbookGetAllApi + '12345',
+            });
+
+            const result = await rutile.sendTransaction(tx, wallet.keyPair);
+            console.log('[] result -> ', result);
+        }
+
+        async function run() {
+            try {
+                rutile = new Rutile({
+                    nodeType: 'CLIENT',
+                });
+
+                await rutile.start();
+
+                wallet = Rutile.Wallet.fromStorage();
+
+                if (!wallet) {
+                    wallet = Rutile.Wallet.createRandom();
+                    wallet.saveToLocalStorage();
+                }
+
+                document.getElementById('isRutileActive').innerHTML = 'Yes';
+            } catch (error) {
+                console.error(error);
+                document.getElementById('isRutileActive').innerHTML = 'Error';
+            }
+        }
+
+        run();
+
+    </script>
+</body>
+</html>

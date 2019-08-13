@@ -32,8 +32,6 @@ interface TransactionParams {
     timestamp?: number;
     value?: number | string | BNtype;
     parents?: string[];
-    inputs?: string[];
-    outputs?: string[]
     milestoneIndex?: number;
     referencedMilestonIndex?: number;
     transIndex?: number;
@@ -45,13 +43,6 @@ class Transaction {
 
     // Parents of the transactions, used for attachting to the DAG
     parents: string[];
-
-    // Transaction Ids that are the input of this transaction
-    inputs: string[];
-    inputStateRoot: string;
-
-    // The result after the execution took place.
-    outputs: string[];
 
     // Gas used for function execution
     gasUsed: number = 0;
@@ -106,8 +97,6 @@ class Transaction {
         this.timestamp = params.timestamp || 0;
         this.value = params.value ? new BN(params.value, 10) : new BN(0, 10);
         this.parents = params.parents || [];
-        this.inputs = params.inputs || [];
-        this.outputs = params.outputs || [];
         this.milestoneIndex = params.milestoneIndex === undefined ? null : params.milestoneIndex;
         this.referencedMilestonIndex = params.referencedMilestonIndex || null;
         this.transIndex = params.transIndex || 0;
@@ -144,7 +133,7 @@ class Transaction {
         this.nonce = applyProofOfWork(this.id);
     }
 
-    public async execute(useAccountAsInput: boolean = false): Promise<Results> {
+    public async execute(): Promise<Results> {
         try {
             // non full nodes do not need to execute the function
             if (configuration.nodeType !== NodeType.FULL) {
@@ -169,7 +158,7 @@ class Transaction {
 
             // It's possible that we are just calling a system contract
             let wasm: Uint8Array = getSystemContract(this.to);
-            const callMessage = await createCallMessage(this, useAccountAsInput);
+            const callMessage = await createCallMessage(this);
 
             // The contract is not internal either.. So it's either a deployed contract or a normal address
             const account = await Account.findOrCreate(this.to);
@@ -181,13 +170,12 @@ class Transaction {
 
                 if (internalContract) {
                     const executionResults = await internalContract.execute(callMessage, this);
-
                     this.gasUsed = executionResults.gasUsed;
-                    this.outputs.push(executionResults.outputRoot);
+                    account.storageRoot = executionResults.outputRoot;
+                    await account.save();
 
                     return executionResults;
                 }
-
 
                 // It's possible that an account does not have any contract attached to it
                 // This means we do not have to execute any functions but should just transfer value
@@ -209,14 +197,8 @@ class Transaction {
             this.gasUsed = executionResults.gasUsed;
 
             if (executionResults.exceptionError !== VM_ERROR.REVERT) {
-                if (useAccountAsInput) {
-                    account.storageRoot = executionResults.outputRoot;
-                    await account.save();
-                } else {
-                    this.outputs.push(executionResults.outputRoot);
-                }
-            } else {
-                this.outputs.push(this.inputs[0]);
+                account.storageRoot = executionResults.outputRoot;
+                await account.save();
             }
 
             return executionResults;
@@ -286,11 +268,16 @@ class Transaction {
             milestoneIndex: this.milestoneIndex,
             referencedMilestonIndex: this.referencedMilestonIndex,
             transIndex: this.transIndex,
-            inputs: this.inputs,
-            outputs: this.outputs,
         });
     }
 
+    /**
+     * Validates the transaction
+     *
+     * @param {boolean} [noExecution=false]
+     * @returns
+     * @memberof Transaction
+     */
     async validate(noExecution: boolean = false) {
         return validateTransaction(this, noExecution);
     }

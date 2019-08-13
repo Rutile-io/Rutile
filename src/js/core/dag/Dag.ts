@@ -13,6 +13,8 @@ import Snapshot from "./lib/Snapshot";
 import Transaction from "../../models/Transaction";
 import { applyTransaction, saveTransaction } from "./lib/services/TransactionService";
 import createGenesisTransaction from "./lib/transaction/createGenesisTransaction";
+import { Results } from "../rvm/context";
+import { NodeType } from "../../models/interfaces/IConfig";
 
 const GENESIS_MILESTONE = 1;
 const TRANSACTION_AMOUNT_TO_VALIDATE = 2;
@@ -79,71 +81,71 @@ class Dag extends EventHandler {
      * @param {KeyPair} keyPair
      * @memberof Dag
      */
-    async submitTransaction(transaction: Transaction, keyPair: KeyPair, depth: number = 0) {
-        // We have tried searching 10 times for a tip but couldn't find a valid one
-        // user should submit it on a later time..
-        if (depth > 5) {
-            throw new Error(`Could not find valid transaction tip after ${depth} tries`);
-        }
-
-        // Find transaction using the random weighted walk
-        const parentTransactions = await this.walker.getTransactionsToValidate(1, TRANSACTION_AMOUNT_TO_VALIDATE);
-
-        // Validate these transactions by searching for a path that allows the user to spend this amount.
-        const invalidTransaction = await this.tipValidator.validateTransactionBalances(parentTransactions);
-
-        // One of the tips is considered invalid and should not be used
-        // We retry to submit our transaction to a different tip
-        if (invalidTransaction) {
-            depth += 1;
-
-            Logger.debug(`Transaction ${invalidTransaction.id} was not considered valid and will be deleted`);
-            await databaseRemove(invalidTransaction.id);
-
-            // Now retry our tip selection without the bad transaction in the way
-            await this.submitTransaction(transaction, keyPair, depth);
-            return;
-        }
-
-        // We need to find a transaction that has the output we want to continue on.
-        // This is usually considerd as the latest transaction that interacted with that system.
-        // No transaction to is a deployment
-        if (transaction.to) {
-            // Find the latest transaction that interacted with this address
-            const inputTransaction = await this.walker.getLatestTransactionForAddress(transaction.to);
-
-            // It's important that the input transaction is the first parent
-            if (inputTransaction) {
-                transaction.inputs.push(inputTransaction.id);
+    submitTransaction(transaction: Transaction, keyPair: KeyPair, depth: number = 0): Promise<Results> {
+        return new Promise(async (resolve) => {
+            // We have tried searching 10 times for a tip but couldn't find a valid one
+            // user should submit it on a later time..
+            if (depth > 5) {
+                throw new Error(`Could not find valid transaction tip after ${depth} tries`);
             }
-        }
 
-        Logger.debug(`Attaching to ${parentTransactions.map(tx => tx.id)}`);
-        await transaction.addParents(parentTransactions);
-        transaction.sign(keyPair);
+            // Find transaction using the random weighted walk
+            const parentTransactions = await this.walker.getTransactionsToValidate(1, TRANSACTION_AMOUNT_TO_VALIDATE);
 
-        Logger.debug(`Executing transaction ${transaction.id}`);
-        const results = await transaction.execute();
+            // Validate these transactions by searching for a path that allows the user to spend this amount.
+            const invalidTransaction = await this.tipValidator.validateTransactionBalances(parentTransactions);
 
-        Logger.debug(`Applying PoW to transaction ${transaction.id}`);
-        transaction.proofOfWork();
+            // One of the tips is considered invalid and should not be used
+            // We retry to submit our transaction to a different tip
+            if (invalidTransaction) {
+                depth += 1;
 
-        // Make sure all is ok with our Transaction before sending it off
-        Logger.debug(`Re-validating transaction before sending ${transaction.id}`);
-        await transaction.validate();
+                Logger.debug(`Transaction ${invalidTransaction.id} was not considered valid and will be deleted`);
+                await databaseRemove(invalidTransaction.id);
 
-        Logger.debug(`Applying transaction ${transaction.id}`);
-        await applyTransaction(transaction);
+                // Now retry our tip selection without the bad transaction in the way
+                await this.submitTransaction(transaction, keyPair, depth);
+                return;
+            }
 
-        // Apply the transaction to our local node
-        this.networkController.broadcastTransaction(transaction);
+            Logger.debug(`Attaching to ${parentTransactions.map(tx => tx.id)}`);
+            await transaction.addParents(parentTransactions);
+            transaction.sign(keyPair);
 
-        // Let the rest of the application know it's valid.
-        this.trigger('transactionAdded', {
-            transaction,
+            Logger.debug(`Applying PoW to transaction ${transaction.id}`);
+            transaction.proofOfWork();
+
+            // Make sure all is ok with our Transaction before sending it off
+            Logger.debug(`Re-validating transaction before sending ${transaction.id}`);
+            await transaction.validate();
+
+            Logger.debug(`Applying transaction ${transaction.id}`);
+            await applyTransaction(transaction);
+
+            // Apply the transaction to our local node
+            this.networkController.broadcastTransaction(transaction);
+
+            // Let the rest of the application know it's valid.
+            this.trigger('transactionAdded', {
+                transaction,
+            });
+
+            // Clients cannot execute transactions themselfs, so we use a node for the results
+            if (configuration.nodeType === NodeType.CLIENT) {
+                const result = await this.networkController.broadcastSendTransactionResultRequest(transaction.id);
+                return resolve(result);
+            }
+
+            this.on('transactionsExecuteResult', (event: any) => {
+                const resultPair = event.transactionResults.find((tx: any) => tx.id === transaction.id);
+
+                if (!resultPair) {
+                    return;
+                }
+
+                resolve(resultPair.results);
+            })
         });
-
-        return results;
     }
 
     /**

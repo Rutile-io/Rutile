@@ -23,7 +23,6 @@ class Milestone {
     async onTransactionAdded(transaction: Transaction) {
         // Once a transaction is added we should adjust our milestone view
         await this.milestoneWalker.findNext();
-        console.log('[] this.milestoneWalker -> ', this.milestoneWalker);
     }
 
     // async prepareNextBlock() {
@@ -44,7 +43,7 @@ class Milestone {
     async start() {
         // First find the very first transaction
         const firstTransaction = await Transaction.getByMilestoneIndex(1);
-        this.milestoneWalker = new MilestoneWalker(firstTransaction);
+        this.milestoneWalker = new MilestoneWalker(firstTransaction, this.dag);
         this.milestoneWalker.findNext();
 
         // Let the rest of the application know it's valid.
