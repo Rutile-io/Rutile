@@ -15,6 +15,7 @@ function getTransactionsInTopologicalOrder(): Promise<string[]> {
 
         transactions.on('data', (transactionBuffer: Buffer) => {
             const transaction = Transaction.fromRaw(transactionBuffer.toString());
+
             transaction.parents.forEach((parentTxId) => {
                 graph.push([transaction.id, parentTxId]);
             });

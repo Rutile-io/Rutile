@@ -116,7 +116,7 @@ class Account {
         }
     }
 
-    static async findOrCreate(address: string) {
+    static async findOrCreate(address: string, codeHash?: string, creationTransactionId?: string) {
         const account = await Account.getFromAddress(address);
 
         if (account) {
@@ -124,7 +124,7 @@ class Account {
             return account;
         }
 
-        return Account.create(address);
+        return Account.create(address, codeHash, creationTransactionId);
     }
 
     /**
@@ -137,7 +137,7 @@ class Account {
      * @returns
      * @memberof Account
      */
-    static async create(address: string, codeHash?: string, creationTransactionId?: string) {
+    static async create(address: string, codeHash?: string, creationTransactionId?: string): Promise<Account> {
         const dbMapping = await Database.getDatabaseLevelDbMapping();
         const merkleTree = new MerkleTree(dbMapping);
         const zeroBuffer = hexStringToBuffer('0x00');
