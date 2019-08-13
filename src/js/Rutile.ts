@@ -1,6 +1,6 @@
 import Network from './core/network/Network';
 import Ipfs from './services/wrappers/Ipfs';
-import { configuration } from './Configuration';
+import { configuration, setConfig } from './Configuration';
 import Transaction from './models/Transaction';
 import Dag from './core/dag/Dag';
 import EventHandler from './services/EventHandler';
@@ -10,7 +10,7 @@ import byteArrayToString from './utils/byteArrayToString';
 import Wallet from './models/Wallet';
 import * as Database from './services/DatabaseService';
 import * as Logger from 'js-logger';
-import { NodeType } from './models/interfaces/IConfig';
+import IConfig, { NodeType } from './models/interfaces/IConfig';
 import Validator from './core/milestone/Validator';
 import Snapshot from './core/dag/lib/Snapshot';
 
@@ -51,7 +51,11 @@ class Rutile {
         return Snapshot;
     }
 
-    constructor() {
+    constructor(options?: IConfig) {
+        if (options) {
+            setConfig(options);
+        }
+
         this.ipfs = Ipfs.getInstance(configuration.ipfs);
         this.eventHandler = new EventHandler();
     }
@@ -67,7 +71,10 @@ class Rutile {
         }
 
         this.dag = new Dag(this.network);
-        await this.dag.synchronise();
+
+        if (configuration.nodeType !== NodeType.CLIENT) {
+            await this.dag.synchronise();
+        }
 
         if (configuration.nodeType === NodeType.FULL) {
             this.validator = new Validator(this.dag);

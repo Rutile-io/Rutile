@@ -27,11 +27,9 @@ export function getUnsignedTransactionHash(transaction: Transaction): string {
         transaction.to ? transaction.to : '0x0',
         '0x' + transaction.value.toString('hex'),
         transaction.data,
-        numberToHex(transaction.gasUsed),
         numberToHex(transaction.timestamp),
         numberToHex(configuration.genesis.config.chainId),
         transaction.parents,
-        transaction.inputs,
     ];
 
     return rlpHash(data);
@@ -121,7 +119,6 @@ export async function validateTransaction(transaction: Transaction, noExecution:
         timestamp: transaction.timestamp,
         nonce: transaction.nonce,
         value: transaction.value,
-        inputs: transaction.inputs,
         parents: transaction.parents,
         milestoneIndex: transaction.milestoneIndex,
         transIndex: transaction.transIndex,
@@ -133,7 +130,7 @@ export async function validateTransaction(transaction: Transaction, noExecution:
     // TODO: Check if transaction is a milestone transaction
     // If it is we need to revalidate depending on the model.
     // Execute to get to the same point as the transaction
-    const results = await transactionCopy.execute();
+    // const results = await transactionCopy.execute();
 
     // Check the Proof of Work again to make sure all the work adds up.
     if (!isProofOfWorkValid(transactionCopy.id, transactionCopy.nonce)) {
@@ -146,9 +143,9 @@ export async function validateTransaction(transaction: Transaction, noExecution:
     }
 
     // Everything is valid, now if there is a contract creation we want to add it to our database
-    if (results.createdAddress) {
-        await Account.create(results.returnHex, transactionCopy.data, transactionCopy.id);
-    }
+    // if (results.createdAddress) {
+    //     await Account.create(results.returnHex, transactionCopy.data, transactionCopy.id);
+    // }
 
     return true;
 }

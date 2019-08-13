@@ -3,6 +3,7 @@ import { IpfsConfig } from "../../services/wrappers/Ipfs";
 enum NodeType {
     FULL = 'FULL',
     LIGHT = 'LIGHT',
+    CLIENT = 'CLIENT',
 };
 
 export {

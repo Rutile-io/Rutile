@@ -2,6 +2,7 @@ import * as Logger from 'js-logger';
 import BNType from 'bn.js';
 import Transaction from "../../../models/Transaction";
 import { getTransactionById, getAddressFromTransaction, validateTransaction } from "./services/TransactionService";
+import Account from '../../../models/Account';
 const BN = require('bn.js');
 
 interface AddressInfo {
@@ -67,14 +68,16 @@ class TipValidator {
      * @param {AddressBalancePair} state
      * @memberof TipValidator
      */
-    applyTransactionToState(transaction: Transaction, state: AddressInfo) {
+    async applyTransactionToState(transaction: Transaction, state: AddressInfo) {
         const addresses = getAddressFromTransaction(transaction);
 
         // Since we are walking backwards in the Dag we can use the first transactions as the merkle root output.
         if (!state[addresses.to]) {
+            const account = await Account.findOrCreate(addresses.to);
+
             state[addresses.to] = {
                 value: new BN(0),
-                merkleRoot: transaction.outputs[0] || '0x',
+                merkleRoot: account.storageRoot || '0x',
                 nonce: 0,
             };
         }
@@ -88,9 +91,11 @@ class TipValidator {
         } else {
             // Genesis transactions does not have an address
             if (!transaction.isGenesis()) {
+                const account = await Account.findOrCreate(addresses.from);
+
                 state[addresses.from] = {
                     value: new BN(0),
-                    merkleRoot: '0x',
+                    merkleRoot: account.storageRoot || '0x',
                     nonce: transaction.nonce,
                 };
 
@@ -130,10 +135,15 @@ class TipValidator {
 
             const transaction = await Transaction.getById(transactionId);
 
+            if (!transaction) {
+                Logger.debug(`Transaction ${transactionId} is missing`)
+                continue;
+            }
+
             await transaction.validate(true);
 
             if (!transaction.value.isZero()) {
-                this.applyTransactionToState(transaction, state);
+                await this.applyTransactionToState(transaction, state);
             }
 
             if (!transaction.isGenesis() && transactionIdsToCheck.includes('0x')) {

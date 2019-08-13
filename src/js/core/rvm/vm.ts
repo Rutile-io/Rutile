@@ -1,5 +1,7 @@
 import { workerAddEventListener, workerPostMessage, workerRequest, extractMessageFromEvent } from "./utils/workerUtils";
 import VirtualContext from "./lib/VirtualContext";
+import Wasi from './lib/wasi/Wasi';
+import VirtualWasi from "./lib/wasi/VirtualWasi";
 
 const saferEval = require('safer-eval');
 const metering = require('wasm-metering');
@@ -7,6 +9,7 @@ const metering = require('wasm-metering');
 async function runWasm(wasmBinary: Uint8Array) {
     try {
         const context = new VirtualContext();
+        const wasi = new VirtualWasi();
 
         // Instantiate the WebAssembly module with metering included
         // const meteredWas = metering.meterWASM(wasmBinary, {
@@ -21,6 +24,7 @@ async function runWasm(wasmBinary: Uint8Array) {
                 }
             },
             ...context.getExposedFunctions(),
+            wasi_unstable: wasi.getExposedFunctions(),
         });
 
         // Grow memory to 64Kib
@@ -47,6 +51,8 @@ async function runWasm(wasmBinary: Uint8Array) {
             const mainFunc = wasmContext.main || wasmContext._main;
             mainFunc();
         }
+
+        console.log('[] sandboxInitator -> ', sandboxInitator);
 
         let s = saferEval(`${sandboxInitator}()`, {
             wasmExports: exports,

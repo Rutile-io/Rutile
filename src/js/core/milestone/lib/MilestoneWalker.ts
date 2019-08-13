@@ -1,6 +1,8 @@
 import * as Logger from 'js-logger';
 import Transaction from "../../../models/Transaction";
 import getTransactionCumulativeWeights from "../../dag/lib/services/CumulativeWeightService";
+import Dag from '../../dag/Dag';
+import { Results } from '../../rvm/context';
 
 /**
  * The milestone walker walks upon all the transactions of the DAG
@@ -9,12 +11,13 @@ import getTransactionCumulativeWeights from "../../dag/lib/services/CumulativeWe
  * @class MilestoneWalker
  */
 class MilestoneWalker {
+    dag: Dag;
     currentMilestone: Transaction;
     milestoneList: string[];
 
-    constructor(lastKnownMilestone: Transaction) {
+    constructor(lastKnownMilestone: Transaction, dag: Dag) {
         this.currentMilestone = lastKnownMilestone;
-        console.log('[] this.currentMilestone -> ', this.currentMilestone);
+        this.dag = dag;
     }
 
     /**
@@ -138,17 +141,23 @@ class MilestoneWalker {
         }
 
         const endPoint = this.currentMilestone;
+        const txResults: {id: string, results: Results}[] = [];
 
         // Make sure the two transaction points are
         if (startingPoint.id !== endPoint.id) {
             const orderedTransactions = await this.getTransactionsInOrder(startingPoint, endPoint);
 
-            console.log('[] orderedTransactions -> ', orderedTransactions);
-
             for (const transaction of orderedTransactions.reverse()) {
-                await transaction.execute(true);
+                txResults.push({
+                    id: transaction.id,
+                    results: await transaction.execute()
+                });
             }
         }
+
+        this.dag.trigger('transactionsExecuteResult', {
+            transactionResults: txResults,
+        });
 
         Logger.debug(`Done, new milestone height is ${this.currentMilestone.milestoneIndex}`);
         // Update our internal milestones

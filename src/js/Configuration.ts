@@ -5,7 +5,7 @@ const uuid = require('uuid/v4');
 
 const NODE_ID = `${uuid()}-${uuid()}-${uuid()}`;
 
-const config: IConfig = {
+let configuration: IConfig = {
     nodeId: NODE_ID,
     nodeType: NodeType.FULL,
     // nodesListUrl: 'http://localhost:8903/',
@@ -61,10 +61,17 @@ const config: IConfig = {
     }
 }
 
-export const configuration = config;
+export { configuration };
 
 export default function getConfig(key: string): any {
-    return config[key];
+    return configuration[key];
+}
+
+export function setConfig(configOptions: IConfig) {
+    configuration = {
+        ...configuration,
+        ...configOptions,
+    };
 }
 
 /**
@@ -76,6 +83,6 @@ export function applyArgv() {
     const args = getArguments(process.argv);
 
     Object.keys(args).forEach((key) => {
-        config[key] = args[key];
+        configuration[key] = args[key];
     });
 }

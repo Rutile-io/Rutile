@@ -13,10 +13,11 @@ import { toHex } from './core/rvm/utils/hexUtils';
 import execute from './core/rvm/execute';
 import MerkleTree from './models/MerkleTree';
 import PouchDbLevelDbMapping from './models/PouchDbLevelDbMapping';
-import Block from './models/Block';
 import Transaction from './models/Transaction';
 import {startIpfsClient} from './services/IpfsService';
 import createGenesisBlock from './core/dag/lib/transaction/createGenesisTransaction';
+import { CallKind } from './core/rvm/lib/CallMessage';
+const BN = require('bn.js');
 // import RutileContext from './models/RutileContext';
 // import * as fs from 'fs';
 // import { validateTransaction, applyTransaction } from './services/_TransactionService';
@@ -58,9 +59,8 @@ async function deployContract() {
         data: hash,
     });
 
-    const results = await transaction.execute();
     const result = await rutile.sendTransaction(transaction, wallet.keyPair);
-    console.log('[WASM] result -> ', results);
+    console.log('[WASM] result -> ', result);
 }
 
 async function sendTestTransaction() {
@@ -74,6 +74,28 @@ async function sendTestTransaction() {
     console.log('[SendTestTransaction] result -> ', result);
 }
 
+async function playos() {
+    const fs = __non_webpack_require__('fs');
+    const file = fs.readFileSync('/Volumes/Mac Space/Workspace/OSS-PlayOS/PlayOS/build/optimized.wasm');
+    const wasm = new Uint8Array(file);
+    console.log('Execute');
+
+    const result = await execute({
+        depth: 1000,
+        destination: '0x123',
+        flags: 1,
+        gas: 10000,
+        inputData: new Uint8Array(0),
+        inputRoot: null,
+        inputSize: 2,
+        kind: CallKind.Call,
+        sender: '0x0',
+        value: new BN(0),
+    }, wasm);
+
+    console.log('[] result -> ', result);
+}
+
 async function run() {
     applyArgv();
     let db = await startDatabase();
@@ -83,6 +105,8 @@ async function run() {
 
     wallet = new Wallet('C0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE');
     account = await wallet.getAccountInfo();
+
+    // playos();
 
     // testExecution();
 
@@ -98,7 +122,7 @@ async function run() {
             console.error('Oh well', e);
         }
 
-        // deployContract();
+        deployContract();
 
         await rutile.dag.takeSnapshot(1);
 

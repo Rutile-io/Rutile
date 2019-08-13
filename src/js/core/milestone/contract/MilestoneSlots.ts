@@ -61,7 +61,6 @@ class MilestoneSlots {
         };
 
         this.length = this.length + 1;
-        console.log('[AddSlot] this.length -> ', this.length);
         const lengthHex = numberToHex(this.length);
         const lengthBuffer = hexStringToBuffer(lengthHex);
 

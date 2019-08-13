@@ -220,9 +220,7 @@
                     transIndex,
                 });
 
-                const txResult = await rutile.sendTransaction(transaction, keyPair);
-
-                console.log('[] txResult -> ', txResult);
+                await rutile.sendTransaction(transaction, keyPair);
             }
 
             function addTransaction(transaction) {
@@ -281,6 +279,8 @@
                     });
 
                     if (transaction.parents.length) {
+                        console.log('[] transactions -> ', transactions);
+
                         transaction.parents.forEach((tx) => {
                             links.push({
                                 data: {
