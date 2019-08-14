@@ -61,17 +61,23 @@ class IpfsInteralContract implements IInternalContract {
 
         var ipfsFileObject = {
             hash: ipfsHash,
-            value: 0,
+            value: new BN(0),
             hosts: [] as any
         };
 
         const dbIpfsFile = await getById(ipfsHash);
         if(dbIpfsFile != null){
             ipfsFileObject = dbIpfsFile;
+
+            // Convert saved string to BN
+            ipfsFileObject.value = new BN(dbIpfsFile.value);
         }
 
         // Add the stored Rutile to the file
-        ipfsFileObject.value += this.callMessage.value.toNumber();        
+        ipfsFileObject.value = ipfsFileObject.value.add(this.callMessage.value); 
+
+        // Convert BN to string before we create or update
+        ipfsFileObject.value = ipfsFileObject.value.toString();      
         createOrUpdate(ipfsHash, ipfsFileObject);
 
         return this.results;
