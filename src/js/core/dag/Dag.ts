@@ -9,7 +9,7 @@ import { databaseGetAll, databaseRemove } from "../../services/DatabaseService";
 import { isProofOfWorkValid } from "../../services/transaction/ProofOfWork";
 import * as Logger from 'js-logger';
 import TipValidator from "./lib/TipValidator";
-import Snapshot from "./lib/Snapshot";
+import Snapshot from "../snapshot/Snapshot";
 import Transaction from "../../models/Transaction";
 import { applyTransaction, saveTransaction } from "./lib/services/TransactionService";
 import createGenesisTransaction from "./lib/transaction/createGenesisTransaction";
@@ -202,7 +202,7 @@ class Dag extends EventHandler {
             throw new Error(`Milestone #${milestoneIndex} does not exist, snapshot aborted.`);
         }
 
-        const snapshot = await Snapshot.takeSnapshot(milestoneTransaction.id);
+        const snapshot = await Snapshot.create(milestoneTransaction.id);
     }
 
     /**

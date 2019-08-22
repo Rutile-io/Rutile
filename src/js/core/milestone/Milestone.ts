@@ -42,7 +42,7 @@ class Milestone {
 
     async start() {
         // First find the very first transaction
-        const firstTransaction = await Transaction.getByMilestoneIndex(1);
+        const firstTransaction = await MilestoneWalker.getLatestMilestone();
         this.milestoneWalker = new MilestoneWalker(firstTransaction, this.dag);
         this.milestoneWalker.findNext();
 
