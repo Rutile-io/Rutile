@@ -3,6 +3,8 @@ import Transaction from "../../../models/Transaction";
 import getTransactionCumulativeWeights from "../../dag/lib/services/CumulativeWeightService";
 import Dag from '../../dag/Dag';
 import { Results } from '../../rvm/context';
+import Snapshot from '../../snapshot/Snapshot';
+import { startDatabase, databaseCreate, createOrUpdate, databaseFind, databaseGetById } from '../../../services/DatabaseService';
 
 /**
  * The milestone walker walks upon all the transactions of the DAG
@@ -18,6 +20,17 @@ class MilestoneWalker {
     constructor(lastKnownMilestone: Transaction, dag: Dag) {
         this.currentMilestone = lastKnownMilestone;
         this.dag = dag;
+    }
+
+    static async getLatestMilestone() {
+        const milestoneRaw = await databaseGetById('currentMilestone');
+
+        // Just return the genesis milestone if we never run before
+        if (!milestoneRaw) {
+            return Transaction.getByMilestoneIndex(1);
+        }
+
+        return Transaction.fromRaw(milestoneRaw.value);
     }
 
     /**
@@ -138,6 +151,7 @@ class MilestoneWalker {
         // Update our milestone pointer
         if (milestoneList.length) {
             this.currentMilestone = milestoneList[milestoneList.length - 1];
+            await createOrUpdate('currentMilestone', this.currentMilestone.toRaw());
         }
 
         const endPoint = this.currentMilestone;

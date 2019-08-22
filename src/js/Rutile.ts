@@ -12,7 +12,7 @@ import * as Database from './services/DatabaseService';
 import * as Logger from 'js-logger';
 import IConfig, { NodeType } from './models/interfaces/IConfig';
 import Validator from './core/milestone/Validator';
-import Snapshot from './core/dag/lib/Snapshot';
+import Snapshot from './core/snapshot/Snapshot';
 
 /**
  * Glue between all core modules.

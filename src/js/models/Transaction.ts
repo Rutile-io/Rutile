@@ -304,6 +304,10 @@ class Transaction {
      * @memberof Transaction
      */
     static fromRaw(rawTransaction: string): Transaction {
+        if (!rawTransaction) {
+            throw new Error('fromRaw cannot be called without a parsable string');
+        }
+
         const transaction: TransactionParams = JSON.parse(rawTransaction);
 
         // TODO: Validate more types..

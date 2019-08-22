@@ -90,7 +90,6 @@ async function calculateCumulativeWeight(transactionIds: string[]) {
     return transactionCumulativeWeights;
 }
 
-
 const cachedWeights: {
     timestamp: number,
     result: Map<string, number>
@@ -98,6 +97,7 @@ const cachedWeights: {
     timestamp: Date.now(),
     result: null,
 };
+
 
 /**
  * Gets the transaction current cumulative weights of the DAG

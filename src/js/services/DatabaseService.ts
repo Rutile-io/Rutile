@@ -131,6 +131,10 @@ export async function getById(id: string): Promise<any> {
     }
 }
 
+export async function databaseGetById(id: string): Promise<any> {
+    return getById(id);
+}
+
 /**
  * Removes an item from the database
  *
