@@ -1,21 +1,15 @@
 import Rutile from './Rutile';
-import { applyArgv, configuration } from './Configuration';
+import { applyArgv, configuration, setConfig } from './Configuration';
 import isNodeJs from './services/isNodeJs';
 import Wallet from './models/Wallet';
-import { startDatabase, databaseCreate, createOrUpdate, databaseFind } from './services/DatabaseService';
+import { startDatabase} from './services/DatabaseService';
 import Account from './models/Account';
 import * as Logger from 'js-logger';
-import getTransactionCumulativeWeights from './core/dag/lib/services/CumulativeWeightService';
-import { stringToHex, hexStringToBuffer } from './utils/hexUtils';
-import stringToByteArray from './utils/stringToByteArray';
-import keccak256 from './utils/keccak256';
-import { toHex } from './core/rvm/utils/hexUtils';
+import { stringToHex } from './utils/hexUtils';
 import execute from './core/rvm/execute';
-import MerkleTree from './models/MerkleTree';
 import PouchDbLevelDbMapping from './models/PouchDbLevelDbMapping';
 import Transaction from './models/Transaction';
 import {startIpfsClient} from './services/IpfsService';
-import createGenesisBlock from './core/dag/lib/transaction/createGenesisTransaction';
 import { CallKind } from './core/rvm/lib/CallMessage';
 const BN = require('bn.js');
 // import RutileContext from './models/RutileContext';
@@ -112,9 +106,10 @@ async function run() {
 
     // Testing..
     if (isNodeJs()) {
+
         rutile = new Rutile();
 
-        Logger.debug('My address is -> ', account.address, ' with balance -> ', account.balance);
+        Logger.debug('Starting with address ', account.address, ' with balance ', account.balance.toString());
 
         try {
             await rutile.start();
@@ -122,15 +117,13 @@ async function run() {
             console.error('Oh well', e);
         }
 
-        deployContract();
-
-        await rutile.dag.takeSnapshot(1);
+        // deployContract();
 
         // setInterval(() => {
         //     sendTestTransaction();
         // }, 6500);
 
-        rutile.dag.networkController.network.on('peerConnected', () => {
+        rutile.chain.networkController.network.on('peerConnected', () => {
             // deployContract();
 
         });

@@ -1,14 +1,11 @@
 import Transaction from "../../../../models/Transaction";
 import { configuration } from "../../../../Configuration";
 import KeyPair from "../../../../models/KeyPair";
-import { getById, createOrUpdate, databaseCreate, databaseFind, startDatabase } from "../../../../services/DatabaseService";
 import { rlpHash } from "../../../../utils/keccak256";
 import { numberToHex } from "../../../../utils/hexUtils";
 import Account from "../../../../models/Account";
-import getRandomInt from "../../../../utils/getRandomInt";
 import { isProofOfWorkValid } from "../../../../services/transaction/ProofOfWork";
 
-const GENESIS_MILESTONE = 1;
 
 /**
  * Gets a unsigned transaction hash
@@ -29,7 +26,6 @@ export function getUnsignedTransactionHash(transaction: Transaction): string {
         transaction.data,
         numberToHex(transaction.timestamp),
         numberToHex(configuration.genesis.config.chainId),
-        transaction.parents,
     ];
 
     return rlpHash(data);
@@ -70,11 +66,6 @@ export async function validateTransaction(transaction: Transaction, noExecution:
     // Making sure the properties are valid types
     // it throws an exception if a value is wrong
     Transaction.fromRaw(transaction.toRaw());
-
-    // For now the maximum of transactions that can be validated is 2
-    if (!transaction.isGenesis() && (transaction.parents.length < 2 || transaction.parents.length > 3)) {
-        throw new Error(`Transaction ${transaction.id} should validate 2-3 other transactions.`);
-    }
 
     if (!transaction.r || !transaction.s || !transaction.v) {
         throw new Error(`Transaction ${transaction.id} was not signed`);
@@ -119,8 +110,6 @@ export async function validateTransaction(transaction: Transaction, noExecution:
         timestamp: transaction.timestamp,
         nonce: transaction.nonce,
         value: transaction.value,
-        parents: transaction.parents,
-        milestoneIndex: transaction.milestoneIndex,
         transIndex: transaction.transIndex,
     });
 
@@ -134,7 +123,7 @@ export async function validateTransaction(transaction: Transaction, noExecution:
 
     // Check the Proof of Work again to make sure all the work adds up.
     if (!isProofOfWorkValid(transactionCopy.id, transactionCopy.nonce)) {
-        throw new Error('Proof of Work after execution is not valid');
+        throw new Error('Proof of Work after re-validating is not valid');
     }
 
     // On the off chance the PoW is valid but the id is not the same
@@ -150,6 +139,13 @@ export async function validateTransaction(transaction: Transaction, noExecution:
     return true;
 }
 
+/**
+ * Gets all the addresses from the transaction (Deriving from signature)
+ *
+ * @export
+ * @param {Transaction} transaction
+ * @returns
+ */
 export function getAddressFromTransaction(transaction: Transaction) {
     // Genesis milestones don't have a from
     if (transaction.isGenesis()) {
@@ -164,7 +160,7 @@ export function getAddressFromTransaction(transaction: Transaction) {
     }
 
     const unsignedTransactionHash = getUnsignedTransactionHash(transaction);
-    const pubKey = KeyPair.recoverAddress(unsignedTransactionHash, {
+    const fromAddress = KeyPair.recoverAddress(unsignedTransactionHash, {
         r: transaction.r,
         s: transaction.s,
         v: transaction.v
@@ -172,56 +168,8 @@ export function getAddressFromTransaction(transaction: Transaction) {
 
     return {
         to: transaction.to,
-        from: pubKey,
+        from: fromAddress,
     };
-}
-
-/**
- * Apply's the transaction and put it's in the database.
- * Also modifies the state of the database to represent the transaction
- * It does not validate the transaction it self.
- *
- * @export
- * @param {Transaction} transaction
- */
-export async function applyTransaction(transaction: Transaction) {
-    await saveTransaction(transaction);
-}
-
-export async function getMilestoneTransaction(milestoneIndex: number) {
-    const result = await databaseFind('milestoneIndex', milestoneIndex);
-
-    if (!result || !result.docs.length) {
-        return null;
-    }
-
-    return Transaction.fromRaw(JSON.stringify(result.docs[0]));
-}
-
-export async function getTransactionById(id: string): Promise<Transaction> {
-    try {
-        const result = await getById(id);
-
-        if (!result) {
-            return null;
-        }
-
-        const transaction = Transaction.fromRaw(JSON.stringify(result));
-
-        return transaction;
-    } catch (error) {
-        console.error('getTransactionById: ', error);
-        return null;
-    }
-}
-
-export async function saveTransaction(transaction: Transaction) {
-    const rawTransaction = transaction.toRaw();
-    await databaseCreate(transaction.id, JSON.parse(rawTransaction));
-}
-
-export async function createOrUpdateTransaction(transaction: Transaction) {
-    await createOrUpdate(transaction.id, transaction.toRaw());
 }
 
 /**
@@ -239,64 +187,4 @@ export async function getAccountCreationTransaction(toAddress: string): Promise<
     }
 
     return Transaction.getById(account.creationTransactionId);
-}
-
-export async function getStateInputTransactionTip(startTransaction: Transaction, address: string, cummulativeWeights: Map<string, number>): Promise<Transaction> {
-    if (!startTransaction) {
-        throw new Error('Start transaction is required');
-    }
-
-    const db = await startDatabase()
-    const data = await db.find({
-        selector: {
-            // The first transaction of the parent should be the input transaction
-            'inputs': {
-                '$in': [startTransaction.id],
-            }
-        }
-    });
-
-    const parentTransactions = data.docs.map(tx => Transaction.fromRaw(JSON.stringify(tx)));
-
-    // We found our tip
-    if (!parentTransactions.length) {
-        return startTransaction;
-    }
-
-    // We need a weighted choice between these transactions..
-    const nextTransaction = getRandomWeightedTransaction(parentTransactions, cummulativeWeights);
-
-    return getStateInputTransactionTip(nextTransaction, address, cummulativeWeights);
-}
-
-/**
- * Gets a random weighted transaction from the array
- *
- * @export
- * @param {Transaction[]} transactions
- * @param {Map<string, number>} cummulativeWeights
- * @returns {Transaction}
- */
-export function getRandomWeightedTransaction(transactions: Transaction[], cummulativeWeights: Map<string, number>): Transaction {
-    let sumOfWeight = 0;
-
-    transactions.forEach((tx) => {
-        sumOfWeight += cummulativeWeights.get(tx.id);
-    });
-
-    let randomNum = getRandomInt(0, sumOfWeight);
-
-    const weightedTransaction = transactions.find((tx) => {
-        if (randomNum < cummulativeWeights.get(tx.id)) {
-            return true;
-        }
-
-        randomNum -= cummulativeWeights.get(tx.id);
-    });
-
-    if (!weightedTransaction) {
-        return transactions[0];
-    }
-
-    return weightedTransaction;
 }

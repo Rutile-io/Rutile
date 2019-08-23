@@ -1,5 +1,5 @@
 import Milestone from "./Milestone";
-import Dag from "../dag/Dag";
+import Dag from "../chain/Chain";
 
 class Validator {
     milestone: Milestone;

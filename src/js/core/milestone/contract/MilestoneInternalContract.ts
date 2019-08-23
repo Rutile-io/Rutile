@@ -6,6 +6,8 @@ import BNType from 'bn.js';
 import { VM_ERROR } from "../../rvm/lib/exceptions";
 import Transaction from "../../../models/Transaction";
 import MilestoneSlots from "./MilestoneSlots";
+import stringToByteArray from "../../../utils/stringToByteArray";
+import { hexStringToBuffer } from "../../../utils/hexUtils";
 const BN = require('bn.js');
 
 const MINIMAL_DEPOSIT: BNType = new BN(32);
@@ -66,9 +68,15 @@ class MilestoneInternalContract implements IInternalContract {
         return this.results;
     }
 
-    public async getNextValidator() {
-        // We use the previous milestone as a seed
+    public async getNextValidator(): Promise<Results> {
+        const slot = await this.milestoneSlots.getSlot();
 
+        this.results.outputRoot = await this.milestoneSlots.merkleTree.getMerkleRoot();
+        const buffer = hexStringToBuffer(slot.address);
+
+        this.results.return = buffer;
+
+        return this.results;
     }
 
     private async selectFunction(selector: Uint8Array): Promise<Results> {
@@ -76,6 +84,8 @@ class MilestoneInternalContract implements IInternalContract {
 
         if (selectorHex === '0x00000001') {
             return this.registerAsValidator();
+        } else if (selectorHex === '0x00000002') {
+            return this.getNextValidator();
         }
 
         return this.results;

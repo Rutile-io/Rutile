@@ -1,6 +1,6 @@
 import Transaction from '../models/Transaction';
 import CallMessage, { CallKind } from '../core/rvm/lib/CallMessage';
-import { getAddressFromTransaction } from '../core/dag/lib/services/TransactionService';
+import { getAddressFromTransaction } from '../core/chain/lib/services/TransactionService';
 import { hexStringToBuffer } from '../utils/hexUtils';
 import Account from '../models/Account';
 

@@ -1,14 +1,16 @@
-import Dag from "../Dag";
+import Chain from "../Chain";
 import Network from "../../network/Network";
 import { NetworkMessageEvent } from "../../network/lib/types/Events";
 import Transaction from "../../../models/Transaction";
 import { Results } from "../../rvm/context";
+import Block from "../../../models/Block";
+
 
 class NetworkController {
-    dag: Dag;
+    dag: Chain;
     network: Network;
 
-    constructor(dag: Dag, network: Network) {
+    constructor(dag: Chain, network: Network) {
         this.dag = dag;
         this.network = network;
         this.network.on('message', this.onNetworkMessage.bind(this));
@@ -24,17 +26,35 @@ class NetworkController {
         this.network.broadcastTransaction(transaction);
     }
 
+    broadcastBlock(block: Block, skipPeerIds?: string[]) {
+        const message = JSON.stringify({
+            type: 'BLOCK',
+            value: block.toRaw(),
+        });
+
+        this.network.broadcast(message, skipPeerIds);
+    }
+
     /**
-     * responds to a transaction sync request.
+     * Responds to a block sync request.
      *
-     * @param {Transaction} transaction
+     * @param {string | Buffer} transaction
      * @param {string} peerId
      * @memberof NetworkController
      */
-    sendTransactionSyncString(transaction: string | Buffer, peerId: string) {
+    sendBlockSyncString(block: string | Buffer, peerId: string) {
         const message = JSON.stringify({
-            type: 'TRANSACTION_SYNC',
-            value: transaction,
+            type: 'BLOCK_SYNC',
+            value: block,
+        });
+
+        this.network.sendDataToPeer(peerId, message);
+    }
+
+    sendBlockSyncComplete(lastBlock: Block, peerId: string) {
+        const message = JSON.stringify({
+            type: 'BLOCK_SYNC_COMPLETE',
+            value: lastBlock.toRaw(),
         });
 
         this.network.sendDataToPeer(peerId, message);
@@ -85,14 +105,19 @@ class NetworkController {
 
         if (data.type === 'TRANSACTION') {
             const transaction = Transaction.fromRaw(data.value);
-
             this.dag.addTransaction(transaction, event.peerId);
+        } else if (data.type === 'BLOCK') {
+            const block = Block.fromRaw(data.value);
+            this.dag.addBlock(block, event.peerId);
         } else if (data.type === 'SYNC_FROM_MILESTONE') {
             // A node sent us a request to synchronise our database.
             this.dag.synchroniseTo(data.value.number, event.peerId);
-        } else if (data.type === 'TRANSACTION_SYNC') {
-            const transaction = Transaction.fromRaw(data.value);
-            this.dag.onTransactionSyncMessage(transaction);
+        } else if (data.type === 'BLOCK_SYNC') {
+            const block = Block.fromRaw(data.value);
+            this.dag.onBlockSyncMessage(block);
+        } else if (data.type === 'BLOCK_SYNC_COMPLETE') {
+            const block = Block.fromRaw(data.value);
+            this.dag.chainSyncing.complete(block);
         } else if (data.type === 'GET_TRANSACTION_RESULT') {
             let eventId: any = null;
             // Making sure the peer id does not get garbage collected

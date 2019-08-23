@@ -2,7 +2,7 @@ import * as Logger from 'js-logger';
 import Ipfs from "../services/wrappers/Ipfs";
 import { configuration } from "../Configuration";
 import KeyPair from "./KeyPair";
-import { getUnsignedTransactionHash, getTransactionId, getAddressFromTransaction, validateTransaction } from "../core/dag/lib/services/TransactionService";
+import { getUnsignedTransactionHash, getTransactionId, getAddressFromTransaction, validateTransaction } from "../core/chain/lib/services/TransactionService";
 import execute from "../core/rvm/execute";
 import BNtype from 'bn.js';
 import { NodeType } from "./interfaces/IConfig";
@@ -13,9 +13,11 @@ import getSystemContract from '../services/getSystemContract';
 import createCallMessage from '../services/createCallMessage';
 import { hexStringToByte } from '../core/rvm/utils/hexUtils';
 import getInternalContract from '../services/getInternalContract';
-import { startDatabase, databaseFind, createOrUpdate } from '../services/DatabaseService';
+import { startDatabase, createOrUpdate } from '../services/DatabaseService';
 import { applyProofOfWork } from '../services/transaction/ProofOfWork';
 import { VM_ERROR } from '../core/rvm/lib/exceptions';
+import { transferTransactionValue } from '../core/chain/lib/services/TransactionExecutionService';
+import Block from './Block';
 const BN = require('bn.js');
 
 interface TransactionParams {
@@ -31,8 +33,6 @@ interface TransactionParams {
     v?: number;
     timestamp?: number;
     value?: number | string | BNtype;
-    parents?: string[];
-    milestoneIndex?: number;
     referencedMilestonIndex?: number;
     transIndex?: number;
 }
@@ -40,9 +40,6 @@ interface TransactionParams {
 class Transaction {
     // The hash of the transaction (Not by PoW)
     id?: string;
-
-    // Parents of the transactions, used for attachting to the DAG
-    parents: string[];
 
     // Gas used for function execution
     gasUsed: number = 0;
@@ -70,12 +67,6 @@ class Transaction {
 
     transIndex?: number = 0;
 
-    // The index of the milestone
-    // It's an internal index that can change overtime but should be permenant after
-    // x time.
-    milestoneIndex?: number;
-    referencedMilestonIndex?: number;
-
     // To which address to send tokens to.
     // Can also be a function address
     to?: string;
@@ -96,9 +87,6 @@ class Transaction {
         this.v = params.v;
         this.timestamp = params.timestamp || 0;
         this.value = params.value ? new BN(params.value, 10) : new BN(0, 10);
-        this.parents = params.parents || [];
-        this.milestoneIndex = params.milestoneIndex === undefined ? null : params.milestoneIndex;
-        this.referencedMilestonIndex = params.referencedMilestonIndex || null;
         this.transIndex = params.transIndex || 0;
     }
 
@@ -121,22 +109,21 @@ class Transaction {
         // return Account.create(contractAddress, this.data, this.id);
     }
 
-    public addParents(transactions: Transaction[]) {
-        if (transactions.length < 2) {
-            throw new Error('2 transactions should be given');
-        }
-
-        transactions.forEach((tx) => {
-            this.parents.push(tx.id);
-        });
-    }
-
     public proofOfWork() {
         this.nonce = applyProofOfWork(this.id);
     }
 
-    public async execute(): Promise<Results> {
+    /**
+     * Executes the transaction
+     *
+     * @param {Block} block Which block the transaction is part of
+     * @returns {Promise<Results>}
+     * @memberof Transaction
+     */
+    public async execute(block: Block): Promise<Results> {
         try {
+            this.gasUsed = 250;
+
             // non full nodes do not need to execute the function
             if (configuration.nodeType !== NodeType.FULL) {
                 return null;
@@ -144,13 +131,12 @@ class Transaction {
 
             // This is a contract creation because we do not have a receipient
             if (!this.to) {
-                // Logger.debug('Creating new contract address');
                 const createdContractAddress = await this.deployContract();
 
                 return {
                     exception: 0,
                     exceptionError: null,
-                    gasUsed: 0,
+                    gasUsed: this.gasUsed,
                     returnHex: createdContractAddress,
                     return: hexStringToByte(createdContractAddress),
                     outputRoot: '0x',
@@ -164,6 +150,7 @@ class Transaction {
 
             // The contract is not internal either.. So it's either a deployed contract or a normal address
             const account = await Account.findOrCreate(this.to);
+            await transferTransactionValue(this, block);
 
             // The address is not a system contract
             if (!wasm) {
@@ -185,7 +172,7 @@ class Transaction {
                     return {
                         exception: 0,
                         exceptionError: null,
-                        gasUsed: 0,
+                        gasUsed: this.gasUsed,
                         returnHex: '0x',
                         return: new Uint8Array(0),
                         outputRoot: '0x',
@@ -196,7 +183,7 @@ class Transaction {
 
             // Possibly have to save the result in the transaction.
             const executionResults = await execute(callMessage);
-            this.gasUsed = executionResults.gasUsed;
+            this.gasUsed += executionResults.gasUsed;
 
             if (executionResults.exceptionError !== VM_ERROR.REVERT) {
                 account.storageRoot = executionResults.outputRoot;
@@ -266,9 +253,6 @@ class Transaction {
             r: this.r,
             s: this.s,
             v: this.v,
-            parents: this.parents,
-            milestoneIndex: this.milestoneIndex,
-            referencedMilestonIndex: this.referencedMilestonIndex,
             transIndex: this.transIndex,
         });
     }
@@ -291,6 +275,7 @@ class Transaction {
      */
     async save() {
         const rawTransaction = this.toRaw();
+        console.log('TX Save');
         await createOrUpdate(this.id, JSON.parse(rawTransaction));
     }
 
@@ -368,45 +353,6 @@ class Transaction {
 
         // Convert all objects back to models
         return result.rows.map(row => Transaction.fromRaw(JSON.stringify(row.value)));
-    }
-
-    /**
-     * Gets a transaction by it's milestone index
-     *
-     * @static
-     * @param {number} milestoneIndex
-     * @returns
-     * @memberof Transaction
-     */
-    static async getByMilestoneIndex(milestoneIndex: number) {
-        const result = await databaseFind('milestoneIndex', milestoneIndex);
-
-        if (!result || !result.docs.length) {
-            return null;
-        }
-
-        return Transaction.fromRaw(JSON.stringify(result.docs[0]));
-    }
-
-    /**
-     * Finds transaction that includes the transactionId as it's parent
-     *
-     * @param {string} transactionId
-     * @returns {Promise<Transaction[]>}
-     * @memberof Transaction
-     */
-    static async getChildren(transactionId: string): Promise<Transaction[]> {
-        const db = await startDatabase();
-
-        const data = await db.find({
-            selector: {
-                'parents': {
-                    '$in': [transactionId],
-                }
-            }
-        });
-
-        return data.docs.map(tx => Transaction.fromRaw(JSON.stringify(tx)))
     }
 }
 

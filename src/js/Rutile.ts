@@ -2,7 +2,7 @@ import Network from './core/network/Network';
 import Ipfs from './services/wrappers/Ipfs';
 import { configuration, setConfig } from './Configuration';
 import Transaction from './models/Transaction';
-import Dag from './core/dag/Dag';
+import Chain from './core/chain/Chain';
 import EventHandler from './services/EventHandler';
 import KeyPair from './models/KeyPair';
 import Account from './models/Account';
@@ -12,7 +12,6 @@ import * as Database from './services/DatabaseService';
 import * as Logger from 'js-logger';
 import IConfig, { NodeType } from './models/interfaces/IConfig';
 import Validator from './core/milestone/Validator';
-import Snapshot from './core/snapshot/Snapshot';
 
 /**
  * Glue between all core modules.
@@ -23,7 +22,7 @@ import Snapshot from './core/snapshot/Snapshot';
 class Rutile {
     private network: Network;
     public ipfs: Ipfs;
-    public dag: Dag;
+    public chain: Chain;
     public eventHandler: EventHandler;
     public validator: Validator;
 
@@ -47,8 +46,8 @@ class Rutile {
         return Account;
     }
 
-    static get Snapshot() {
-        return Snapshot;
+    get Ipfs(){
+        return this.ipfs;
     }
 
     constructor(options?: IConfig) {
@@ -70,42 +69,55 @@ class Rutile {
             console.error('Could not connect to peers: ', error);
         }
 
-        this.dag = new Dag(this.network);
+        this.chain = new Chain(this.network);
 
         // if (configuration.nodeType !== NodeType.CLIENT) {
-            await this.dag.synchronise();
+            await this.chain.synchronise();
         // }
 
         if (configuration.nodeType === NodeType.FULL) {
-            this.validator = new Validator(this.dag);
+            this.validator = new Validator(this.chain);
             this.validator.start();
         }
     }
 
+    /**
+     * Deploys a WASM contract to the network
+     *
+     * @param {Uint8Array} binary
+     * @returns {Promise<string>}
+     * @memberof Rutile
+     */
     async deploy(binary: Uint8Array): Promise<string> {
         return this.ipfs.add(byteArrayToString(binary));
     }
 
+    /**
+     * Sends a transaction to the chain
+     *
+     * @param {Transaction} transaction
+     * @param {KeyPair} keyPair
+     * @returns
+     * @memberof Rutile
+     */
     async sendTransaction(transaction: Transaction, keyPair: KeyPair) {
-        return this.dag.submitTransaction(transaction, keyPair);
+        return this.chain.submitTransaction(transaction, keyPair);
     }
 
+    /**
+     * Gets the current balance of a given address
+     *
+     * @param {string} address
+     * @returns
+     * @memberof Rutile
+     */
     async getAccountBalance(address: string) {
-        if (!this.dag) {
+        if (!this.chain) {
             throw new Error('Rutile should be started first');
         }
 
-        const balances = await this.dag.getAccountBalance();
-
-        if (!balances[address] || !balances[address].value) {
-            return '0';
-        }
-
-        return balances[address].value.toString();
-    }
-
-    get Ipfs(){
-        return this.ipfs;
+        const account = await Account.findOrCreate(address);
+        return account.balance;
     }
 }
 

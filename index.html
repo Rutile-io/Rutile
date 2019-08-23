@@ -11,7 +11,7 @@
         </style>
     </head>
     <body>
-        <div id="dagspace" style="height: 500px;"></div>
+        <!-- <div id="dagspace" style="height: 500px;"></div> -->
         <h1>Rutile testing environment</h1>
         <section>
             <div>
@@ -105,9 +105,11 @@
 
             async function run() {
                 try {
-                    rutile = new Rutile();
+                    rutile = new Rutile({
+                        privateKey: 'D0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE',
+                    });
                     await rutile.start();
-                    rutile.dag.on('transactionAdded', (event) => {
+                    rutile.chain.on('transactionAdded', (event) => {
                         addTransaction(event.transaction)
                     });
 
@@ -250,43 +252,34 @@
             }
 
             async function runD3() {
-                const transactions = (await Rutile.Database.databaseFind('gasLimit', 0)).docs.sort((a, b) => a.timestamp - b.timestamp);
+                const blocks = (await Rutile.Database.databaseFind('extraData', '0x')).docs.sort((a, b) => a.timestamp - b.timestamp);
                 const elements = [];
                 const links = [];
 
-                for (let index = 0; index < transactions.length; index++) {
-                    const transaction = transactions[index];
+                console.log('[] blocks -> ', blocks);
+
+                for (let index = 0; index < blocks.length; index++) {
+                    const block = blocks[index];
 
                     const className = [];
-                    let label = undefined;
-
-                    if (transaction.referencedMilestonIndex !== null) {
-                        label = '[' + transaction.referencedMilestonIndex + ']';
-                        className.push('reference');
-                    }
-
-                    if (transaction.milestoneIndex !== null) {
-                        label = transaction.milestoneIndex;
-                        className.push('milestone');
-                    }
+                    let label = block.number;
+                    className.push('milestone');
 
                     elements.push({
                         data: {
                             label,
-                            id: transaction.id,
+                            id: block.id,
                         },
                         classes: className,
                     });
 
-                    if (transaction.parents.length) {
-                        transaction.parents.forEach((tx) => {
-                            links.push({
-                                data: {
-                                    source: transaction.id,
-                                    target: tx,
-                                    id: transaction.id + tx,
-                                }
-                            });
+                    if (block.parent) {
+                        links.push({
+                            data: {
+                                source: block.id,
+                                target: block.parent,
+                                id: block.id + block.parent,
+                            }
                         });
                     }
                 }
@@ -357,7 +350,7 @@
             }
 
             run();
-            runD3();
+            // runD3();
         </script>
         <link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
     </body>

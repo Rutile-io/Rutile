@@ -15,10 +15,12 @@ class Wallet {
     privateKey: string;
     keyPair: KeyPair;
     account: Account;
+    address: string;
 
     constructor(privateKey: string) {
         this.privateKey = privateKey;
         this.keyPair = new KeyPair(privateKey);
+        this.address = KeyPair.computeAddress(this.keyPair.publicKey);
     }
 
     async getAccountInfo() {

@@ -17,6 +17,8 @@ export interface Slot {
     type: 'SLOT',
 }
 
+const SLOT_KEY = 'slot-';
+
 class MilestoneSlots {
     merkleTree: MerkleTree;
     transaction: Transaction;
@@ -41,13 +43,13 @@ class MilestoneSlots {
         // Merkle tree should probabbly have the input sorted out..
         this.merkleTree = new MerkleTree(database, inputRoot);
 
-        let length = await this.merkleTree.get('length');
+        let length = await this.merkleTree.get(`${SLOT_KEY}length`);
 
         if (!length) {
             const zeroLength = numberToHex(0);
             length = hexStringToBuffer(zeroLength);
 
-            await this.merkleTree.put('length', length);
+            await this.merkleTree.put(`${SLOT_KEY}length`, length);
         }
 
         this.length = parseInt(toHex(length), 16);
@@ -64,10 +66,18 @@ class MilestoneSlots {
         const lengthHex = numberToHex(this.length);
         const lengthBuffer = hexStringToBuffer(lengthHex);
 
-        await this.merkleTree.put('length', lengthBuffer);
+        await this.merkleTree.put(`${SLOT_KEY}length`, lengthBuffer);
         const buffer = Buffer.from(JSON.stringify(slot));
 
-        await this.merkleTree.put(this.length.toString(), buffer);
+        await this.merkleTree.put(SLOT_KEY + this.length.toString(), buffer);
+    }
+
+    async getSlot(): Promise<Slot> {
+        const index = this.length;
+        const buffer: Buffer = await this.merkleTree.get(`${SLOT_KEY}${index}`);
+        const slot: Slot = JSON.parse(buffer.toString());
+
+        return slot;
     }
 }
 

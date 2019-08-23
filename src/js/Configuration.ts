@@ -15,7 +15,7 @@ let configuration: IConfig = {
     port: 1337,
 
     // Private key is used for milestone generation.
-    privateKey: '10DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE',
+    privateKey: 'C0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE',
     iceServers: [
         { urls: 'stun:stun.stunprotocol.org:3478' },
         { urls: 'stun:stun.l.google.com:19302' }
@@ -33,6 +33,12 @@ let configuration: IConfig = {
     },
     difficulty: 3,
     databaseName: 'db_rutile',
+    block: {
+        blockGasLimit: 8000000,
+        blockTime: 6000,
+        coinbaseAddress: '0x53ae893e4b22d707943299a8d0c844df0e3d5557',
+        coinbaseAmount: '1000000000000000000',
+    },
     genesis: {
         alloc: {
             '0x53ae893e4b22d707943299a8d0c844df0e3d5557': {

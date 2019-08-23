@@ -43,18 +43,6 @@ export async function startDatabase(): Promise<PouchDB.Database> {
     return pouchDb;
 }
 
-/**
- * Saves a transaction in the database
- *
- * @export
- * @param {Transaction} transaction
- */
-export async function saveTransaction(transaction: Transaction) {
-    const rawTransaction = JSON.parse(transaction.toRaw());
-
-    await databaseCreate(transaction.id, rawTransaction);
-}
-
 export async function databaseCreate(id: string | Buffer, obj: Buffer | string | Object) {
     try {
         let document: any = {
@@ -124,7 +112,6 @@ export async function createOrUpdate(id: string, obj: Buffer | string | Object) 
 export async function getById(id: string): Promise<any> {
     try {
         const val = await pouchDb.get(id);
-
         return val;
     } catch (error) {
         return null;

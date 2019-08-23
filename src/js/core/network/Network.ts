@@ -58,7 +58,7 @@ class Network extends EventHandler {
     private onPeerClose(peerId: string) {
         const disconnectedConnection = this.connections.findIndex(connection => connection.peer.id === peerId);
 
-        Logger.info(`Peer ${peerId} disconnected`);
+        Logger.info(`🔌 Peer ${peerId} disconnected`);
 
         // Remove from array
         this.connections.splice(disconnectedConnection, 1);

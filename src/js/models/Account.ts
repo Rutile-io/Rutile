@@ -3,20 +3,17 @@ import Transaction from "./Transaction";
 import MerkleTree from "./MerkleTree";
 import { toHex } from "../core/rvm/utils/hexUtils";
 import { numberToHex, hexStringToBuffer } from "../utils/hexUtils";
+import BNtype from 'bn.js';
+const BN = require('bn.js');
 
 interface AccountParams {
     address: string;
-    balance?: number;
-    transactionIndex?: number;
-    codeHash?: string;
-    storageRoot?: string;
-    alias?: string;
-    creationTransactionId?: string;
+    storageRoot: string;
 }
 
 class Account {
     address: string = '';
-    balance: number = 0;
+    balance: BNtype;
     transactionIndex: number = 0;
     codeHash: string;
     storageRoot: string;
@@ -26,13 +23,8 @@ class Account {
     creationTransactionId: string;
 
     constructor(params: AccountParams) {
-        this.address = params.address;
-        this.balance = params.balance || 0;
-        this.transactionIndex = params.transactionIndex || 0;
-        this.codeHash = params.codeHash || '';
         this.storageRoot = params.storageRoot;
-        this.alias = params.alias || '';
-        this.creationTransactionId = params.creationTransactionId || '0x';
+        this.address = params.address;
     }
 
     /**
@@ -56,11 +48,10 @@ class Account {
         const codeHash = storageData.get('codeHash') || [0];
         const creationTransactionId = storageData.get('creationTransactionId') || [0];
 
-        const hexBalance = '0x' + toHex(balance);
         const hexTransactionIndex = '0x' + toHex(transactionIndex);
 
         this.address = '0x' + toHex(address);
-        this.balance = parseInt(hexBalance, 16);
+        this.balance = new BN(balance);
         this.transactionIndex = parseInt(hexTransactionIndex, 16);
         this.codeHash = '0x' + toHex(codeHash);
         this.creationTransactionId = '0x' + toHex(creationTransactionId);
@@ -70,30 +61,23 @@ class Account {
         this.storage.flushCache();
     }
 
-    async setBalance(balance: number) {
-        if (typeof balance !== 'number') {
+    async setBalance(balance: BNtype) {
+        if (!BN.isBN(balance)) {
             throw new TypeError('balance should be a number');
         }
 
-        const buffer = hexStringToBuffer(numberToHex(balance));
-        await this.storage.put('balance', buffer);
-
+        await this.storage.put('balance', balance.toArrayLike(Buffer));
         this.storageRoot = await this.storage.getMerkleRoot();
     }
 
     async setTransactionIndex(index: number) {
         const buffer = hexStringToBuffer(numberToHex(index));
         await this.storage.put('transactionIndex', buffer);
-
         this.storageRoot = await this.storage.getMerkleRoot();
     }
 
     async save() {
         await Database.createOrUpdate(this.address, {
-            address: this.address,
-            balance: this.balance,
-            transactionIndex: this.transactionIndex,
-            codeHash: this.codeHash,
             storageRoot: this.storageRoot,
         });
     }
@@ -158,10 +142,8 @@ class Account {
         const storageRoot = await merkleTree.getMerkleRoot();
 
         const newAccount = new Account({
-            address,
+            address: address,
             storageRoot,
-            codeHash,
-            creationTransactionId,
         });
 
         await newAccount.save();

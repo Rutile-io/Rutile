@@ -40,6 +40,13 @@ interface GenesisConfig {
     };
 }
 
+interface BlockConfig {
+    coinbaseAddress: string;
+    blockTime: number;
+    blockGasLimit: number;
+    coinbaseAmount: string;
+}
+
 interface IConfig {
     nodeId: string;
     nodeType: NodeType;
@@ -51,6 +58,7 @@ interface IConfig {
     databaseName: string;
     difficulty: number;
     genesis: GenesisConfig;
+    block: BlockConfig;
     privateKey: string;
     maximumNodes: number;
 }
