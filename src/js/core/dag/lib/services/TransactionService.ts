@@ -164,7 +164,7 @@ export function getAddressFromTransaction(transaction: Transaction) {
     }
 
     if (!transaction.r || !transaction.s || !transaction.v) {
-        throw new Error(`Value r,s,v should not be undefined on transaction ${transaction.id}`);
+        throw new Error(`Value r,s,v should not be undefined on transaction ${transaction.id}, please call transaction.sign() first`);
     }
 
     const unsignedTransactionHash = getUnsignedTransactionHash(transaction);

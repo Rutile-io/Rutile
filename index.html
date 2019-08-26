@@ -67,6 +67,21 @@
             </div>
             <button onclick="takeSnapshot()">Take Snapshot</button>
         </section>
+        <h2>Upload file to local IPFS Node</h2>
+        <section>
+            <div>
+                <label>File</label>
+                <input type="file" id="valueFile" />
+            </div>
+        </section>
+        <h2>Register as host for a local ipfs file</h2>
+        <section>
+            <div>
+                <label>Hash of file</label>
+                <input type="text" id="valueHash"/>
+            </div>
+            <button onclick="RegisterAsHost()">Register as host</button>
+        </section>
 
         <div id="app"></div>
         <script src="build/rutile.js" charset="utf-8"></script>
@@ -109,6 +124,70 @@
 
                 document.getElementById('balanceInfo').innerHTML = balance;
             }
+
+            function convertToHex(str) {
+                var hex = '';
+                for(var i=0;i<str.length;i++) {
+                    hex += ''+str.charCodeAt(i).toString(16);
+                }
+                return hex;
+            }
+
+            async function uploadFileToLocalIPFS(evt) {
+                var f = evt.target.files[0];
+                if (f) {
+                var r = new FileReader();
+                r.onload = async function(e) {
+                    var content = e.target.result;
+                    var hash = await rutile.Ipfs.add(content);
+
+                    const privateKey = document.getElementById('privateKey').value;
+                    const toAddress = '0x0300000000000000000000000000000000000000';
+                    const value = '1';
+                    const data = '0x00000001' + convertToHex(hash);
+                    const keyPair = new Rutile.KeyPair(privateKey);
+                    const account = await Rutile.Account.getFromAddress(keyPair.getAddress());
+                    let transIndex = account.transactionIndex + 1;
+
+                    const transaction = new Rutile.Transaction({
+                        to: toAddress,
+                        value,
+                        data,
+                        nonce: transIndex,
+                    });
+
+                    transaction.sign(keyPair);
+
+                    const result = await rutile.sendTransaction(transaction, keyPair);
+                }
+                r.readAsText(f);
+                } else {
+                    alert("Failed to load file");
+                }
+            }
+            async function RegisterAsHost(){
+                const hash = document.getElementById('valueHash').value;
+                const privateKey = document.getElementById('privateKey').value;
+                const toAddress = '0x0300000000000000000000000000000000000000';
+                const value = '1';
+                const data = '0x00000002' + convertToHex(hash);
+                const keyPair = new Rutile.KeyPair(privateKey);
+                const account = await Rutile.Account.getFromAddress(keyPair.getAddress());
+                let transIndex = account.transactionIndex + 1;
+
+                const transaction = new Rutile.Transaction({
+                    to: toAddress,
+                    value,
+                    data,
+                    nonce: transIndex,
+                });
+
+                transaction.sign(keyPair);
+
+                const result = await rutile.sendTransaction(transaction, keyPair);
+            }
+
+            document.getElementById('valueFile').addEventListener('change', uploadFileToLocalIPFS, false);
 
             async function setPrivateKey() {
                 keyPair = new Rutile.Wallet(document.getElementById('privateKey').value);

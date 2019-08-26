@@ -15,6 +15,7 @@ import MerkleTree from './models/MerkleTree';
 import PouchDbLevelDbMapping from './models/PouchDbLevelDbMapping';
 import Block from './models/Block';
 import Transaction from './models/Transaction';
+import {startIpfsClient} from './services/IpfsService';
 import createGenesisBlock from './core/dag/lib/transaction/createGenesisTransaction';
 // import RutileContext from './models/RutileContext';
 // import * as fs from 'fs';
@@ -65,6 +66,9 @@ async function deployContract() {
 async function run() {
     applyArgv();
     let db = await startDatabase();
+    let mapping = new PouchDbLevelDbMapping(db);
+
+    await startIpfsClient();
 
     wallet = new Wallet('10DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE');
     account = await wallet.getAccountInfo();
@@ -74,7 +78,6 @@ async function run() {
     // Testing..
     if (isNodeJs()) {
         rutile = new Rutile();
-
 
         Logger.debug('My address is -> ', account.address, ' with balance -> ', account.balance);
 
