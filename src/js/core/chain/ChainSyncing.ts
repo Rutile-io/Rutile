@@ -22,7 +22,7 @@ class ChainSyncing {
      *
      * @memberof ChainSyncing
      */
-    synchronise(): Promise<void> {
+    synchronise(): Promise<Block> {
         return new Promise(async (resolve) => {
             this.synchroniseResolve = resolve;
 
@@ -91,7 +91,7 @@ class ChainSyncing {
         if (this.latestNetworkBlock) {
             if (this.synchronisePointerBlock.id === this.latestNetworkBlock.id) {
                 Logger.info(`🚀 Synchronisation complete.`);
-                this.synchroniseResolve(true);
+                this.synchroniseResolve(this.synchronisePointerBlock);
                 return;
             }
         }
@@ -131,6 +131,11 @@ class ChainSyncing {
     }
 
     async complete(lastBlock: Block) {
+        if (lastBlock.number === this.synchronisePointerBlock.number) {
+            this.synchroniseResolve(lastBlock);
+            return;
+        }
+
         this.latestNetworkBlock = lastBlock;
         this.processBlockPool();
     }

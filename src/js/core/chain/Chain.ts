@@ -232,8 +232,10 @@ class Chain extends EventHandler {
      */
     async synchronise() {
         this.isSyncing = true;
-        await this.chainSyncing.synchronise();
+        this.currentBlock = await this.chainSyncing.synchronise();
+        Logger.info(`🚀 Synchronisation complete. Now at ${this.currentBlock.number}`);
         this.isSyncing = false;
+        this.nextBlockRound();
     }
 
     async onBlockSyncMessage(block: Block) {
