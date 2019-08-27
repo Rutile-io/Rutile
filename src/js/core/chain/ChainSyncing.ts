@@ -45,11 +45,8 @@ class ChainSyncing {
                 return;
             }
 
-            // Make sure we have a peer that can accept the request
-            this.networkController.network.one('peerConnected', () => {
-                // Find the highest milestone we currently have and ask a node to get data up to the next milestone.
-                this.networkController.broadcastSynchroniseRequest(this.synchronisePointerBlock.number);
-            });
+            // Find the highest milestone we currently have and ask a node to get data up to the next milestone.
+            this.networkController.broadcastSynchroniseRequest(this.synchronisePointerBlock.number);
         });
     }
 

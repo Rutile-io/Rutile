@@ -25,6 +25,8 @@ export interface PeerDataMessage {
 
 class Network extends EventHandler {
     public connections: Connection[] = [];
+    private onOpenResolve: () => void;
+    private onOpenReject: () => void;
 
     private async onSignal(sessionDescription: RTCSessionDescriptionInit, peerId: string) {
         const response =  await PeerToPeerService.initialHttpNodeConnect(sessionDescription);
@@ -32,13 +34,22 @@ class Network extends EventHandler {
         const connection = this.connections[connectionIndex];
 
         if (!response) {
-            // this.onPeerClose(peerId);
             Logger.error(`No session description found for ${peerId}`);
+
+            if (this.onOpenReject) {
+                this.onOpenReject();
+            }
+
             return;
         }
 
         if (!connection) {
             Logger.error('Could not find connection, not adding');
+
+            if (this.onOpenReject) {
+                this.onOpenReject();
+            }
+
             return;
         }
 
@@ -114,7 +125,12 @@ class Network extends EventHandler {
         this.trigger('peerConnected', {
             data: null,
             peerId,
-        })
+        });
+
+        // We want the open function to complete and be able to sync
+        if (this.onOpenResolve) {
+            this.onOpenResolve();
+        }
 
         Logger.info(`New peer is connected (Total: ${this.connections.length})`);
     }
@@ -124,6 +140,10 @@ class Network extends EventHandler {
             data: error,
             peerId,
         });
+
+        if (this.onOpenReject) {
+            this.onOpenReject();
+        }
 
         Logger.error('Network error: ', error.message);
     }
@@ -136,7 +156,10 @@ class Network extends EventHandler {
      * @memberof PeerToPeer
      */
     open(): Promise<void> {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
+            this.onOpenResolve = resolve;
+            this.onOpenReject = reject;
+
             if (isNodeJs()) {
                 // TODO: Use HTTPS here instead of HTTP
                 const peerHttpServer = new PeerHttpServer(this);
@@ -169,8 +192,6 @@ class Network extends EventHandler {
             this.connections.push({
                 peer,
             });
-
-            resolve();
         });
     }
 
