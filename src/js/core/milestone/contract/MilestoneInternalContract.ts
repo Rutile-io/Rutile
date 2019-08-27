@@ -104,7 +104,10 @@ class MilestoneInternalContract implements IInternalContract {
         await this.milestoneSlots.init(callMessage.inputRoot);
 
         const result = await this.selectFunction(selector);
+
         result.returnHex = '0x' + toHex(result.return);
+        result.outputRoot = await this.milestoneSlots.merkleTree.getMerkleRoot();
+
         return result;
     }
 }

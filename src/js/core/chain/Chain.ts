@@ -75,6 +75,14 @@ class Chain extends EventHandler {
         }
     }
 
+    /**
+     * Adds a block to the chain
+     *
+     * @param {Block} block
+     * @param {string} fromPeerId
+     * @returns
+     * @memberof Chain
+     */
     async addBlock(block: Block, fromPeerId: string) {
         try {
             // When syncing we should let the new blocks be processed by the Chain syncer
@@ -155,7 +163,7 @@ class Chain extends EventHandler {
      * @memberof Dag
      */
     async synchroniseTo(blockNumber: number, peerId: string) {
-        Logger.debug(`🚀 Synchronising to peer ${peerId} starting from block #${blockNumber}`);
+        Logger.info(`🚀 Synchronising to peer ${peerId} starting from block #${blockNumber}`);
 
         const currentLatestBlock = await Block.getLatest();
         const blockNumbersToGet = [];
@@ -174,6 +182,11 @@ class Chain extends EventHandler {
         this.networkController.sendBlockSyncComplete(lastBlock, peerId);
     }
 
+    /**
+     * Looks at the chain for the newest block forger
+     *
+     * @memberof Chain
+     */
     async nextBlockRound() {
         // We are asking the internal PoS contract to get the next block validator
         const wallet = new Wallet(configuration.privateKey);
@@ -186,7 +199,7 @@ class Chain extends EventHandler {
         transaction.sign(wallet.keyPair);
 
         // We give the current block as the context since we do not actually save the results
-        const result = await transaction.execute(this.currentBlock);
+        const result = await transaction.execute(this.currentBlock, false);
         this.nextValidatorAddress = result.returnHex;
 
         if (result.returnHex === wallet.address) {
@@ -194,6 +207,11 @@ class Chain extends EventHandler {
         }
     }
 
+    /**
+     * Creates the next block
+     *
+     * @memberof Chain
+     */
     async createNextBlock() {
         const block = new Block({
             parent: this.currentBlock.id,
@@ -232,8 +250,11 @@ class Chain extends EventHandler {
      */
     async synchronise() {
         this.isSyncing = true;
+
+        // When we are not connected it's pretty hard to synchronise.
+        // To avoid no blocks being created we shall just skip the sync part
         this.currentBlock = await this.chainSyncing.synchronise();
-        Logger.info(`🚀 Synchronisation complete. Now at ${this.currentBlock.number}`);
+
         this.isSyncing = false;
         this.nextBlockRound();
     }

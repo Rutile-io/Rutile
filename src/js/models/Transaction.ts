@@ -120,7 +120,7 @@ class Transaction {
      * @returns {Promise<Results>}
      * @memberof Transaction
      */
-    public async execute(block: Block): Promise<Results> {
+    public async execute(block: Block, saveState: boolean = true): Promise<Results> {
         try {
             this.gasUsed = 250;
 
@@ -146,11 +146,12 @@ class Transaction {
 
             // It's possible that we are just calling a system contract
             let wasm: Uint8Array = getSystemContract(this.to);
-            const callMessage = await createCallMessage(this);
 
-            // The contract is not internal either.. So it's either a deployed contract or a normal address
-            const account = await Account.findOrCreate(this.to);
+            // Transfer the RUT value
             await transferTransactionValue(this, block);
+
+            const account = await Account.findOrCreate(this.to);
+            const callMessage = await createCallMessage(this);
 
             // The address is not a system contract
             if (!wasm) {
@@ -159,9 +160,12 @@ class Transaction {
 
                 if (internalContract) {
                     const executionResults = await internalContract.execute(callMessage, this);
-                    this.gasUsed = executionResults.gasUsed;
-                    account.storageRoot = executionResults.outputRoot;
-                    await account.save();
+                    this.gasUsed += executionResults.gasUsed;
+
+                    if (saveState) {
+                        account.storageRoot = executionResults.outputRoot;
+                        await account.save();
+                    }
 
                     return executionResults;
                 }
@@ -186,8 +190,11 @@ class Transaction {
             this.gasUsed += executionResults.gasUsed;
 
             if (executionResults.exceptionError !== VM_ERROR.REVERT) {
-                account.storageRoot = executionResults.outputRoot;
-                await account.save();
+
+                if (saveState) {
+                    account.storageRoot = executionResults.outputRoot;
+                    await account.save();
+                }
             }
 
             return executionResults;

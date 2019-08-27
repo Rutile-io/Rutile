@@ -39,6 +39,12 @@ class ChainSyncing {
 
             Logger.info(`🚀 Last block was ${this.synchronisePointerBlock.number}, syncing from that point.`);
 
+            if (!this.networkController.hasConnectedPeers()) {
+                Logger.info(`🚀 Synchronisation could not be done due to no connected peers. Starting at ${this.synchronisePointerBlock.number}`);
+                this.synchroniseResolve(this.synchronisePointerBlock);
+                return;
+            }
+
             // Make sure we have a peer that can accept the request
             this.networkController.network.one('peerConnected', () => {
                 // Find the highest milestone we currently have and ask a node to get data up to the next milestone.
@@ -90,7 +96,7 @@ class ChainSyncing {
 
         if (this.latestNetworkBlock) {
             if (this.synchronisePointerBlock.id === this.latestNetworkBlock.id) {
-                Logger.info(`🚀 Synchronisation complete.`);
+                Logger.info(`🚀 Synchronisation complete. Now at ${this.synchronisePointerBlock.number}`);
                 this.synchroniseResolve(this.synchronisePointerBlock);
                 return;
             }
@@ -126,12 +132,14 @@ class ChainSyncing {
             // but maybe we need it later..
             this.blockPool.push(block);
         } catch (error) {
-            Logger.error(`Block ${block.number} was considerd not valid, aborting.`);
+            Logger.error(`Block ${block.number} was considerd not valid, aborting.`, error);
+            console.log(block);
         }
     }
 
     async complete(lastBlock: Block) {
         if (lastBlock.number === this.synchronisePointerBlock.number) {
+            Logger.info(`🚀 Synchronisation complete. Now at ${this.synchronisePointerBlock.number}`);
             this.synchroniseResolve(lastBlock);
             return;
         }

@@ -75,7 +75,6 @@ class Block {
 
         for (const [index, transaction] of this.transactions.entries()) {
             const result = await transaction.execute(this);
-
             this.gasUsed += result.gasUsed;
 
             results.push(result);

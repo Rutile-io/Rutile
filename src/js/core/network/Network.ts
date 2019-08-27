@@ -223,7 +223,7 @@ class Network extends EventHandler {
     }
 
     isOnline() {
-        return this.connections.length > 0;
+        return !!this.connections.find(connection => connection.peer.isConnected);
     }
 }
 

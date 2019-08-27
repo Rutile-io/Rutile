@@ -14,15 +14,9 @@ import Account from '../models/Account';
 export default async function createCallMessage(transaction: Transaction): Promise<CallMessage> {
     const callMessage = new CallMessage();
     const addresses = getAddressFromTransaction(transaction);
+    const account = await Account.findOrCreate(addresses.to);
 
-    callMessage.inputRoot = '0x';
-
-    if (!transaction.isGenesis()) {
-        // The node requested to use the account as an input (It's confident that the order is correct)
-        const account = await Account.findOrCreate(addresses.to);
-        callMessage.inputRoot = account.storageRoot;
-    }
-
+    callMessage.inputRoot = account.storageRoot;
     callMessage.value = transaction.value;
     callMessage.destination = addresses.to;
     callMessage.sender = addresses.from;

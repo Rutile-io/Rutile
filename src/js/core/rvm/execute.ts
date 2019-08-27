@@ -49,6 +49,7 @@ export default async function execute(callMessage: CallMessage, bin?: Uint8Array
         }
 
         const ipfsHash = hexStringToString(account.codeHash);
+
         try {
             const contents = await ipfs.cat(ipfsHash);
             binary = stringToByteArray(contents);
@@ -58,7 +59,7 @@ export default async function execute(callMessage: CallMessage, bin?: Uint8Array
     }
 
     if (!isWasmBinary(binary)) {
-        throw new Error('Binary is not WASM code');
+        throw new Error('Binary is not a WebAssembly file.');
     }
 
     const worker = createWorker(configuration.vmUrl);

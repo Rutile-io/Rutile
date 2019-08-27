@@ -16,6 +16,10 @@ class NetworkController {
         this.network.on('message', this.onNetworkMessage.bind(this));
     }
 
+    hasConnectedPeers() {
+        return this.network.isOnline();
+    }
+
     /**
      * Broadcasts a transaction to the connected peers
      *

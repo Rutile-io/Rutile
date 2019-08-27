@@ -47,7 +47,6 @@ class Account {
         const address = storageData.get('address') || [0];
         const codeHash = storageData.get('codeHash') || [0];
         const creationTransactionId = storageData.get('creationTransactionId') || [0];
-
         const hexTransactionIndex = '0x' + toHex(transactionIndex);
 
         this.address = '0x' + toHex(address);
@@ -103,6 +102,10 @@ class Account {
     static async findOrCreate(address: string, codeHash?: string, creationTransactionId?: string) {
         const account = await Account.getFromAddress(address);
 
+        if (address === '0x0200000000000000000000000000000000000000' && account) {
+            const x = await account.storage.fill();
+        }
+
         if (account) {
             await account.fill();
             return account;
@@ -147,6 +150,7 @@ class Account {
         });
 
         await newAccount.save();
+        await newAccount.fill();
 
         return newAccount;
     }
