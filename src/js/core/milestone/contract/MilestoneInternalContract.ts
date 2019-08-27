@@ -10,7 +10,8 @@ import stringToByteArray from "../../../utils/stringToByteArray";
 import { hexStringToBuffer } from "../../../utils/hexUtils";
 const BN = require('bn.js');
 
-const MINIMAL_DEPOSIT: BNType = new BN(32);
+// 32 RUT
+const MINIMAL_DEPOSIT: BNType = new BN('32000000000000000000');
 
 /**
  * Internal contract for the Proof of Stake implementation

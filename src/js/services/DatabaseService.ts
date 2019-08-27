@@ -98,7 +98,7 @@ export async function createOrUpdate(id: string, obj: Buffer | string | Object) 
             })
         }
     } catch (error) {
-        Logger.error(`createOrUpdate failed, data given ${id}:${document} ->`, error);
+        Logger.error(`createOrUpdate failed, data given id/${id}:value/${JSON.stringify(obj)}:document${JSON.stringify(document)} ->`, error);
     }
 }
 

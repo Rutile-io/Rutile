@@ -213,23 +213,28 @@ class Block {
      * @memberof Block
      */
     async save() {
-        const rawBlock = this.toRaw();
+        try {
+            const rawBlock = this.toRaw();
 
-        // We want to save the number of the latest block known to us.
-        const latestBlockNumber = await databaseGetById(LATEST_BLOCK_ID);
+            // We want to save the number of the latest block known to us.
+            const latestBlockNumber = await databaseGetById(LATEST_BLOCK_ID);
 
-        if (!latestBlockNumber) {
-            await databaseCreate(LATEST_BLOCK_ID, {
-                number: this.number,
-            });
-        } else if (latestBlockNumber && latestBlockNumber.number < this.number) {
-            // The saved block has a higher number so we can save it as our longest chain
-            await createOrUpdate(LATEST_BLOCK_ID, {
-                number: this.number,
-            });
+            if (!latestBlockNumber) {
+                await databaseCreate(LATEST_BLOCK_ID, {
+                    number: this.number,
+                });
+            } else if (latestBlockNumber && latestBlockNumber.number < this.number) {
+                // The saved block has a higher number so we can save it as our longest chain
+                await createOrUpdate(LATEST_BLOCK_ID, {
+                    number: this.number,
+                });
+            }
+
+            await createOrUpdate(this.id, JSON.parse(rawBlock));
+        } catch (error) {
+            Logger.error(`Saving block ${this.number} failed`, error);
+            throw error;
         }
-
-        await databaseCreate(this.id, JSON.parse(rawBlock));
     }
 
     /**

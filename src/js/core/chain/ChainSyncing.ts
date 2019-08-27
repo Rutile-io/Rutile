@@ -58,49 +58,53 @@ class ChainSyncing {
      * @memberof ChainSyncing
      */
     private async processBlockPool(): Promise<void> {
-        const nextBlockNumber = this.synchronisePointerBlock.number + 1;
-        let blockPoolIndex: number = null;
+        try {
+            const nextBlockNumber = this.synchronisePointerBlock.number + 1;
+            let blockPoolIndex: number = null;
 
-        // Find the next number in the block pool
-        const nextBlock = this.blockPool.find((block, index) => {
-            if (block.number === nextBlockNumber) {
-                blockPoolIndex = index;
-                return true;
-            }
+            // Find the next number in the block pool
+            const nextBlock = this.blockPool.find((block, index) => {
+                if (block.number === nextBlockNumber) {
+                    blockPoolIndex = index;
+                    return true;
+                }
 
-            return false;
-        });
+                return false;
+            });
 
-        // Couldn't find it sadly, we wait for the next call
-        if (!nextBlock) {
-            return;
-        }
-
-        // Make sure it's an actual contiuation on our chain
-        if (nextBlock.parent !== this.synchronisePointerBlock.id) {
-            Logger.warn(`Faulty block #${nextBlock.number} received, number continued but parent did not match`);
-            this.blockPool.splice(blockPoolIndex, 1);
-            return;
-        }
-
-        // All seems ok we will now validate and execute the block
-        await nextBlock.validate();
-        await nextBlock.execute();
-        await nextBlock.save();
-
-        // Move our pointer to this block
-        this.synchronisePointerBlock = nextBlock;
-
-        if (this.latestNetworkBlock) {
-            if (this.synchronisePointerBlock.id === this.latestNetworkBlock.id) {
-                Logger.info(`🚀 Synchronisation complete. Now at ${this.synchronisePointerBlock.number}`);
-                this.synchroniseResolve(this.synchronisePointerBlock);
+            // Couldn't find it sadly, we wait for the next call
+            if (!nextBlock) {
                 return;
             }
-        }
 
-        // Continue the cycle
-        return this.processBlockPool();
+            // Make sure it's an actual contiuation on our chain
+            if (nextBlock.parent !== this.synchronisePointerBlock.id) {
+                Logger.warn(`Faulty block #${nextBlock.number} received, number continued but parent did not match`);
+                this.blockPool.splice(blockPoolIndex, 1);
+                return;
+            }
+
+            // All seems ok we will now validate and execute the block
+            await nextBlock.validate();
+            await nextBlock.execute();
+            await nextBlock.save();
+
+            // Move our pointer to this block
+            this.synchronisePointerBlock = nextBlock;
+
+            if (this.latestNetworkBlock) {
+                if (this.synchronisePointerBlock.id === this.latestNetworkBlock.id) {
+                    Logger.info(`🚀 Synchronisation complete. Now at ${this.synchronisePointerBlock.number}`);
+                    this.synchroniseResolve(this.synchronisePointerBlock);
+                    return;
+                }
+            }
+
+            // Continue the cycle
+            await this.processBlockPool();
+        } catch (error) {
+            Logger.error(`Block sync processing failed`, error);
+        }
     }
 
     async onBlockSyncMessage(block: Block, fromSyncing: boolean = true) {

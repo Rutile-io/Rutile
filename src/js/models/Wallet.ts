@@ -1,4 +1,3 @@
-import { randomBytes } from 'crypto';
 import * as ethers from 'ethers';
 import KeyPair from './KeyPair';
 import Account from './Account';
