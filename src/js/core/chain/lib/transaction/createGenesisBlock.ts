@@ -1,7 +1,8 @@
 import Transaction from "../../../../models/Transaction";
 import { configuration } from "../../../../Configuration";
-import Account from "../../../../models/Account";
 import Block from "../../../../models/Block";
+import { VM_ERROR } from "../../../rvm/lib/exceptions";
+import * as Logger from 'js-logger';
 
 export default async function createGenesisBlock(): Promise<Block> {
     const allTransactions: Transaction[] = [];
@@ -63,8 +64,23 @@ export default async function createGenesisBlock(): Promise<Block> {
 
     block.addTransactions(allTransactions);
     block.proofOfWork();
-    await block.execute();
 
+    const results = await block.execute();
+
+    let failedTransactionIndex = 0;
+    const didGenesisTxFail = !!results.find((txResult, index) => {
+        if (txResult.exceptionError === VM_ERROR.REVERT) {
+            failedTransactionIndex = index;
+            return true;
+        }
+
+        return false;
+    });
+
+    if (didGenesisTxFail) {
+        Logger.error(`Failed transaction results:`, results[failedTransactionIndex], ` at transaction `, block.transactions[failedTransactionIndex]);
+        throw new Error(`Genesis block creation failed with transaction index of ${failedTransactionIndex}`);
+    }
 
     return block;
 }

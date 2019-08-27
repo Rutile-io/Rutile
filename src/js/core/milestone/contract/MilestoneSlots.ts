@@ -4,7 +4,8 @@ import { getDatabaseLevelDbMapping } from '../../../services/DatabaseService';
 import Transaction from '../../../models/Transaction';
 import { numberToHex, hexStringToBuffer } from '../../../utils/hexUtils';
 import { toHex, createZerosArray } from '../../rvm/utils/hexUtils';
-import { rlpHash } from '../../../utils/keccak256';
+import * as Logger from 'js-logger';
+const BN = require('bn.js');
 
 export interface Slot {
     // The address of the node
@@ -75,6 +76,17 @@ class MilestoneSlots {
     async getSlot(): Promise<Slot> {
         const index = this.length;
         const buffer: Buffer = await this.merkleTree.get(`${SLOT_KEY}${index}`);
+
+        if (!buffer) {
+            Logger.warn(`Consensus: No nodes found, did you configure the genesis with nodes?`);
+
+            return {
+                address: '0x0000000000000000000000000000000000000000',
+                deposited: new BN(0),
+                type: 'SLOT',
+            };
+        }
+
         const slot: Slot = JSON.parse(buffer.toString());
 
         return slot;

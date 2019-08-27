@@ -51,7 +51,7 @@ let configuration: IConfig = {
         // then my total supply would be 150064.
         stakes: {
             '0x53ae893e4b22d707943299a8d0c844df0e3d5557': {
-                value: '32',
+                value: '32000000000000000000',
             },
         },
 
