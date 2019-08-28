@@ -88,7 +88,6 @@ class MilestoneSlots {
         }
 
         const slot: Slot = JSON.parse(buffer.toString());
-
         return slot;
     }
 }

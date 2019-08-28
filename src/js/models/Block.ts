@@ -191,8 +191,22 @@ class Block {
         const previoudId = this.id;
         const blockId = this.generateBlockId();
 
+        // Make sure the data matches inside the block with what we got
         if (previoudId !== blockId) {
             throw new Error('Block did not contain all information, id did not match');
+        }
+
+        // Make sure it's a continuation on te previous block
+        if (!this.isGenesis()) {
+            const previousBlock = await Block.getByNumber(this.number - 1);
+
+            if (!previousBlock) {
+                throw new Error(`Block number ${this.number - 1} could not be found, please get it first`);
+            }
+
+            if (this.parent !== previousBlock.id) {
+                throw new Error(`Block numer ${this.number} is not a continuation on ${previousBlock.number}`);
+            }
         }
 
         // For effeciency sake, first check the proof of work.

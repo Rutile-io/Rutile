@@ -86,6 +86,7 @@ class Chain extends EventHandler {
     async addBlock(block: Block, fromPeerId: string) {
         try {
             // When syncing we should let the new blocks be processed by the Chain syncer
+            // We also don't send it along other nodes since we can't validate the legitimacy of the block
             if (this.isSyncing) {
                 this.chainSyncing.onBlockSyncMessage(block, false);
                 return;
@@ -165,7 +166,7 @@ class Chain extends EventHandler {
     async synchroniseTo(blockNumber: number, peerId: string) {
         Logger.info(`🚀 Synchronising to peer ${peerId} starting from block #${blockNumber}`);
 
-        const currentLatestBlock = await Block.getLatest();
+        let currentLatestBlock = await Block.getLatest();
         const blockNumbersToGet = [];
 
         for (let index = blockNumber; index < currentLatestBlock.number; index++) {
@@ -178,6 +179,8 @@ class Chain extends EventHandler {
             lastBlock = await Block.getByNumber(blockNum);
             this.networkController.sendBlockSyncString(lastBlock.toRaw(), peerId);
         }
+
+        Logger.info(`🚀 Synchronising to peer ${peerId} completed, last block was ${lastBlock.number}`);
 
         this.networkController.sendBlockSyncComplete(lastBlock, peerId);
     }
@@ -235,7 +238,12 @@ class Chain extends EventHandler {
 
         block.proofOfWork();
         this.networkController.broadcastBlock(block);
+
         await block.save();
+
+        const account = await Account.findOrCreate(block.coinbase);
+        console.log('[] account.b -> ', account.balance.toString());
+
         Logger.info(`⛏ Block round complete, created block ${block.number} with ${block.transactions.length} transaction(s)`);
 
         this.currentBlock = block;

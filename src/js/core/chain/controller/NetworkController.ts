@@ -1,3 +1,4 @@
+import * as Logger from 'js-logger';
 import Chain from "../Chain";
 import Network from "../../network/Network";
 import { NetworkMessageEvent } from "../../network/lib/types/Events";
@@ -104,6 +105,37 @@ class NetworkController {
         this.network.broadcast(JSON.stringify(message));
     }
 
+    /**
+     * Request a block by the number given (For missing blocks)
+     *
+     * @param {number} blockNumber
+     * @memberof NetworkController
+     */
+    requestBlockByNumber(blockNumber: number) {
+        const message = {
+            type: 'GET_BLOCK',
+            value: blockNumber,
+        };
+
+        this.network.broadcast(JSON.stringify(message));
+    }
+
+    private async handleGetBlockRequest(blockNumber: number, peerId: string) {
+        const block = await Block.getByNumber(blockNumber);
+
+        if (!block) {
+            Logger.warn(`Block ${blockNumber} was requested but it does not exist`);
+            return;
+        }
+
+        const message = JSON.stringify({
+            type: 'BLOCK_SYNC',
+            value: block.toRaw(),
+        });
+
+        this.network.sendDataToPeer(peerId, message);
+    }
+
     private onNetworkMessage(event: NetworkMessageEvent) {
         const data = JSON.parse(event.data.toString());
 
@@ -113,6 +145,9 @@ class NetworkController {
         } else if (data.type === 'BLOCK') {
             const block = Block.fromRaw(data.value);
             this.dag.addBlock(block, event.peerId);
+        } else if (data.type === 'GET_BLOCK') {
+            const blockNumber = data.value;
+            this.handleGetBlockRequest(blockNumber, event.peerId);
         } else if (data.type === 'SYNC_FROM_MILESTONE') {
             // A node sent us a request to synchronise our database.
             this.dag.synchroniseTo(data.value.number, event.peerId);

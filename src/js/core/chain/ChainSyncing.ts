@@ -11,6 +11,7 @@ class ChainSyncing {
     latestNetworkBlock: Block;
     blockPool: Block[];
     synchroniseResolve: (value: any) => void;
+    nodesSentComplete: boolean = false;
 
     constructor(networkController: NetworkController) {
         this.blockPool = [];
@@ -37,7 +38,7 @@ class ChainSyncing {
                 this.synchronisePointerBlock = await Block.getLatest();
             }
 
-            Logger.info(`🚀 Last block was ${this.synchronisePointerBlock.number}, syncing from that point.`);
+            Logger.info(`🚀 Last block was ${this.synchronisePointerBlock.number}, syncing from that point (this may take a while).`);
 
             if (!this.networkController.hasConnectedPeers()) {
                 Logger.info(`🚀 Synchronisation could not be done due to no connected peers. Starting at ${this.synchronisePointerBlock.number}`);
@@ -74,6 +75,14 @@ class ChainSyncing {
 
             // Couldn't find it sadly, we wait for the next call
             if (!nextBlock) {
+                // Nodes are still syncing with us, we can just wait
+                if (!this.nodesSentComplete) {
+                    return;
+                }
+
+                // Nodes sent complete so we missed a block during startup
+                // we will ask this block manually
+                this.networkController.requestBlockByNumber(nextBlockNumber);
                 return;
             }
 
@@ -92,9 +101,13 @@ class ChainSyncing {
             // Move our pointer to this block
             this.synchronisePointerBlock = nextBlock;
 
+            // Remove the block from our pool
+            this.blockPool.splice(blockPoolIndex, 1);
+
             if (this.latestNetworkBlock) {
                 if (this.synchronisePointerBlock.id === this.latestNetworkBlock.id) {
                     Logger.info(`🚀 Synchronisation complete. Now at ${this.synchronisePointerBlock.number}`);
+                    this.blockPool = [];
                     this.synchroniseResolve(this.synchronisePointerBlock);
                     return;
                 }
@@ -107,6 +120,14 @@ class ChainSyncing {
         }
     }
 
+    /**
+     * The handler of a BLOCK_SYNC or BLOCK message
+     *
+     * @param {Block} block
+     * @param {boolean} [fromSyncing=true] Is this block from syncing or not
+     * @returns
+     * @memberof ChainSyncing
+     */
     async onBlockSyncMessage(block: Block, fromSyncing: boolean = true) {
         try {
             const nextBlockNumber = this.synchronisePointerBlock.number + 1;
@@ -139,13 +160,7 @@ class ChainSyncing {
     }
 
     async complete(lastBlock: Block) {
-        if (lastBlock.number === this.synchronisePointerBlock.number) {
-            Logger.info(`🚀 Synchronisation complete. Now at ${this.synchronisePointerBlock.number}`);
-            this.synchroniseResolve(lastBlock);
-            return;
-        }
-
-        this.latestNetworkBlock = lastBlock;
+        this.nodesSentComplete = true;
         this.processBlockPool();
     }
 }
