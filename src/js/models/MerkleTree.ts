@@ -4,9 +4,13 @@ import PouchDbLevelDbMapping from "./PouchDbLevelDbMapping";
 const Trie = require('merkle-patricia-tree');
 
 class MerkleTree {
-    private trie: any;
+    public trie: any;
     private cache: Map<string | Buffer, Uint8Array | Buffer>;
     private storagePromises: Array<Promise<any>>;
+
+    static get Trie(): any {
+        return Trie;
+    }
 
     constructor(db?: PouchDbLevelDbMapping, root?: string | Buffer) {
         this.trie = new Trie(db, root);
@@ -75,6 +79,22 @@ class MerkleTree {
                 if (err) return reject(err);
 
                 resolve(value);
+            });
+        });
+    }
+
+    /**
+     * Reverts the changes made to the merkle tree
+     *
+     * @returns
+     * @memberof MerkleTree
+     */
+    async revert() {
+        return new Promise((resolve, reject) => {
+            this.trie.revert((err: any, result: any) => {
+                if (err) return reject();
+
+                resolve(result);
             });
         });
     }

@@ -11,6 +11,7 @@ import byteArrayToString from '../../utils/byteArrayToString';
 import CallMessage, { CallKind } from './lib/CallMessage';
 import execute from './execute';
 import { configuration } from '../../Configuration';
+import GlobalState from '../../models/GlobalState';
 const ethUtil = require('ethereumjs-util');
 const BN = require('bn.js');
 
@@ -37,9 +38,9 @@ export interface Results {
 class Context {
     fromAddress: string;
     toAddress: string;
-    toAccount: Account;
     value: BNType;
     transactionDifficulty: number;
+    globaState: GlobalState;
 
     /**
      * The results of the call, callcode, calldelegate, callStatic or create
@@ -67,23 +68,23 @@ class Context {
     notifierBuffer: SharedArrayBuffer;
     wasmInstance: WebAssembly.ResultObject;
 
-    constructor(callMessage: CallMessage) {
+    constructor(callMessage: CallMessage, globalState: GlobalState) {
         this.fromAddress = callMessage.sender;
         this.toAddress = callMessage.destination;
         this.dataParsed = callMessage.inputData;
         this.value = callMessage.value;
         this.transactionDifficulty = configuration.difficulty;
         this.message = callMessage;
+        this.globaState = globalState;
     }
 
     public async init(memory: SharedArrayBuffer, notifier: SharedArrayBuffer) {
         const database = await getDatabaseLevelDbMapping();
+        const toAccount = await this.globaState.findOrCreateAccount(this.message.destination);
 
         this.notifierBuffer = notifier;
-        this.toAccount = await Account.findOrCreate(this.toAddress);
-        this.state = new MerkleTree(database, this.message.inputRoot);
+        this.state = new MerkleTree(database, toAccount.storageRoot);
 
-        await this.state.fill();
         this.updateMemory(memory);
 
         return {
@@ -98,11 +99,7 @@ class Context {
 
     public async close() {
         let root = await this.state.getMerkleRoot();
-
-        this.toAccount.storageRoot = root;
         this.results.outputRoot = root;
-
-        await this.toAccount.save();
     }
 
     /**
@@ -290,9 +287,7 @@ class Context {
         this.results.exceptionError = VM_ERROR.REVERT;
         this.results.return = ret;
         this.results.returnHex = '0x' + toHex(ret);
-
-        // Everything was reverted so no new state
-        this.results.outputRoot = this.message.inputRoot;
+        this.results.outputRoot = null;
 
         throw new VmError(VM_ERROR.REVERT);
     }
@@ -389,7 +384,10 @@ class Context {
         };
 
         // TODO: Should depending on the result throw the exception to above
-        const result = await execute(callMessage);
+        const result = await execute({
+            callMessage,
+            globalState: this.globaState,
+        });
 
         this.callResults = result;
 

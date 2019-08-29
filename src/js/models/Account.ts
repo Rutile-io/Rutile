@@ -1,86 +1,97 @@
+import * as RLP from 'rlp';
 import * as Database from "../services/DatabaseService";
 import Transaction from "./Transaction";
 import MerkleTree from "./MerkleTree";
 import { toHex } from "../core/rvm/utils/hexUtils";
 import { numberToHex, hexStringToBuffer } from "../utils/hexUtils";
 import BNtype from 'bn.js';
+import GlobalState from "./GlobalState";
 const BN = require('bn.js');
 
 interface AccountParams {
     address: string;
+    nonce: BNtype;
+    codeHash: string;
+    balance: BNtype;
     storageRoot: string;
 }
 
 class Account {
+    // Properties inside the Merkle root
     address: string = '';
     balance: BNtype;
-    transactionIndex: number = 0;
+    nonce: BNtype;
     codeHash: string;
     storageRoot: string;
+
+
     storage: MerkleTree;
     alias: string;
     isFilled: boolean;
-    creationTransactionId: string;
 
+    /**
+     * Creates an instance of Account.
+     *
+     * @param {AccountParams} params
+     * @memberof Account
+     */
     constructor(params: AccountParams) {
-        this.storageRoot = params.storageRoot;
         this.address = params.address;
+        this.balance = params.balance;
+        this.nonce = params.nonce;
+        this.codeHash = params.codeHash;
+        this.storageRoot = params.storageRoot;
     }
 
     /**
-     * Maps all data from storage to the account
+     * Converts the Account to a buffer using RLP
      *
+     * @returns {Promise<Buffer>}
      * @memberof Account
      */
-    async fill() {
-        if (this.isFilled) {
-            return;
-        }
+    async toBuffer(): Promise<Buffer> {
+        const data = [
+            this.address,
+            '0x' + this.balance.toString('hex'),
+            this.nonce,
+            this.codeHash,
+            this.storageRoot,
+        ];
 
-        const dbMapping = await Database.getDatabaseLevelDbMapping();
-        this.storage = new MerkleTree(dbMapping, this.storageRoot);
-
-        const storageData = await this.storage.fill();
-
-        const balance = storageData.get('balance') || [0];
-        const transactionIndex = storageData.get('transactionIndex') || [0];
-        const address = storageData.get('address') || [0];
-        const codeHash = storageData.get('codeHash') || [0];
-        const creationTransactionId = storageData.get('creationTransactionId') || [0];
-        const hexTransactionIndex = '0x' + toHex(transactionIndex);
-
-        this.address = '0x' + toHex(address);
-        this.balance = new BN(balance);
-        this.transactionIndex = parseInt(hexTransactionIndex, 16);
-        this.codeHash = '0x' + toHex(codeHash);
-        this.creationTransactionId = '0x' + toHex(creationTransactionId);
-
-        this.isFilled = true;
-
-        this.storage.flushCache();
+        return RLP.encode(data);
     }
 
-    async setBalance(balance: BNtype) {
-        if (!BN.isBN(balance)) {
-            throw new TypeError('balance should be a number');
-        }
+    static async fromBuffer(accountBuffer: Buffer): Promise<Account> {
+        // Sometimes Typescript get's annoying.. (The input is Buffer but the output is Buffer[])
+        // which the overload does not support
+        const decodedData: any = RLP.decode(accountBuffer);
+        const decodedDataBuffer: Buffer[] = decodedData;
 
-        await this.storage.put('balance', balance.toArrayLike(Buffer));
-        this.storageRoot = await this.storage.getMerkleRoot();
-    }
+        // It's best to compare it with the data from toBuffer().
+        // index 0 equals to index 0 on that array
+        const address = '0x' + toHex(decodedDataBuffer[0]);
+        const balance: BNtype = new BN(decodedDataBuffer[1]);
+        const nonce: BNtype = new BN(decodedDataBuffer[2]);
+        const codeHash = '0x' + toHex(decodedDataBuffer[3])
+        const storageRoot = '0x' + toHex(decodedDataBuffer[4]);
 
-    async setTransactionIndex(index: number) {
-        const buffer = hexStringToBuffer(numberToHex(index));
-        await this.storage.put('transactionIndex', buffer);
-        this.storageRoot = await this.storage.getMerkleRoot();
-    }
-
-    async save() {
-        await Database.createOrUpdate(this.address, {
-            storageRoot: this.storageRoot,
+        return new Account({
+            address,
+            balance,
+            codeHash,
+            nonce,
+            storageRoot,
         });
     }
 
+    /**
+     * Gets an account using the address
+     *
+     * @static
+     * @param {string} address
+     * @returns {Promise<Account>}
+     * @memberof Account
+     */
     static async getFromAddress(address: string): Promise<Account> {
         try {
             const data: any = await Database.getById(address);
@@ -90,7 +101,6 @@ class Account {
             }
 
             const account = new Account(data);
-            await account.fill();
 
             return account;
         } catch (error) {
@@ -99,19 +109,24 @@ class Account {
         }
     }
 
-    static async findOrCreate(address: string, codeHash?: string, creationTransactionId?: string) {
+    /**
+     * Finds or creates an Account
+     *
+     * @static
+     * @param {string} address
+     * @param {string} [codeHash]
+     * @param {string} [creationTransactionId]
+     * @returns {Promise<Account>}
+     * @memberof Account
+     */
+    static async findOrCreate(address: string, codeHash?: string): Promise<Account> {
         const account = await Account.getFromAddress(address);
 
-        if (address === '0x0200000000000000000000000000000000000000' && account) {
-            const x = await account.storage.fill();
-        }
-
         if (account) {
-            await account.fill();
             return account;
         }
 
-        return Account.create(address, codeHash, creationTransactionId);
+        return Account.create(address, codeHash);
     }
 
     /**
@@ -124,33 +139,18 @@ class Account {
      * @returns
      * @memberof Account
      */
-    static async create(address: string, codeHash?: string, creationTransactionId?: string): Promise<Account> {
+    static async create(address: string, codeHash?: string): Promise<Account> {
         const dbMapping = await Database.getDatabaseLevelDbMapping();
         const merkleTree = new MerkleTree(dbMapping);
-        const zeroBuffer = hexStringToBuffer('0x00');
-
-        await merkleTree.put('address', hexStringToBuffer(address));
-        await merkleTree.put('balance', zeroBuffer);
-        await merkleTree.put('transactionIndex', zeroBuffer);
-        await merkleTree.put('creationTransactionId', hexStringToBuffer(creationTransactionId));
-
-        if (codeHash) {
-            if (!creationTransactionId) {
-                throw new Error('Contract creations should have a transaction id attached to it');
-            }
-
-            await merkleTree.put('codeHash', hexStringToBuffer(codeHash));
-        }
-
         const storageRoot = await merkleTree.getMerkleRoot();
 
         const newAccount = new Account({
             address: address,
             storageRoot,
+            balance: new BN(0),
+            codeHash: codeHash || null,
+            nonce: new BN(0),
         });
-
-        await newAccount.save();
-        await newAccount.fill();
 
         return newAccount;
     }

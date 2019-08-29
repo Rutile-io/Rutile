@@ -212,8 +212,8 @@
                 const data = document.getElementById('valueData').value;
 
                 const keyPair = new Rutile.KeyPair(privateKey);
-                const account = await Rutile.Account.getFromAddress(keyPair.getAddress());
-                let transIndex = account.transactionIndex + 1;
+                const account = await rutile.getAccount(keyPair.getAddress());
+                let transIndex = account.nonce + 1;
 
                 const transaction = new Rutile.Transaction({
                     to: toAddress,

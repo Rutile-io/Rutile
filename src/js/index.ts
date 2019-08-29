@@ -68,27 +68,27 @@ async function sendTestTransaction() {
     console.log('[SendTestTransaction] result -> ', result);
 }
 
-async function playos() {
-    const fs = __non_webpack_require__('fs');
-    const file = fs.readFileSync('/Volumes/Mac Space/Workspace/OSS-PlayOS/PlayOS/build/optimized.wasm');
-    const wasm = new Uint8Array(file);
-    console.log('Execute');
+// async function playos() {
+//     const fs = __non_webpack_require__('fs');
+//     const file = fs.readFileSync('/Volumes/Mac Space/Workspace/OSS-PlayOS/PlayOS/build/optimized.wasm');
+//     const wasm = new Uint8Array(file);
+//     console.log('Execute');
 
-    const result = await execute({
-        depth: 1000,
-        destination: '0x123',
-        flags: 1,
-        gas: 10000,
-        inputData: new Uint8Array(0),
-        inputRoot: null,
-        inputSize: 2,
-        kind: CallKind.Call,
-        sender: '0x0',
-        value: new BN(0),
-    }, wasm);
+//     const result = await execute({
+//         depth: 1000,
+//         destination: '0x123',
+//         flags: 1,
+//         gas: 10000,
+//         inputData: new Uint8Array(0),
+//         inputRoot: null,
+//         inputSize: 2,
+//         kind: CallKind.Call,
+//         sender: '0x0',
+//         value: new BN(0),
+//     }, wasm);
 
-    console.log('[] result -> ', result);
-}
+//     console.log('[] result -> ', result);
+// }
 
 async function run() {
     applyArgv();

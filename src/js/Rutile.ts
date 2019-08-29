@@ -12,6 +12,8 @@ import * as Database from './services/DatabaseService';
 import * as Logger from 'js-logger';
 import IConfig, { NodeType } from './models/interfaces/IConfig';
 import Validator from './core/milestone/Validator';
+import GlobalState from './models/GlobalState';
+import Block from './models/Block';
 
 /**
  * Glue between all core modules.
@@ -61,7 +63,11 @@ class Rutile {
 
     async start() {
         try {
-            Logger.info('Starting Rutile');
+            Logger.info('🚀 Starting Rutile');
+
+            // Start the database
+            await Database.startDatabase();
+
             // Boot up our peer to peer network
             this.network = new Network();
             await this.network.open();
@@ -111,13 +117,30 @@ class Rutile {
      * @returns
      * @memberof Rutile
      */
-    async getAccountBalance(address: string) {
+    async getAccountBalance(address: string, blockNumber: string = 'latest') {
+        const account = await this.getAccount(address, blockNumber);
+
+        return account.balance;
+    }
+
+    async getAccount(address: string, blockNumber: string = 'latest') {
         if (!this.chain) {
             throw new Error('Rutile should be started first');
         }
 
-        const account = await Account.findOrCreate(address);
-        return account.balance;
+        let block: Block = null;
+
+        if (blockNumber === 'latest') {
+            block = await Block.getLatest();
+        }
+
+        if (!block) {
+            throw new Error(`Block ${blockNumber} could not be found`);
+        }
+
+        const state = await GlobalState.create(block.stateRoot);
+        const account = await state.findOrCreateAccount(address);
+        return account;
     }
 }
 

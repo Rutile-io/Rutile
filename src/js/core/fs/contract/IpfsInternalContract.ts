@@ -9,6 +9,7 @@ import { getById, createOrUpdate} from '../../../services/DatabaseService'
 import BNType from 'bn.js';
 import { VM_ERROR } from "../../rvm/lib/exceptions";
 import Transaction from "../../../models/Transaction";
+import GlobalState from "../../../models/GlobalState";
 const BN = require('bn.js');
 
 const MINIMAL_FILEHOST_DEPOSIT: BNType = new BN(1);
@@ -129,7 +130,7 @@ class IpfsInteralContract implements IInternalContract {
 
 
 
-    async execute(callMessage: CallMessage, transaction: Transaction): Promise<Results> {
+    async execute(callMessage: CallMessage, globalState: GlobalState, transaction: Transaction): Promise<Results> {
         const selector = callMessage.inputData.slice(0, 4);
         this.callMessage = callMessage;
         this.transaction = transaction;

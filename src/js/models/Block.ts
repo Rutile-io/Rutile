@@ -4,11 +4,14 @@ import { numberToHex } from "../utils/hexUtils";
 import { rlpHash } from "../utils/keccak256";
 import { configuration } from "../Configuration";
 import { applyProofOfWork, isProofOfWorkValid } from "../services/transaction/ProofOfWork";
-import { validateTransaction } from "../core/chain/lib/services/TransactionService";
-import { databaseCreate, startDatabase, databaseFind, databaseGetById, createOrUpdate } from "../services/DatabaseService";
+import { validateTransaction, getAddressFromTransaction } from "../core/chain/lib/services/TransactionService";
+import { databaseCreate, startDatabase, databaseFind, databaseGetById, createOrUpdate, getDatabaseLevelDbMapping } from "../services/DatabaseService";
 import { Results } from "../core/rvm/context";
 import Account from './Account';
 import BNtype from 'bn.js';
+import MerkleTree from './MerkleTree';
+import GlobalState from './GlobalState';
+import { VM_ERROR } from '../core/rvm/lib/exceptions';
 const BN = require('bn.js');
 
 const LATEST_BLOCK_ID = 'latestBlockNumber';
@@ -33,14 +36,22 @@ interface BlockParams {
 
 class Block {
     parent: string;
+    parentBlock: Block;
+
     transactions: Transaction[] = [];
     timestamp: number = 0;
     difficulty: number = configuration.difficulty;
     extraData: string;
     nonce: number;
+
     stateRoot: string;
+
+    transactionMerkleTree: MerkleTree;
     transactionRoot: string;
+
+    receiptsMerkleTree: MerkleTree;
     receiptsRoot: string;
+
     number: number = 0;
     gasUsed: number = 0;
     gasLimit: number = 0;
@@ -54,14 +65,14 @@ class Block {
         this.difficulty = params.difficulty || configuration.difficulty;
         this.extraData = params.extraData || '0x';
         this.nonce = params.nonce || 0;
-        this.stateRoot = params.stateRoot || '0x';
-        this.transactionRoot = params.transactionRoot || '0x';
-        this.receiptsRoot = params.receiptsRoot || '0x';
+        this.stateRoot = params.stateRoot || null;
+        this.transactionRoot = params.transactionRoot || null;
+        this.receiptsRoot = params.receiptsRoot || null;
         this.number = params.number || 0;
         this.gasUsed = params.gasUsed || 0;
         this.gasLimit = params.gasLimit || 0;
         this.id = params.id || null;
-        this.coinbase = params.coinbase || '0x';
+        this.coinbase = params.coinbase || null;
     }
 
     /**
@@ -71,22 +82,65 @@ class Block {
      * @memberof Block
      */
     async execute(): Promise<Results[]> {
-        const results = [];
+        const results: Results[] = [];
 
-        for (const [index, transaction] of this.transactions.entries()) {
-            const result = await transaction.execute(this);
-            this.gasUsed += result.gasUsed;
+        // The starting point of our global state
+        let globalStateStorage: GlobalState = null;
 
-            results.push(result);
+        if (this.isGenesis()) {
+            // Starting from no state root since we are genesis
+            globalStateStorage = await GlobalState.create(null);
+        } else {
+            // Creating a continuation on the previous state root
+            const parentBlock = await Block.getById(this.parent);
+            globalStateStorage = await GlobalState.create(parentBlock.stateRoot);
+        }
+
+        for (const transaction of this.transactions) {
+            // Execute the transaction (transfer value/execute in VM)
+            const transactionExecuteResult = await transaction.execute(this, globalStateStorage);
+            this.gasUsed += transactionExecuteResult.result.gasUsed;
+
+            // WHEN EVERYHING LOOKS OK CHECKPOINT BEFORE USING THE NEXT GLOBAL STATE
+            // ALSO SET THE GLOBAL STATE TO THE let ABOVE!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            if (transactionExecuteResult.result.exceptionError !== VM_ERROR.REVERT)  {
+                // Update our current view of the global state
+                globalStateStorage = transactionExecuteResult.globalState;
+
+                // Now update the toAccount with the latest storage root
+                if (transaction.to) {
+                    const toAccount = await globalStateStorage.findOrCreateAccount(transaction.to);
+                    toAccount.storageRoot = transactionExecuteResult.result.outputRoot;
+                    await globalStateStorage.update(toAccount);
+                }
+            }
+
+            // Update the account nonces, so no double spending is possible
+            // The "to" account should not be updated since it's not a sender
+            if (!this.isGenesis()) {
+                // We want the transaction to manipulate the given accounts
+                const addresses = getAddressFromTransaction(transaction);
+                const fromAccount = await globalStateStorage.findOrCreateAccount(addresses.from);
+
+                fromAccount.nonce.add(new BN(1));
+                globalStateStorage.update(fromAccount);
+            }
+
+            results.push(transactionExecuteResult.result);
         }
 
         // And last not but not least add the reward to the address
         // This will be created out of tin air
-        const rewardAccount = await Account.findOrCreate(this.coinbase);
-        const newRewardAccountBalance = rewardAccount.balance.add(new BN(configuration.block.coinbaseAmount));
+        if (this.coinbase) {
+            const rewardAccount = await globalStateStorage.findOrCreateAccount(this.coinbase);
+            const newRewardAccountBalance = rewardAccount.balance.add(new BN(configuration.block.coinbaseAmount));
 
-        await rewardAccount.setBalance(newRewardAccountBalance);
-        await rewardAccount.save();
+            rewardAccount.balance = newRewardAccountBalance;
+            await globalStateStorage.update(rewardAccount);
+        }
+
+        // Update the global state root of the blockchain
+        this.stateRoot = await globalStateStorage.getMerkleRoot();
 
         return results;
     }
@@ -97,8 +151,22 @@ class Block {
      * @param {Transaction[]} transactions
      * @memberof Block
      */
-    addTransactions(transactions: Transaction[]) {
+    async addTransactions(transactions: Transaction[]): Promise<void> {
+        if (!this.transactionMerkleTree) {
+            const database = await getDatabaseLevelDbMapping();
+            this.transactionMerkleTree = new MerkleTree(database, this.transactionRoot);
+        }
+
+        for (const transaction of transactions) {
+            if (!transaction) {
+                throw new Error('Empty transaction added');
+            }
+
+            await this.transactionMerkleTree.put(Buffer.from(transaction.id), transaction.toBuffer());
+        }
+
         this.transactions.push(...transactions);
+        this.transactionRoot = await this.transactionMerkleTree.getMerkleRoot();
     }
 
     /**
@@ -183,7 +251,6 @@ class Block {
      */
     async validate() {
         // TODO: Have to check whether the block number already exists so we don't have forks
-
         if (!this.isGenesis() && !this.parent) {
             throw new Error(`Block ${this.id} should point to a previous block`);
         }
@@ -259,63 +326,31 @@ class Block {
      * @returns
      * @memberof Block
      */
-    static fromRaw(rawBlock: string) {
+    static async fromRaw(rawBlock: string): Promise<Block> {
         const blockParams: BlockParams = JSON.parse(rawBlock);
+        const block = new Block(blockParams);
 
-        // First convert all transactions back to the classes
-        const transactions = blockParams.transactions.map(tx => Transaction.fromRaw(JSON.stringify(tx)));
-        blockParams.transactions = transactions;
+        block.transactions = block.transactions.map(tx => Transaction.fromRaw(JSON.stringify(tx)));
 
-        return new Block(blockParams);
+        return block;
     }
 
     /**
-     * Gets multiple blocks by the given transaction ids
+     * Gets a block by it's ID
      *
      * @static
-     * @param {string[]} transactionIds
-     * @returns {Promise<Block[]>}
-     * @memberof Block
-     */
-    static async getByTransactionIds(transactionIds: string[]): Promise<Block[]> {
-        const db = await startDatabase();
-        const result = await db.query((doc: any, emit: any) => {
-            // Make sure the doc is a Block
-            if (doc.transactions && doc.transactions.length) {
-                // Find the transaction inside the block
-                const foundTransaction = doc.transactions.find((t: Transaction) => transactionIds.includes(t.id));
-
-                if (foundTransaction) {
-                    // This block contains the given transaction
-                    emit(doc.id, doc);
-                }
-            }
-        });
-
-        if (!result || result.total_rows === 0) {
-            return [];
-        }
-
-        // Convert all objects back to models
-        return result.rows.map(row => Block.fromRaw(JSON.stringify(row.value)));
-    }
-
-    /**
-     * Gets a block using a transaction id
-     *
-     * @static
-     * @param {string} transactionId
+     * @param {string} id
      * @returns {Promise<Block>}
      * @memberof Block
      */
-    static async getByTransactionId(transactionId: string): Promise<Block> {
-        const result = await Block.getByTransactionIds([transactionId]);
+    static async getById(id: string): Promise<Block> {
+        const rawBlock = await databaseGetById(id);
 
-        if (!result.length) {
+        if (!rawBlock) {
             return null;
         }
 
-        return result[0];
+        return Block.fromRaw(JSON.stringify(rawBlock));
     }
 
     /**

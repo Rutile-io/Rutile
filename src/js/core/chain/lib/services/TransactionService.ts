@@ -62,7 +62,7 @@ export function getTransactionId(transaction: Transaction) {
  * @param {Transaction} transaction
  * @returns
  */
-export async function validateTransaction(transaction: Transaction, noExecution: boolean = false) {
+export async function validateTransaction(transaction: Transaction) {
     // Making sure the properties are valid types
     // it throws an exception if a value is wrong
     Transaction.fromRaw(transaction.toRaw());
@@ -170,21 +170,4 @@ export function getAddressFromTransaction(transaction: Transaction) {
         to: transaction.to,
         from: fromAddress,
     };
-}
-
-/**
- * Finds the transaction that created the given address, only applys to smart contracts
- *
- * @export
- * @param {string} toAddress
- * @returns {Promise<Transaction>}
- */
-export async function getAccountCreationTransaction(toAddress: string): Promise<Transaction> {
-    const account = await Account.getFromAddress(toAddress);
-
-    if (!account) {
-        return null;
-    }
-
-    return Transaction.getById(account.creationTransactionId);
 }

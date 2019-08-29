@@ -8,6 +8,7 @@ import Transaction from "../../../models/Transaction";
 import MilestoneSlots from "./MilestoneSlots";
 import stringToByteArray from "../../../utils/stringToByteArray";
 import { hexStringToBuffer } from "../../../utils/hexUtils";
+import GlobalState from "../../../models/GlobalState";
 const BN = require('bn.js');
 
 // 32 RUT
@@ -92,17 +93,17 @@ class MilestoneInternalContract implements IInternalContract {
         return this.results;
     }
 
-    async execute(callMessage: CallMessage, transaction: Transaction): Promise<Results> {
+    async execute(callMessage: CallMessage, globalState: GlobalState, transaction: Transaction): Promise<Results> {
         const selector = callMessage.inputData.slice(0, 4);
 
         this.callMessage = callMessage;
         this.transaction = transaction;
 
         // Just in case the contract failed we are going to set the input root as the new outputroot
-        this.results.outputRoot = callMessage.inputRoot;
+        const toAccount = await globalState.findOrCreateAccount(callMessage.destination);
 
         this.milestoneSlots = new MilestoneSlots(transaction);
-        await this.milestoneSlots.init(callMessage.inputRoot);
+        await this.milestoneSlots.init(toAccount.storageRoot);
 
         const result = await this.selectFunction(selector);
 

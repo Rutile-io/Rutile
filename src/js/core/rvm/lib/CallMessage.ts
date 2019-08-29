@@ -17,7 +17,6 @@ class CallMessage {
     value: BNType;
     inputData: Uint8Array;
     inputSize: number;
-    inputRoot?: string;
 }
 
 export default CallMessage;

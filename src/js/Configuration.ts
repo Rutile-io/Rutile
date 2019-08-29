@@ -35,6 +35,7 @@ let configuration: IConfig = {
     databaseName: 'db_rutile',
     block: {
         blockGasLimit: 8000000,
+        // blockTime: 10000,
         blockTime: 10000,
         coinbaseAddress: '0x53ae893e4b22d707943299a8d0c844df0e3d5557',
         coinbaseAmount: '1000000000000000000',

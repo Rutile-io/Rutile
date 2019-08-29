@@ -7,7 +7,6 @@ import Ipfs from "../../services/wrappers/Ipfs";
 import { databaseGetAll } from "../../services/DatabaseService";
 import * as Logger from 'js-logger';
 import Transaction from "../../models/Transaction";
-import createGenesisBlock from "./lib/transaction/createGenesisBlock";
 import { Results } from "../rvm/context";
 import { NodeType } from "../../models/interfaces/IConfig";
 import Block from "../../models/Block";
@@ -17,6 +16,7 @@ import sleep from "../../utils/sleep";
 import BNtype from 'bn.js';
 import TransactionPool from "./TransactionPool";
 import ChainSyncing from "./ChainSyncing";
+import GlobalState from "../../models/GlobalState";
 
 const GENESIS_MILESTONE = 1;
 const MILESTONE_CONTRACT = '0x0200000000000000000000000000000000000000';
@@ -194,18 +194,28 @@ class Chain extends EventHandler {
         // We are asking the internal PoS contract to get the next block validator
         const wallet = new Wallet(configuration.privateKey);
         wallet.getAccountInfo();
+
+        // We just create a temp block that is a continouation of the current block
+        const block = new Block({
+            stateRoot: this.currentBlock.stateRoot,
+            number: this.currentBlock.number + 1,
+            parent: this.currentBlock.id,
+        });
+
         const transaction = new Transaction({
             to: MILESTONE_CONTRACT,
             data: '0x00000002',
         });
 
         transaction.sign(wallet.keyPair);
+        await block.addTransactions([transaction]);
+
+        const results = await block.execute();
 
         // We give the current block as the context since we do not actually save the results
-        const result = await transaction.execute(this.currentBlock, false);
-        this.nextValidatorAddress = result.returnHex;
+        this.nextValidatorAddress = results[0].returnHex;
 
-        if (result.returnHex === wallet.address) {
+        if (results[0].returnHex === wallet.address) {
             this.createNextBlock();
         }
     }
@@ -223,11 +233,15 @@ class Chain extends EventHandler {
             coinbase: configuration.block.coinbaseAddress,
         });
 
+        const transactions: Transaction[] = [];
+
         while(this.transactionPool.hasTransactions()) {
-            block.addTransactions([this.transactionPool.pop()]);
+            transactions.push(this.transactionPool.pop());
         }
 
+        await block.addTransactions(transactions);
         await block.execute();
+
         const blockTimeDelta = Date.now() - this.currentBlock.timestamp;
 
         // The block is overdue, submit it fast
@@ -240,9 +254,6 @@ class Chain extends EventHandler {
         this.networkController.broadcastBlock(block);
 
         await block.save();
-
-        const account = await Account.findOrCreate(block.coinbase);
-        console.log('[] account.b -> ', account.balance.toString());
 
         Logger.info(`⛏ Block round complete, created block ${block.number} with ${block.transactions.length} transaction(s)`);
 

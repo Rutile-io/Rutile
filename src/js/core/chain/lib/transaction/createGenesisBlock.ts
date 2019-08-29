@@ -62,12 +62,13 @@ export default async function createGenesisBlock(): Promise<Block> {
         gasLimit: 80000000000,
     });
 
-    block.addTransactions(allTransactions);
+    await block.addTransactions(allTransactions);
     block.proofOfWork();
 
     const results = await block.execute();
 
     let failedTransactionIndex = 0;
+
     const didGenesisTxFail = !!results.find((txResult, index) => {
         if (txResult.exceptionError === VM_ERROR.REVERT) {
             failedTransactionIndex = index;
@@ -78,7 +79,7 @@ export default async function createGenesisBlock(): Promise<Block> {
     });
 
     if (didGenesisTxFail) {
-        Logger.error(`Failed transaction results:`, results[failedTransactionIndex], ` at transaction `, block.transactions[failedTransactionIndex]);
+        Logger.error(`🚀 Failed transaction results:`, results[failedTransactionIndex], ` at transaction `, block.transactions[failedTransactionIndex]);
         throw new Error(`Genesis block creation failed with transaction index of ${failedTransactionIndex}`);
     }
 

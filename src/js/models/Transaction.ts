@@ -1,4 +1,5 @@
 import * as Logger from 'js-logger';
+import * as RLP from 'rlp';
 import Ipfs from "../services/wrappers/Ipfs";
 import { configuration } from "../Configuration";
 import KeyPair from "./KeyPair";
@@ -16,11 +17,18 @@ import getInternalContract from '../services/getInternalContract';
 import { startDatabase, createOrUpdate } from '../services/DatabaseService';
 import { applyProofOfWork } from '../services/transaction/ProofOfWork';
 import { VM_ERROR } from '../core/rvm/lib/exceptions';
-import { transferTransactionValue } from '../core/chain/lib/services/TransactionExecutionService';
+import { transferTransactionValue, deployContract, getContractBinary } from '../core/chain/lib/services/TransactionExecutionService';
 import Block from './Block';
+import GlobalState from './GlobalState';
+
 const BN = require('bn.js');
 
-interface TransactionParams {
+export interface TransactionExecuteResult {
+    result: Results;
+    globalState: GlobalState;
+}
+
+export interface TransactionParams {
     to: string;
     data?: string;
     gasLimit?: number;
@@ -90,25 +98,6 @@ class Transaction {
         this.transIndex = params.transIndex || 0;
     }
 
-    async deployContract(): Promise<string> {
-        if (this.to) {
-            throw new Error(`Contract deploys should not have a 'to' property attached to it`);
-        }
-
-        const addresses = getAddressFromTransaction(this);
-
-        const contractAddress = '0x' + rlpHash([
-            this.transIndex,
-            addresses.from,
-            this.data,
-        ]).slice(24);
-
-        await Account.findOrCreate(contractAddress, this.data, this.id);
-
-        return contractAddress;
-        // return Account.create(contractAddress, this.data, this.id);
-    }
-
     public proofOfWork() {
         this.nonce = applyProofOfWork(this.id);
     }
@@ -120,84 +109,76 @@ class Transaction {
      * @returns {Promise<Results>}
      * @memberof Transaction
      */
-    public async execute(block: Block, saveState: boolean = true): Promise<Results> {
+    public async execute(block: Block, globalState: GlobalState): Promise<TransactionExecuteResult> {
         try {
-            this.gasUsed = 250;
-
-            // non full nodes do not need to execute the function
-            if (configuration.nodeType !== NodeType.FULL) {
-                return null;
-            }
-
             // This is a contract creation because we do not have a receipient
             if (!this.to) {
-                const createdContractAddress = await this.deployContract();
+                const createdContractAccount = await deployContract(this);
 
                 return {
-                    exception: 0,
-                    exceptionError: null,
-                    gasUsed: this.gasUsed,
-                    returnHex: createdContractAddress,
-                    return: hexStringToByte(createdContractAddress),
-                    outputRoot: '0x',
-                    createdAddress: true,
-                }
-            }
-
-            // It's possible that we are just calling a system contract
-            let wasm: Uint8Array = getSystemContract(this.to);
-
-            // Transfer the RUT value
-            await transferTransactionValue(this, block);
-
-            const account = await Account.findOrCreate(this.to);
-            const callMessage = await createCallMessage(this);
-
-            // The address is not a system contract
-            if (!wasm) {
-                // Check if the address is a internal contract
-                const internalContract = getInternalContract(this.to);
-
-                if (internalContract) {
-                    const executionResults = await internalContract.execute(callMessage, this);
-                    this.gasUsed += executionResults.gasUsed;
-
-                    if (saveState) {
-                        account.storageRoot = executionResults.outputRoot;
-                        await account.save();
-                    }
-
-                    return executionResults;
-                }
-
-                // It's possible that an account does not have any contract attached to it
-                // This means we do not have to execute any functions but should just transfer value
-                if (!account.codeHash || account.codeHash === '0x00') {
-                    return {
+                    result: {
                         exception: 0,
                         exceptionError: null,
                         gasUsed: this.gasUsed,
+                        returnHex: createdContractAccount.address,
+                        return: hexStringToByte(createdContractAccount.address),
+                        outputRoot: createdContractAccount.storageRoot,
+                        createdAddress: true,
+                    },
+                    globalState,
+                };
+            }
+
+            // Transfer the RUT value
+            // The function just manipulates the balance portion of the account
+            globalState = await transferTransactionValue(this, globalState);
+
+            const toAccount = await globalState.findOrCreateAccount(this.to);
+            const internalContract = getInternalContract(toAccount.address);
+            const callMessage = await createCallMessage(this);
+
+            // We are calling an internal JS contract
+            if (internalContract) {
+                const executionResults = await internalContract.execute(callMessage, globalState, this);
+                this.gasUsed += executionResults.gasUsed;
+
+                return {
+                    result: executionResults,
+                    globalState,
+                };
+            }
+
+            const contractBinary = await getContractBinary(toAccount);
+
+            // No binary found, so we should treat this just as a value transfer
+            if (!contractBinary) {
+                return {
+                    result: {
+                        exception: 0,
+                        exceptionError: null,
+                        gasUsed: this.gasUsed,
+                        outputRoot: toAccount.storageRoot,
+                        return: new Uint8Array(),
                         returnHex: '0x',
-                        return: new Uint8Array(0),
-                        outputRoot: '0x',
                         createdAddress: false,
-                    }
-                }
+                    },
+                    globalState,
+                };
             }
 
             // Possibly have to save the result in the transaction.
-            const executionResults = await execute(callMessage);
+            const executionResults = await execute({
+                callMessage,
+                globalState,
+                bin: contractBinary,
+            });
+
             this.gasUsed += executionResults.gasUsed;
 
-            if (executionResults.exceptionError !== VM_ERROR.REVERT) {
-
-                if (saveState) {
-                    account.storageRoot = executionResults.outputRoot;
-                    await account.save();
-                }
-            }
-
-            return executionResults;
+            return {
+                result: executionResults,
+                globalState,
+            };
         } catch (error) {
             Logger.error('Executing transaction failed: ', error);
             throw error;
@@ -264,6 +245,32 @@ class Transaction {
         });
     }
 
+    toBuffer(): Buffer {
+        // const data = [
+        //     this.id,
+        //     this.to,
+        //     '0x' + this.value.toString('hex'),
+        //     this.data,
+        //     this.nonce,
+        //     this.gasPrice,
+        //     this.gasLimit,
+        //     this.gasUsed,
+        //     this.timestamp,
+        //     this.r,
+        //     this.s,
+        //     this.v,
+        //     this.transIndex,
+        // ];
+
+        // return RLP.encode(data);
+        return Buffer.from(this.toRaw());
+    }
+
+    static fromBuffer(data: Buffer): Transaction {
+        // const decodedData = RLP.decode(data);
+        return Transaction.fromRaw(data.toString());
+    }
+
     /**
      * Validates the transaction
      *
@@ -271,8 +278,8 @@ class Transaction {
      * @returns
      * @memberof Transaction
      */
-    async validate(noExecution: boolean = false) {
-        return validateTransaction(this, noExecution);
+    async validate() {
+        return validateTransaction(this);
     }
 
     /**

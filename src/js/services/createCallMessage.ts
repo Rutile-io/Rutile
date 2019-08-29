@@ -14,9 +14,7 @@ import Account from '../models/Account';
 export default async function createCallMessage(transaction: Transaction): Promise<CallMessage> {
     const callMessage = new CallMessage();
     const addresses = getAddressFromTransaction(transaction);
-    const account = await Account.findOrCreate(addresses.to);
 
-    callMessage.inputRoot = account.storageRoot;
     callMessage.value = transaction.value;
     callMessage.destination = addresses.to;
     callMessage.sender = addresses.from;
