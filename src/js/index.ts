@@ -96,7 +96,11 @@ async function run() {
     let db = await startDatabase();
     let mapping = new PouchDbLevelDbMapping(db);
 
-    await startIpfsClient();
+    try {
+        await startIpfsClient();
+    } catch (error) {
+        Logger.error(`📦 IPFS was not able to startup..`);
+    }
 
     wallet = new Wallet('C0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE');
     account = await wallet.getAccountInfo();

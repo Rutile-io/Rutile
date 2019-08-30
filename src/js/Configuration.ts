@@ -34,10 +34,18 @@ let configuration: IConfig = {
     difficulty: 3,
     databaseName: 'db_rutile',
     block: {
+        // The limit of gas inside a block
         blockGasLimit: 8000000,
-        // blockTime: 10000,
+
+        // The amount of time in ms that it takes before the next block round begins
         blockTime: 10000,
+
+        // The beneficiary address for block rewards
         coinbaseAddress: '0x53ae893e4b22d707943299a8d0c844df0e3d5557',
+
+        // The amount of reward per block.
+        // NOTE: if you change this the blockchain creates a fork from other configuration
+        // resulting in a different chain being created
         coinbaseAmount: '1000000000000000000',
     },
     genesis: {
@@ -56,13 +64,8 @@ let configuration: IConfig = {
             },
         },
 
-        // transaction: {
-        //     // Address is a test address.
-        //     to: '0x53ae893e4b22d707943299a8d0c844df0e3d5557',
-        //     timestamp: 0,
-        //     value: '150000000000000000000000000',
-        // },
         config: {
+            // The chain unique identification, use this to create your own blockchain
             chainId: 1,
         }
     }

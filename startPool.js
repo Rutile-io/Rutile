@@ -10,7 +10,7 @@ const configs = [
     {
         port: 1240,
         databaseName: 'db_rutile',
-        privateKey: '10DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE',
+        privateKey: 'C0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE',
     },
     {
         port: 1234,
@@ -64,18 +64,22 @@ function spawnNode(port, dbName, pk) {
     });
 }
 
-async function startPool() {
-    configs.forEach((config) => {
-        spawnNode(config.port, config.databaseName, config.privateKey);
+function sleep(ms) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
     });
+}
 
+const onlineNodes = [];
+
+function startNodeListServer() {
     const httpServer = http.createServer((req, res) => {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.writeHead(200, {
             'Content-Type': 'application/json',
         });
 
-        const result = configs.map((config) => {
+        const result = onlineNodes.map((config) => {
             return {
                 nodeId: config.databaseName,
                 nodeUrl: `http://localhost:${config.port}`,
@@ -87,6 +91,21 @@ async function startPool() {
     });
 
     httpServer.listen(8903, '0.0.0.0');
+}
+
+async function startPool() {
+    startNodeListServer();
+
+    for (const config of configs) {
+        await sleep(10000);
+        onlineNodes.push(config);
+        spawnNode(config.port, config.databaseName, config.privateKey);
+    }
+
+    // configs.forEach((config) => {
+    // });
+
+
 }
 
 
