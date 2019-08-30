@@ -77,8 +77,6 @@ class MilestoneSlots {
         const index = this.length;
         const buffer: Buffer = await this.merkleTree.get(`${SLOT_KEY}${index}`);
 
-        console.log('[Slot Amount] index -> ', index);
-
         if (!buffer) {
             Logger.warn(`Consensus: No nodes found, did you configure the genesis with nodes?`);
 

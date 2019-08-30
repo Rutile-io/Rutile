@@ -275,7 +275,7 @@ class Block {
         }
 
         // Validate every transaction in the block
-        for (const [index, transaction] of this.transactions.entries()) {
+        for (const transaction of this.transactions) {
             await validateTransaction(transaction);
         }
 
@@ -291,7 +291,7 @@ class Block {
             timestamp: this.timestamp,
         });
 
-        block.addTransactions(this.transactions);
+        await block.addTransactions(this.transactions);
 
         // Now execute the block to get to the same point
         await block.execute();
