@@ -61,5 +61,5 @@ typings/
 .next
 
 build
-db_rutile
+db_rutile*
 mydbb

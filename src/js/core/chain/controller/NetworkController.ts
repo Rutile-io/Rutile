@@ -143,7 +143,7 @@ class NetworkController {
             const transaction = Transaction.fromRaw(data.value);
             this.dag.addTransaction(transaction, event.peerId);
         } else if (data.type === 'BLOCK') {
-            const block = await Block.fromRaw(data.value);
+            const block = Block.fromRaw(data.value);
             this.dag.addBlock(block, event.peerId);
         } else if (data.type === 'GET_BLOCK') {
             const blockNumber = data.value;
@@ -152,10 +152,10 @@ class NetworkController {
             // A node sent us a request to synchronise our database.
             this.dag.synchroniseTo(data.value.number, event.peerId);
         } else if (data.type === 'BLOCK_SYNC') {
-            const block = await Block.fromRaw(data.value);
+            const block = Block.fromRaw(data.value);
             this.dag.onBlockSyncMessage(block);
         } else if (data.type === 'BLOCK_SYNC_COMPLETE') {
-            const block = await Block.fromRaw(data.value);
+            const block = Block.fromRaw(data.value);
             this.dag.chainSyncing.complete(block);
         } else if (data.type === 'GET_TRANSACTION_RESULT') {
             let eventId: any = null;

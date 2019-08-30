@@ -40,6 +40,13 @@ export async function startDatabase(): Promise<PouchDB.Database> {
         revs_limit: 1,
     });
 
+    // Creating indexes for speed
+    await pouchDb.createIndex({
+        index: {
+            fields: ['number'],
+        }
+    });
+
     return pouchDb;
 }
 

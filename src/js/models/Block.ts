@@ -215,7 +215,7 @@ class Block {
         }
 
         // Genesis blocks do not have a timestamp
-        if (!this.isGenesis()) {
+        if (!this.isGenesis() && !this.timestamp) {
             this.timestamp = Date.now();
         }
 
@@ -249,18 +249,10 @@ class Block {
      *
      * @memberof Block
      */
-    async validate() {
+    async validateAndExecute(): Promise<void> {
         // TODO: Have to check whether the block number already exists so we don't have forks
         if (!this.isGenesis() && !this.parent) {
             throw new Error(`Block ${this.id} should point to a previous block`);
-        }
-
-        const previoudId = this.id;
-        const blockId = this.generateBlockId();
-
-        // Make sure the data matches inside the block with what we got
-        if (previoudId !== blockId) {
-            throw new Error('Block did not contain all information, id did not match');
         }
 
         // Make sure it's a continuation on te previous block
@@ -279,12 +271,37 @@ class Block {
         // For effeciency sake, first check the proof of work.
         // Since we don't have to go through all the work if the PoW isn't even valid.
         if (!isProofOfWorkValid(this.id, this.nonce)) {
-            throw new Error('Proof of work is not valid');
+            throw new Error(`Proof of work is not valid on block ${this.number} ${this.id}`);
         }
 
         // Validate every transaction in the block
         for (const [index, transaction] of this.transactions.entries()) {
             await validateTransaction(transaction);
+        }
+
+        // Now check if everything is the same when we execute the block
+        const block = new Block({
+            coinbase: this.coinbase,
+            difficulty: this.difficulty,
+            extraData: this.extraData,
+            gasLimit: this.gasLimit,
+            nonce: this.nonce,
+            number: this.number,
+            parent: this.parent,
+            timestamp: this.timestamp,
+        });
+
+        block.addTransactions(this.transactions);
+
+        // Now execute the block to get to the same point
+        await block.execute();
+
+        if (block.getBlockId() !== this.id) {
+            throw new Error(`Block ${this.number} copy did not have the same id as the original`);
+        }
+
+        if (!isProofOfWorkValid(block.getBlockId(), block.nonce)) {
+            throw new Error('Proof of work is not valid after creating a copy');
         }
     }
 
@@ -326,7 +343,7 @@ class Block {
      * @returns
      * @memberof Block
      */
-    static async fromRaw(rawBlock: string): Promise<Block> {
+    static fromRaw(rawBlock: string): Block {
         const blockParams: BlockParams = JSON.parse(rawBlock);
         const block = new Block(blockParams);
 

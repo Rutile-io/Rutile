@@ -94,8 +94,8 @@ class ChainSyncing {
             }
 
             // All seems ok we will now validate and execute the block
-            await nextBlock.validate();
-            await nextBlock.execute();
+            await nextBlock.validateAndExecute();
+            // await nextBlock.execute();
             await nextBlock.save();
 
             // Move our pointer to this block

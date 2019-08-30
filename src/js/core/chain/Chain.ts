@@ -92,10 +92,9 @@ class Chain extends EventHandler {
                 return;
             }
 
-            await block.validate();
+            await block.validateAndExecute();
             this.networkController.broadcastBlock(block, [fromPeerId]);
 
-            await block.execute();
             await block.save();
 
             Logger.info(`📥 Block round completed, received block ${block.number} with ${block.transactions.length} transactions(s)`);
