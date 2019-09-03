@@ -1,25 +1,21 @@
 import * as Logger from 'js-logger';
 import * as RLP from 'rlp';
-import Ipfs from "../services/wrappers/Ipfs";
-import { configuration } from "../Configuration";
 import KeyPair from "./KeyPair";
-import { getUnsignedTransactionHash, getTransactionId, getAddressFromTransaction, validateTransaction } from "../core/chain/lib/services/TransactionService";
+import { getTransactionId, validateTransaction } from "../core/chain/lib/services/TransactionService";
 import execute from "../core/rvm/execute";
 import BNtype from 'bn.js';
-import { NodeType } from "./interfaces/IConfig";
-import Account from "./Account";
-import { rlpHash } from "../utils/keccak256";
 import { Results } from '../core/rvm/context';
-import getSystemContract from '../services/getSystemContract';
 import createCallMessage from '../services/createCallMessage';
 import { hexStringToByte } from '../core/rvm/utils/hexUtils';
 import getInternalContract from '../services/getInternalContract';
 import { startDatabase, createOrUpdate } from '../services/DatabaseService';
 import { applyProofOfWork } from '../services/transaction/ProofOfWork';
-import { VM_ERROR } from '../core/rvm/lib/exceptions';
 import { transferTransactionValue, deployContract, getContractBinary } from '../core/chain/lib/services/TransactionExecutionService';
 import Block from './Block';
 import GlobalState from './GlobalState';
+import { numberToHex, hexStringToBuffer } from '../utils/hexUtils';
+import { configuration } from '../Configuration';
+import keccak256 from '../utils/keccak256';
 
 const BN = require('bn.js');
 
@@ -35,7 +31,7 @@ export interface TransactionParams {
     gasPrice?: number;
     gasUsed?: number;
     id?: string;
-    nonce?: number;
+    nonce?: BNtype;
     r?: string;
     s?: string;
     v?: number;
@@ -71,7 +67,7 @@ class Transaction {
     timestamp?: number = 0;
 
     // Proof of work nonce of transaction
-    nonce?: number = 0;
+    nonce?: BNtype;
 
     transIndex?: number = 0;
 
@@ -89,17 +85,23 @@ class Transaction {
         this.gasPrice = params.gasPrice || 0;
         this.gasUsed = params.gasUsed || 0;
         this.id = params.id;
-        this.nonce = params.nonce || 0;
+        this.nonce = params.nonce || new BN(0);
         this.r = params.r;
         this.s = params.s;
         this.v = params.v;
         this.timestamp = params.timestamp || 0;
         this.value = params.value ? new BN(params.value, 10) : new BN(0, 10);
-        this.transIndex = params.transIndex || 0;
     }
 
-    public proofOfWork() {
-        this.nonce = applyProofOfWork(this.id);
+    public hash(includeSignature = true) {
+        const encodeTx = this.toBuffer(includeSignature);
+        const hash = keccak256(encodeTx);
+
+        if (includeSignature) {
+            this.id = '0x' + hash;
+        }
+
+        return hash;
     }
 
     /**
@@ -190,7 +192,7 @@ class Transaction {
             this.timestamp = Date.now();
         }
 
-        const transactionDataHash = getUnsignedTransactionHash(this);
+        const transactionDataHash = this.hash(false);
 
         if (keyPair) {
             // Sign the transaction to get the transaction id.
@@ -228,12 +230,14 @@ class Transaction {
     }
 
     toRaw(): string {
-        return JSON.stringify({
+        this.hash(true);
+
+        const data = JSON.stringify({
             id: this.id,
             to: this.to,
             value: this.value.toString(10),
             data: this.data,
-            nonce: this.nonce,
+            nonce: '0x' + this.nonce.toString('hex'),
             gasPrice: this.gasPrice,
             gasLimit: this.gasLimit,
             gasUsed: this.gasUsed,
@@ -243,32 +247,55 @@ class Transaction {
             v: this.v,
             transIndex: this.transIndex,
         });
+
+        return data;
     }
 
-    toBuffer(): Buffer {
-        // const data = [
-        //     this.id,
-        //     this.to,
-        //     '0x' + this.value.toString('hex'),
-        //     this.data,
-        //     this.nonce,
-        //     this.gasPrice,
-        //     this.gasLimit,
-        //     this.gasUsed,
-        //     this.timestamp,
-        //     this.r,
-        //     this.s,
-        //     this.v,
-        //     this.transIndex,
-        // ];
+    toBuffer(includeSignature: boolean = true): Buffer {
+        const data = [
+            this.nonce.isZero() ? hexStringToBuffer('0x') : this.nonce.toBuffer(),
+            hexStringToBuffer(numberToHex(this.gasPrice)),
+            Buffer.from(this.gasLimit.toString(16), 'hex'),
+            hexStringToBuffer(this.to),
+            this.value.toBuffer(),
+            hexStringToBuffer(this.data),
+        ];
+
+        if (includeSignature) {
+            data.push(
+                hexStringToBuffer(this.r),
+                hexStringToBuffer(this.s),
+                hexStringToBuffer(numberToHex(this.v)),
+            );
+        }
+
+        data.push(hexStringToBuffer(numberToHex(configuration.genesis.config.chainId)));
+        data.push(Buffer.from(''));
+        data.push(Buffer.from(''));
 
         // return RLP.encode(data);
-        return Buffer.from(this.toRaw());
+        return RLP.encode(data);
     }
 
-    static fromBuffer(data: Buffer): Transaction {
-        // const decodedData = RLP.decode(data);
-        return Transaction.fromRaw(data.toString());
+    static fromBuffer(rawBufferData: Buffer): Transaction {
+        const decodedData: any = RLP.decode(rawBufferData);
+        const data: Buffer[] = decodedData;
+
+        const transaction = new Transaction({
+            nonce: new BN(data[0]),
+            gasPrice: parseInt('0x' + data[1].toString('hex')),
+            gasLimit: parseInt('0x' + data[2].toString('hex')),
+            to: '0x' + data[3].toString('hex'),
+            value: new BN(data[4]),
+            data: '0x' + data[5].toString('hex'),
+            r: '0x' + data[7].toString('hex'),
+            v: parseInt('0x' + data[6].toString('hex')),
+            s: '0x' + data[8].toString('hex'),
+        });
+
+        transaction.hash(true);
+
+        return transaction;
     }
 
     /**
@@ -289,7 +316,6 @@ class Transaction {
      */
     async save() {
         const rawTransaction = this.toRaw();
-        console.log('TX Save');
         await createOrUpdate(this.id, JSON.parse(rawTransaction));
     }
 
@@ -308,6 +334,7 @@ class Transaction {
         }
 
         const transaction: TransactionParams = JSON.parse(rawTransaction);
+        transaction.nonce = new BN(transaction.nonce);
 
         // TODO: Validate more types..
         if (typeof transaction.value !== 'string') {
@@ -327,7 +354,6 @@ class Transaction {
      */
     static async getById(id: string): Promise<Transaction> {
         if (!id) {
-            Logger.debug('Faulty -> ', id);
             throw new Error('getById cannot be called with undefined as given parameter');
         }
 
@@ -350,14 +376,17 @@ class Transaction {
      */
     static async getByIds(ids: string[]): Promise<Transaction[]> {
         if (ids.includes(undefined)) {
-            Logger.debug('Faulty -> ', ids);
             throw new Error('getByIds cannot be called with undefined as given parameter');
         }
 
         const db = await startDatabase();
         const result = await db.query((doc: any, emit: any) => {
-            if (ids.includes(doc.id)) {
-                emit(doc.id, doc);
+            if (doc.transactions && doc.transactions.length) {
+                const transaction = doc.transactions.find((tx: Transaction) => ids.includes(tx.id));
+
+                if (transaction) {
+                    emit(transaction.id, transaction);
+                }
             }
         });
 

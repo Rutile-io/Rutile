@@ -2,6 +2,7 @@ import { ec as Ec } from 'elliptic';
 import { arrayify } from '../utils/arrayify';
 import keccak256 from '../utils/keccak256';
 import { toHex } from '../core/rvm/utils/hexUtils';
+import { configuration } from '../Configuration';
 
 interface Signature {
     recoveryParam?: number,
@@ -48,7 +49,7 @@ class KeyPair {
             // s: signature.s.toString(16),
             r: '0x' + signature.r.toString(16),
             s: '0x' + signature.s.toString(16),
-            v: 27 + signature.recoveryParam,
+            v: (27 + signature.recoveryParam) + (configuration.genesis.config.chainId * 2 + 8),
         }
     }
 
@@ -56,8 +57,8 @@ class KeyPair {
         return KeyPair.computeAddress(this.publicKey);
     }
 
-    static verifySignature(digest: string, signature: Signature): boolean {
-        const recoveryParam = signature.v - 27;
+    static verifySignature(digest: string | Buffer, signature: Signature): boolean {
+        const recoveryParam = (signature.v - 27) - (configuration.genesis.config.chainId * 2 + 8);
 
         const rs = {
             r: signature.r.slice(2),
@@ -77,7 +78,8 @@ class KeyPair {
     }
 
     static recoverPublicKey(digest: string, signature: Signature) {
-        const recoveryParam = signature.v - 27;
+        let recoveryParam = (signature.v - 27) - (configuration.genesis.config.chainId * 2 + 8);
+        recoveryParam += 0;
 
         const rs = {
             r: signature.r.slice(2),

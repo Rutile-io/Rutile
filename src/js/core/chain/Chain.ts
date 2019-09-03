@@ -119,9 +119,6 @@ class Chain extends EventHandler {
             Logger.debug(`Submitting transaction`);
             transaction.sign(keyPair);
 
-            Logger.debug(`Applying PoW to transaction ${transaction.id}`);
-            transaction.proofOfWork();
-
             // Make sure all is ok with our Transaction before sending it off
             Logger.debug(`Re-validating transaction before sending ${transaction.id}`);
             await transaction.validate();
@@ -179,7 +176,7 @@ class Chain extends EventHandler {
             this.networkController.sendBlockSyncString(lastBlock.toRaw(), peerId);
         }
 
-        Logger.info(`🚀 Synchronising to peer ${peerId} completed, last block was ${lastBlock.number}`);
+        Logger.info(`🚀 Synchronising to peer ${peerId} completed, last milestone was ${lastBlock.number}`);
 
         this.networkController.sendBlockSyncComplete(lastBlock, peerId);
     }
@@ -254,7 +251,7 @@ class Chain extends EventHandler {
 
         await block.save();
 
-        Logger.info(`⛏ Block round complete, created block ${block.number} with ${block.transactions.length} transaction(s)`);
+        Logger.info(`⛏ Milestone round complete, created milestone ${block.number} with ${block.transactions.length} transaction(s)`);
 
         this.currentBlock = block;
         this.nextBlockRound();

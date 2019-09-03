@@ -14,6 +14,14 @@ import IConfig, { NodeType } from './models/interfaces/IConfig';
 import Validator from './core/milestone/Validator';
 import GlobalState from './models/GlobalState';
 import Block from './models/Block';
+import RpcServer from './core/rpc/RpcServer';
+import isNodeJs from './services/isNodeJs';
+import { getAddressFromTransaction } from './core/chain/lib/services/TransactionService';
+
+if (!isNodeJs()) {
+    // @ts-ignore
+    window.getAddressesFromTransaction = getAddressFromTransaction;
+}
 
 /**
  * Glue between all core modules.
@@ -71,8 +79,11 @@ class Rutile {
             // Boot up our peer to peer network
             this.network = new Network();
             await this.network.open();
+
         } catch (error) {
-            console.error('Could not connect to peers: ', error);
+            if (error) {
+                console.error('Could not connect to peers: ', error);
+            }
         }
 
         this.chain = new Chain(this.network);
@@ -80,6 +91,11 @@ class Rutile {
         // if (configuration.nodeType !== NodeType.CLIENT) {
             await this.chain.synchronise();
         // }
+
+        if (isNodeJs()) {
+            const rpcServer = new RpcServer(this.chain);
+            rpcServer.open(8545);
+        }
 
         if (configuration.nodeType === NodeType.FULL) {
             this.validator = new Validator(this.chain);

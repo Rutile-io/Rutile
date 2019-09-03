@@ -5,14 +5,18 @@ import Wallet from './models/Wallet';
 import { startDatabase, databaseFind} from './services/DatabaseService';
 import Account from './models/Account';
 import * as Logger from 'js-logger';
-import { stringToHex } from './utils/hexUtils';
+import { stringToHex, numberToHex } from './utils/hexUtils';
 import execute from './core/rvm/execute';
 import PouchDbLevelDbMapping from './models/PouchDbLevelDbMapping';
 import Transaction from './models/Transaction';
 import {startIpfsClient} from './services/IpfsService';
 import { CallKind } from './core/rvm/lib/CallMessage';
 import Block from './models/Block';
+import keccak256, { rlpHash } from './utils/keccak256';
+import { getAddressFromTransaction } from './core/chain/lib/services/TransactionService';
+import KeyPair from './models/KeyPair';
 const BN = require('bn.js');
+const ethUtil = require('ethereumjs-util');
 // import RutileContext from './models/RutileContext';
 // import * as fs from 'fs';
 // import { validateTransaction, applyTransaction } from './services/_TransactionService';
@@ -95,6 +99,50 @@ async function run() {
     applyArgv();
     let db = await startDatabase();
     let mapping = new PouchDbLevelDbMapping(db);
+
+    // const tx = Transaction.fromBuffer(Buffer.from('f86c808502540be4008252089442b904bca15eb96488912456c17475ce33e0d3cf881bc16d674ec800008025a065551c1b6a339c9d01e2fd141d604d8a5cabf967cdb9ff808b620dd7837d03a5a03fb94339e666a8552c35852a1f99f8cbd0a1f68659be38bd22802a237b5f8369', 'hex'));
+    // const addresses = getAddressFromTransaction(tx);
+
+
+    // // const valid = KeyPair.verifySignature('0x3d92063df59f5d4dfc86ee670c40543006ccbe6b245ca0c257a8a9c64e417816', {
+    // //     r: tx.r,
+    // //     s: tx.s,
+    // //     v: tx.v,
+    // // });
+
+    // // tx.hash(false);
+
+    // // console.log('[] valid -> ', valid, tx.hash(false), tx.hash(true));
+
+    // return;
+    // for (let index = 0; index < 100; index++) {
+    //     try {
+    //         const pub = ethUtil.ecrecover(
+    //             Buffer.from(tx.hash(false), 'hex'),
+    //             tx.v - index,
+    //             tx.r,
+    //             tx.s,
+    //             configuration.genesis.config.chainId - index,
+    //         );
+
+    //         console.log('[] ethUtil -> ', ethUtil.pubToAddress(pub, false));
+    //     } catch (err) {}
+    // }
+
+    // const pub = ethUtil.ecrecover(
+    //     Buffer.from(tx.hash(false), 'hex'),
+    //     tx.v + 1,
+    //     tx.r,
+    //     tx.s,
+    //     configuration.genesis.config.chainId + 1,
+    // );
+
+    // console.log('[] ethUtil -> ', ethUtil.pubToAddress(pub, false));
+
+    // console.log('[] addresses -> ', addresses);
+    // console.log('[] pub -> ', KeyPair.computeAddress('0x' + pub.toString('hex')));
+
+    // return;
 
     try {
         await startIpfsClient();

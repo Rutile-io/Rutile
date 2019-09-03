@@ -3,6 +3,7 @@ import { configuration } from "../../../../Configuration";
 import Block from "../../../../models/Block";
 import { VM_ERROR } from "../../../rvm/lib/exceptions";
 import * as Logger from 'js-logger';
+const BN = require('bn.js');
 
 export default async function createGenesisBlock(): Promise<Block> {
     const allTransactions: Transaction[] = [];
@@ -11,6 +12,7 @@ export default async function createGenesisBlock(): Promise<Block> {
     for (const address of Object.keys(configuration.genesis.alloc)) {
         const allocTransaction = new Transaction({
             to: address,
+            nonce: new BN(0),
             value: configuration.genesis.alloc[address].balance,
             timestamp: 0,
             gasLimit: 0,
@@ -23,7 +25,6 @@ export default async function createGenesisBlock(): Promise<Block> {
         });
 
         allocTransaction.sign();
-        allocTransaction.proofOfWork();
         allTransactions.push(allocTransaction);
     }
 
@@ -38,6 +39,7 @@ export default async function createGenesisBlock(): Promise<Block> {
             gasLimit: 0,
             gasPrice: 0,
             transIndex: 0,
+            nonce: new BN(0),
             data,
             r: '0x0000000000000000000000000000000000000000000000000000000000000000',
             s: '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -45,7 +47,6 @@ export default async function createGenesisBlock(): Promise<Block> {
         });
 
         transaction.sign();
-        transaction.proofOfWork();
         allTransactions.push(transaction);
     }
 

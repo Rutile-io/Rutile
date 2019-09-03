@@ -222,6 +222,11 @@
                     transIndex,
                 });
 
+                transaction.sign(keyPair);
+
+
+                console.log('[] transaction -> ', transaction);
+
                 await rutile.sendTransaction(transaction, keyPair);
             }
 

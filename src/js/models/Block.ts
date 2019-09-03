@@ -122,8 +122,8 @@ class Block {
                 const addresses = getAddressFromTransaction(transaction);
                 const fromAccount = await globalStateStorage.findOrCreateAccount(addresses.from);
 
-                fromAccount.nonce.add(new BN(1));
-                globalStateStorage.update(fromAccount);
+                fromAccount.nonce = fromAccount.nonce.add(new BN(1));
+                await globalStateStorage.update(fromAccount);
             }
 
             results.push(transactionExecuteResult.result);
@@ -162,7 +162,7 @@ class Block {
                 throw new Error('Empty transaction added');
             }
 
-            await this.transactionMerkleTree.put(Buffer.from(transaction.id), transaction.toBuffer());
+            await this.transactionMerkleTree.put(Buffer.from(transaction.id), transaction.toBuffer(true));
         }
 
         this.transactions.push(...transactions);
@@ -344,8 +344,13 @@ class Block {
      * @memberof Block
      */
     static fromRaw(rawBlock: string): Block {
+        if (!rawBlock) {
+            throw new Error('Raw block parameter is required');
+        }
+
         const blockParams: BlockParams = JSON.parse(rawBlock);
         const block = new Block(blockParams);
+
 
         block.transactions = block.transactions.map(tx => Transaction.fromRaw(JSON.stringify(tx)));
 
@@ -403,6 +408,25 @@ class Block {
         }
 
         return Block.getByNumber(blockNumber.number);
+    }
+
+    static async getByTransactionId(transactionId: string): Promise<Block> {
+        const db = await startDatabase();
+        const result = await db.query((doc: any, emit: any) => {
+            if (doc.transactions && doc.transactions.length) {
+                const transaction = doc.transactions.find((tx: Transaction) => transactionId === tx.id);
+
+                if (transaction) {
+                    emit(doc.id, doc);
+                }
+            }
+        });
+
+        if (!result || result.total_rows === 0) {
+            return null;
+        }
+
+        return Block.fromRaw(JSON.stringify(result.rows[0].value));
     }
 }
 

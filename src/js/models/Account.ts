@@ -149,7 +149,7 @@ class Account {
             storageRoot,
             balance: new BN(0),
             codeHash: codeHash || null,
-            nonce: new BN(0),
+            nonce: new BN(1),
         });
 
         return newAccount;
