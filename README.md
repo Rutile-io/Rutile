@@ -1,21 +1,9 @@
 # ![](./res/img/Rutile.png)
 
 Rutile is a fee-less decentralized application platform. You can store files, create smart contracts and transfer tokens.
-Rutile is not based on blockchain but rather on a Directed Acyclic Graph. This allows for fee less transactions, better scalibility and faster confirmations.
+Rutile is Ethereum compatible, it works with your current wallets. Just adjust the provider to localhost:8545
 
 Rutile is currently in development but is actively worked on.
-
-## Features of Rutile:
-
-- Create and run smart contracts (using WebAssembly) & be compatible with Ethereum smart contracts
-- Paralize execution (DAG)
-- RUT Token transfer
-- Store files in the Rutile network using IPFS
-- Re-use your Ethereum private keys & addresses in Rutile
-
-## More info
-
-- [Rutile Virtual Machine](https://github.com/Rutile-io/Rutile/tree/develop/src/js/core/rvm)
 
 ## Running Rutile
 
@@ -29,10 +17,19 @@ For testing the node server:
 ```JavaScript
 npm run start:node
 ```
-And for testing on the brower/client
-```JavaScript
-npm start
-```
+
+You can use wallets like Metamask and use the custom provider (localhost:8545) to transfer value around.
+
+## Features of Rutile:
+
+- Create and run smart contracts (using WebAssembly) & be compatible with Ethereum smart contracts
+- RUT Token transfer
+- Store files in the Rutile network using IPFS
+- Re-use your Ethereum private keys & addresses in Rutile
+
+## More info
+
+- [Rutile Virtual Machine](https://github.com/Rutile-io/Rutile/tree/develop/src/js/core/rvm)
 
 Currently testing is done in `src/js/index.ts`.
 

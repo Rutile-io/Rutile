@@ -2,11 +2,15 @@
 <html>
     <head>
         <title>Boilerplayer</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.5.3/cytoscape.min.js"></script>
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1, maximum-scale=1"
+        />
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-polyfill/7.4.4/polyfill.min.js"></script>
+        <script src="./web3.min.js"></script>
         <style>
             * {
-                font-family: 'Open Sans';
+                font-family: "Open Sans";
             }
         </style>
     </head>
@@ -16,7 +20,11 @@
         <section>
             <div>
                 <label>Private Key:</label>
-                <input type="text" id="privateKey" value="C0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE" />
+                <input
+                    type="text"
+                    id="privateKey"
+                    value="C0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE"
+                />
             </div>
             <div>
                 <label>Address:</label>
@@ -26,16 +34,18 @@
                 <label>Balance:</label>
                 <span id="balance">?</span>
             </div>
-            <div>
-                Is Rutile active? <span id="isRutileActive">No</span>
-            </div>
+            <div>Is Rutile active? <span id="isRutileActive">No</span></div>
             <button onclick="setPrivateKey()">Set private key</button>
         </section>
         <h1>Balance of Address</h1>
         <section>
             <div>
                 <label>Address:</label>
-                <input type="text" id="addressInfo" value="0x53ae893e4b22d707943299a8d0c844df0e3d5557" />
+                <input
+                    type="text"
+                    id="addressInfo"
+                    value="0x53ae893e4b22d707943299a8d0c844df0e3d5557"
+                />
                 <div>
                     <label>Balance:</label>
                     <span id="balanceInfo">?</span>
@@ -47,25 +57,29 @@
         <section>
             <div>
                 <label>Address</label>
-                <input type="text" id="valueAddressTo" value="0x0200000000000000000000000000000000000000" />
+                <input
+                    type="text"
+                    id="valueAddressTo"
+                    value="0x0200000000000000000000000000000000000000"
+                />
             </div>
             <div>
                 <label>Value</label>
-                <input type="number" id="valueAddress" value="32000000000000000000" />RUT
+                <input
+                    type="number"
+                    id="valueAddress"
+                    value="32000000000000000000"
+                />RUT
             </div>
             <div>
                 <label>Data</label>
-                <input type="text" id="valueData" value="0x0000000153ae893e4b22d707943299a8d0c844df0e3d5557" />
+                <input
+                    type="text"
+                    id="valueData"
+                    value="0x0000000153ae893e4b22d707943299a8d0c844df0e3d5557"
+                />
             </div>
             <button onclick="sendValue()">Send transaction</button>
-        </section>
-        <h2>Snapshot creator</h2>
-        <section>
-            <div>
-                <label>Transaction ID</label>
-                <input type="text" id="blockSnapshotId" value="0x" />
-            </div>
-            <button onclick="takeSnapshot()">Take Snapshot</button>
         </section>
         <h2>Upload file to local IPFS Node</h2>
         <section>
@@ -78,7 +92,7 @@
         <section>
             <div>
                 <label>Hash of file</label>
-                <input type="text" id="valueHash"/>
+                <input type="text" id="valueHash" />
             </div>
             <button onclick="RegisterAsHost()">Register as host</button>
         </section>
@@ -90,53 +104,78 @@
                 background: orange;
             }
         </style>
-        <script src="build/rutile.js" charset="utf-8"></script>
         <script>
             let rutile = null;
             let keyPair = null;
             let cy = null;
 
-
-            async function takeSnapshot() {
-                const blockId = document.getElementById('blockSnapshotId').value;
-
-                await Rutile.Snapshot.takeSnapshot(blockId);
-            }
+            window.addEventListener("load", async () => {
+                // Modern dapp browsers...
+                if (window.ethereum) {
+                    window.web3 = new Web3(ethereum);
+                    try {
+                        // Request account access if needed
+                        await ethereum.enable();
+                        // Acccounts now exposed
+                        run();
+                    } catch (error) {
+                        // User denied account access...
+                    }
+                }
+                // Legacy dapp browsers...
+                else if (window.web3) {
+                    window.web3 = new Web3(web3.currentProvider);
+                    // Acccounts always exposed
+                    run();
+                }
+                // Non-dapp browsers...
+                else {
+                    console.log(
+                        "Non-Ethereum browser detected. You should consider trying MetaMask!"
+                    );
+                }
+            });
 
             async function run() {
                 try {
-                    rutile = new Rutile({
-                        privateKey: 'D0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE',
-                    });
-                    await rutile.start();
-                    rutile.chain.on('transactionAdded', (event) => {
-                        addTransaction(event.transaction)
-                    });
+                    const account = (await web3.eth.getAccounts())[0];
+                    const balance = (await web3.eth.getBalance(account));
 
-                    setPrivateKey();
-                    getAddressInfo();
+                    document.getElementById('address').innerHTML = account;
+                    document.getElementById('balance').innerHTML = balance;
+                    // rutile = new Rutile({
+                    //     privateKey: 'D0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE',
+                    // });
+                    // await rutile.start();
+                    // rutile.chain.on('transactionAdded', (event) => {
+                    //     addTransaction(event.transaction)
+                    // });
 
-                    document.getElementById('isRutileActive').innerHTML = 'Yes';
+                    // setPrivateKey();
+                    // getAddressInfo();
+
+                    document.getElementById("isRutileActive").innerHTML = "Yes";
                 } catch (error) {
                     console.error(error);
-                    document.getElementById('isRutileActive').innerHTML = 'Error';
+                    document.getElementById("isRutileActive").innerHTML =
+                        "Error";
                 }
             }
 
             async function getAddressInfo() {
-                const address = document.getElementById('addressInfo').value;
-                document.getElementById('balanceInfo').innerHTML = 'calculating..';
+                const address = document.getElementById("addressInfo").value;
+                document.getElementById("balanceInfo").innerHTML =
+                    "calculating..";
 
-                const account = await Rutile.Account.getFromAddress(address);
-                const balance = await rutile.getAccountBalance(address);
+                const balance = (await web3.eth.getBalance(address));
 
-                document.getElementById('balanceInfo').innerHTML = balance;
+                document.getElementById("balanceInfo").innerHTML = balance;
             }
 
             function convertToHex(str) {
-                var hex = '';
-                for(var i=0;i<str.length;i++) {
-                    hex += ''+str.charCodeAt(i).toString(16);
+                var hex = "";
+                for (var i = 0; i < str.length; i++) {
+                    hex += "" + str.charCodeAt(i).toString(16);
                 }
                 return hex;
             }
@@ -144,219 +183,109 @@
             async function uploadFileToLocalIPFS(evt) {
                 var f = evt.target.files[0];
                 if (f) {
-                var r = new FileReader();
-                r.onload = async function(e) {
-                    var content = e.target.result;
-                    var hash = await rutile.Ipfs.add(content);
+                    var r = new FileReader();
+                    r.onload = async function(e) {
+                        var content = e.target.result;
+                        var hash = await rutile.Ipfs.add(content);
 
-                    const privateKey = document.getElementById('privateKey').value;
-                    const toAddress = '0x0300000000000000000000000000000000000000';
-                    const value = '1';
-                    const data = '0x00000001' + convertToHex(hash);
-                    const keyPair = new Rutile.KeyPair(privateKey);
-                    const account = await Rutile.Account.getFromAddress(keyPair.getAddress());
-                    let transIndex = account.transactionIndex + 1;
+                        const privateKey = document.getElementById("privateKey")
+                            .value;
+                        const toAddress =
+                            "0x0300000000000000000000000000000000000000";
+                        const value = "1";
+                        const data = "0x00000001" + convertToHex(hash);
+                        const keyPair = new Rutile.KeyPair(privateKey);
+                        const account = await Rutile.Account.getFromAddress(
+                            keyPair.getAddress()
+                        );
+                        let transIndex = account.transactionIndex + 1;
 
-                    const transaction = new Rutile.Transaction({
-                        to: toAddress,
-                        value,
-                        data,
-                        nonce: transIndex,
-                    });
 
-                    transaction.sign(keyPair);
+                        const transaction = new Rutile.Transaction({
+                            to: toAddress,
+                            value,
+                            data,
+                            nonce: transIndex
+                        });
 
-                    const result = await rutile.sendTransaction(transaction, keyPair);
-                }
-                r.readAsText(f);
+                        transaction.sign(keyPair);
+
+                        const result = await rutile.sendTransaction(
+                            transaction,
+                            keyPair
+                        );
+                    };
+                    r.readAsText(f);
                 } else {
                     alert("Failed to load file");
                 }
             }
-            async function RegisterAsHost(){
-                const hash = document.getElementById('valueHash').value;
-                const privateKey = document.getElementById('privateKey').value;
-                const toAddress = '0x0300000000000000000000000000000000000000';
-                const value = '1';
-                const data = '0x00000002' + convertToHex(hash);
+            async function RegisterAsHost() {
+                const hash = document.getElementById("valueHash").value;
+                const privateKey = document.getElementById("privateKey").value;
+                const toAddress = "0x0300000000000000000000000000000000000000";
+                const value = "1";
+                const data = "0x00000002" + convertToHex(hash);
                 const keyPair = new Rutile.KeyPair(privateKey);
-                const account = await Rutile.Account.getFromAddress(keyPair.getAddress());
+                const account = await Rutile.Account.getFromAddress(
+                    keyPair.getAddress()
+                );
                 let transIndex = account.transactionIndex + 1;
 
                 const transaction = new Rutile.Transaction({
                     to: toAddress,
                     value,
                     data,
-                    nonce: transIndex,
+                    nonce: transIndex
                 });
 
                 transaction.sign(keyPair);
 
-                const result = await rutile.sendTransaction(transaction, keyPair);
+                const result = await rutile.sendTransaction(
+                    transaction,
+                    keyPair
+                );
             }
 
-            document.getElementById('valueFile').addEventListener('change', uploadFileToLocalIPFS, false);
+            document
+                .getElementById("valueFile")
+                .addEventListener("change", uploadFileToLocalIPFS, false);
 
             async function setPrivateKey() {
-                keyPair = new Rutile.Wallet(document.getElementById('privateKey').value);
+                keyPair = new Rutile.Wallet(
+                    document.getElementById("privateKey").value
+                );
                 const account = await keyPair.getAccountInfo();
 
-                document.getElementById('address').innerHTML = account.address;
-                document.getElementById('balance').innerHTML = account.balance;
+                document.getElementById("address").innerHTML = account.address;
+                document.getElementById("balance").innerHTML = account.balance;
             }
 
             async function sendValue() {
-                const privateKey = document.getElementById('privateKey').value;
-                const toAddress = document.getElementById('valueAddressTo').value;
-                const value = document.getElementById('valueAddress').value;
-                const data = document.getElementById('valueData').value;
+                const privateKey = document.getElementById("privateKey").value;
+                const toAddress = document.getElementById("valueAddressTo")
+                    .value;
+                const value = document.getElementById("valueAddress").value;
+                const data = document.getElementById("valueData").value;
 
-                const keyPair = new Rutile.KeyPair(privateKey);
-                const account = await rutile.getAccount(keyPair.getAddress());
-                let transIndex = account.nonce + 1;
+                const account = (await web3.eth.getAccounts())[0];
 
-                const transaction = new Rutile.Transaction({
+                const transaction = {
+                    from: account,
                     to: toAddress,
                     value,
                     data,
-                    transIndex,
-                });
+                };
 
-                transaction.sign(keyPair);
+                const result = await web3.eth.sendTransaction(transaction);
+                console.log('[] result -> ', result);
 
 
-                console.log('[] transaction -> ', transaction);
-
-                await rutile.sendTransaction(transaction, keyPair);
             }
-
-            function addTransaction(transaction) {
-                return;
-                const toAdd = [];
-
-                toAdd.push({
-                    group: 'nodes',
-                    data: {
-                        id: transaction.id,
-                    }
-                });
-
-                if (transaction.parents.length) {
-                    transaction.parents.forEach((tx) => {
-                        links.push({
-                            data: {
-                                source: transaction.id,
-                                target: tx,
-                                id: transaction.id + tx,
-                            }
-                        });
-                    });
-                }
-
-                cy.add(toAdd);
-            }
-
-            async function runD3() {
-                const blocks = (await Rutile.Database.databaseFind('extraData', '0x')).docs.sort((a, b) => a.timestamp - b.timestamp);
-                const elements = [];
-                const links = [];
-
-                console.log('[] blocks -> ', blocks);
-
-                for (let index = 0; index < blocks.length; index++) {
-                    const block = blocks[index];
-
-                    const className = [];
-                    let label = block.number;
-                    className.push('milestone');
-
-                    elements.push({
-                        data: {
-                            label,
-                            id: block.id,
-                        },
-                        classes: className,
-                    });
-
-                    if (block.parent) {
-                        links.push({
-                            data: {
-                                source: block.id,
-                                target: block.parent,
-                                id: block.id + block.parent,
-                            }
-                        });
-                    }
-                }
-
-                cy = cytoscape({
-                    group: 'edges',
-                    container: document.getElementById('dagspace'),
-                    elements: {
-                        nodes: elements,
-                        edges: links,
-                    },
-                    layout: {
-                        name: 'cose',
-                        // rows: 1,
-                    },
-                    style: [
-                        {
-                            selector: '.reference',
-                            style: {
-                                'background-color': 'red',
-                            },
-                        },
-                        {
-                            selector: '.milestone',
-                            style: {
-                                'background-color': 'blue',
-                            },
-                        },
-                        {
-                            selector: 'node',
-                            style: {
-                                // 'label': 'data(id)'
-                            }
-                        },
-                        {
-                            "selector": "node[label]",
-                            "style": {
-                                "label": "data(label)",
-                                "text-valign": "center",
-                                "text-halign": "center",
-                                "color": "white",
-                            }
-                        },
-
-                        {
-                            "selector": "edge[label]",
-                            "style": {
-                            "label": "data(label)",
-                                "width": 3,
-                                "text-valign": "center",
-                                "text-halign": "center",
-                                "color": "white",
-                            }
-                        },
-                        {
-                            selector: 'edge',
-                            style: {
-                                'width': 3,
-
-                                'line-color': '#ccc',
-                                'curve-style': 'bezier',
-                                'target-arrow-color': '#ccc',
-                                'target-arrow-shape': 'triangle' // there are far more options for this property here: http://js.cytoscape.org/#style/edge-arrow
-                            }
-                        }
-                    ]
-                });
-            }
-
-            run();
-            // runD3();
         </script>
-        <link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
+        <link
+            href="https://fonts.googleapis.com/css?family=Open+Sans"
+            rel="stylesheet"
+        />
     </body>
 </html>

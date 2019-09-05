@@ -254,10 +254,10 @@ class Transaction {
     toBuffer(includeSignature: boolean = true): Buffer {
         const data = [
             this.nonce.isZero() ? hexStringToBuffer('0x') : this.nonce.toBuffer(),
-            hexStringToBuffer(numberToHex(this.gasPrice)),
+            this.gasPrice !== 0 ? hexStringToBuffer(numberToHex(this.gasPrice)): hexStringToBuffer('0x'),
             Buffer.from(this.gasLimit.toString(16), 'hex'),
             hexStringToBuffer(this.to),
-            this.value.toBuffer(),
+            this.value.isZero() ? hexStringToBuffer('0x') : this.value.toBuffer(),
             hexStringToBuffer(this.data),
         ];
 
@@ -334,7 +334,10 @@ class Transaction {
         }
 
         const transaction: TransactionParams = JSON.parse(rawTransaction);
-        transaction.nonce = new BN(transaction.nonce);
+
+        // @ts-ignore
+        transaction.nonce = transaction.nonce.replace('0x', '');
+        transaction.nonce = new BN(transaction.nonce, 'hex');
 
         // TODO: Validate more types..
         if (typeof transaction.value !== 'string') {

@@ -293,6 +293,20 @@ class RpcServer {
         res.end(JSON.stringify(result));
     }
 
+    async sendGasPrice(res: ServerResponse, data: RpcRequest) {
+        let result = {
+            id: data.id,
+            jsonrpc: data.jsonrpc,
+            result: '0x09184e72a000',
+        }
+
+        res.writeHead(200, {
+            'Content-Type': 'application/json',
+        });
+
+        res.end(JSON.stringify(result));
+    }
+
     async handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
         const data: RpcRequest = JSON.parse(await this.getAllChunkData(req));
 
@@ -323,6 +337,9 @@ class RpcServer {
                 break;
             case 'eth_getTransactionReceipt':
                 await this.sendGetTransactionReceipt(res, data);
+                break;
+            case 'eth_gasPrice':
+                await this.sendGasPrice(res, data);
                 break;
             default:
                 Logger.warn('Missing method ', data.method, data);
