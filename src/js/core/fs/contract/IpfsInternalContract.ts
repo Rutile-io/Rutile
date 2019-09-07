@@ -4,16 +4,15 @@ import { Results } from "../../rvm/context";
 import { toHex } from "../../rvm/utils/hexUtils";
 import { hexStringToString } from '../../../utils/hexUtils';
 
-import { getById, createOrUpdate} from '../../../services/DatabaseService'
-
 import BNType from 'bn.js';
 import { VM_ERROR } from "../../rvm/lib/exceptions";
 import Transaction from "../../../models/Transaction";
 import GlobalState from "../../../models/GlobalState";
+import IpfsController from "../IpfsController";
 const BN = require('bn.js');
 
-const MINIMAL_FILEHOST_DEPOSIT: BNType = new BN(1);
-const MINIMAL_DEPOSIT: BNType = new BN(0.001);
+const MINIMAL_FILEHOST_DEPOSIT: BNType = new BN(2);
+const MINIMAL_DEPOSIT: BNType = new BN(1);
 
 /**
  * Internal contract for the IPFS implementation
@@ -40,6 +39,7 @@ const MINIMAL_DEPOSIT: BNType = new BN(0.001);
 class IpfsInteralContract implements IInternalContract {
     callMessage: CallMessage;
     transaction: Transaction;
+    ipfsController: IpfsController;
     results: Results = {
         exception: 0,
         exceptionError: null,
@@ -60,27 +60,9 @@ class IpfsInteralContract implements IInternalContract {
         const ipfsHashBytes = this.callMessage.inputData.slice(4, 51);
         const ipfsHash = hexStringToString('0x' + toHex(ipfsHashBytes));
 
-        var ipfsFileObject = {
-            hash: ipfsHash,
-            value: new BN(0),
-            hosts: [] as any
-        };
+        await this.ipfsController.addFile(ipfsHash, this.callMessage.sender, this.callMessage.value);
 
-        const dbIpfsFile = await getById(ipfsHash);
-        if(dbIpfsFile != null){
-            ipfsFileObject = dbIpfsFile;
-
-            // Convert saved string to BN
-            ipfsFileObject.value = new BN(dbIpfsFile.value);
-        }
-
-        // Add the stored Rutile to the file
-        ipfsFileObject.value = ipfsFileObject.value.add(this.callMessage.value);
-
-        // Convert BN to string before we create or update
-        ipfsFileObject.value = ipfsFileObject.value.toString();
-        createOrUpdate(ipfsHash, ipfsFileObject);
-
+        this.results.outputRoot = await this.ipfsController.merkleTree.getMerkleRoot();
         return this.results;
     }
 
@@ -94,25 +76,10 @@ class IpfsInteralContract implements IInternalContract {
         const ipfsHashBytes = this.callMessage.inputData.slice(4, 51);
         const ipfsHash = hexStringToString('0x' + toHex(ipfsHashBytes));
 
-        // Get the ipfs file in the db, if it's not found -> revert
-        var ipfsFileObject = await getById(ipfsHash);
-        if(ipfsFileObject == null){
-            this.results.exceptionError = VM_ERROR.REVERT;
-            return this.results;
-        }
+        await this.ipfsController.addHost(ipfsHash, this.callMessage.sender);
 
-        // Create a new host for the file
-        var host = {
-            address: this.callMessage.sender
-        }
-
-        // Add to the array of hosts
-        ipfsFileObject.hosts.push(host);
-
-        // Update the object
-        createOrUpdate(ipfsHash, ipfsFileObject);
         console.log('Registered ' + this.callMessage.sender+ 'as host for: ' + ipfsHash);
-
+        this.results.outputRoot = await this.ipfsController.merkleTree.getMerkleRoot();
         return this.results;
     }
 
@@ -128,14 +95,24 @@ class IpfsInteralContract implements IInternalContract {
         return this.results;
     }
 
-
-
     async execute(callMessage: CallMessage, globalState: GlobalState, transaction: Transaction): Promise<Results> {
         const selector = callMessage.inputData.slice(0, 4);
+
         this.callMessage = callMessage;
         this.transaction = transaction;
 
-        return this.selectFunction(selector);
+        // Just in case the contract failed we are going to set the input root as the new outputroot
+        const toAccount = await globalState.findOrCreateAccount(callMessage.destination);
+
+        this.ipfsController = new IpfsController();
+        await this.ipfsController.init(toAccount.storageRoot);
+
+        const result = await this.selectFunction(selector);
+
+        result.returnHex = '0x' + toHex(result.return);
+        result.outputRoot = await this.ipfsController.merkleTree.getMerkleRoot();
+
+        return result;
     }
 }
 
