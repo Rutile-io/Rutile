@@ -62,7 +62,7 @@ export async function transferTransactionValue(transaction: Transaction, globalS
  * @param {Transaction} transaction
  * @returns
  */
-export async function deployContract(transaction: Transaction): Promise<Account> {
+export async function deployContract(transaction: Transaction, globalState: GlobalState): Promise<Account> {
     if (transaction.to) {
         throw new Error(`Contract deploys should not have a 'to' property attached to it`);
     }
@@ -70,13 +70,15 @@ export async function deployContract(transaction: Transaction): Promise<Account>
     const addresses = getAddressFromTransaction(transaction);
 
     // We derrive the new address from the account address with hash
-    const newContractAddress = '0x' + rlpHash([
+    let newContractAddress = rlpHash([
         transaction.nonce,
         addresses.from,
     ]);
 
+    newContractAddress = '0x' + newContractAddress.slice(24);
+
     // The transaction.data includes the IPFS hash where the contract is located
-    const newContractAccount = await Account.findOrCreate(newContractAddress, transaction.data);
+    const newContractAccount = await globalState.findOrCreateAccount(newContractAddress, transaction.data);
     return newContractAccount;
 }
 

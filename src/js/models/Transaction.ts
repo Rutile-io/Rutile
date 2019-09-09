@@ -114,8 +114,10 @@ class Transaction {
     public async execute(block: Block, globalState: GlobalState): Promise<TransactionExecuteResult> {
         try {
             // This is a contract creation because we do not have a receipient
-            if (!this.to) {
-                const createdContractAccount = await deployContract(this);
+            if (!this.to || this.to === '0x') {
+                const createdContractAccount = await deployContract(this, globalState);
+
+                console.log('[] createdContractAccount.address -> ', createdContractAccount.address);
 
                 return {
                     result: {
@@ -176,6 +178,8 @@ class Transaction {
             });
 
             this.gasUsed += executionResults.gasUsed;
+
+            console.log('[] executionResults -> ', executionResults);
 
             return {
                 result: executionResults,
@@ -285,7 +289,7 @@ class Transaction {
             nonce: new BN(data[0]),
             gasPrice: parseInt('0x' + data[1].toString('hex')),
             gasLimit: parseInt('0x' + data[2].toString('hex')),
-            to: '0x' + data[3].toString('hex'),
+            to: data[3].toString('hex') ? '0x' + data[3].toString('hex') : null,
             value: new BN(data[4]),
             data: '0x' + data[5].toString('hex'),
             r: '0x' + data[7].toString('hex'),
