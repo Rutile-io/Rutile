@@ -7,8 +7,9 @@ import { VM_ERROR } from "../../rvm/lib/exceptions";
 import Transaction from "../../../models/Transaction";
 import MilestoneSlots from "./MilestoneSlots";
 import stringToByteArray from "../../../utils/stringToByteArray";
-import { hexStringToBuffer } from "../../../utils/hexUtils";
+import { hexStringToBuffer, numberToHex } from "../../../utils/hexUtils";
 import GlobalState from "../../../models/GlobalState";
+import Block from "../../../models/Block";
 const BN = require('bn.js');
 
 // 32 RUT
@@ -35,6 +36,7 @@ const MINIMAL_DEPOSIT: BNType = new BN('32000000000000000000');
 class MilestoneInternalContract implements IInternalContract {
     callMessage: CallMessage;
     transaction: Transaction;
+    block: Block;
     milestoneSlots: MilestoneSlots;
     results: Results = {
         exception: 0,
@@ -71,12 +73,34 @@ class MilestoneInternalContract implements IInternalContract {
     }
 
     public async getNextValidator(): Promise<Results> {
-        const slot = await this.milestoneSlots.getSlot();
+        const indexBuffer = this.callMessage.inputData.slice(4);
+        let index = parseInt(toHex(indexBuffer), 16);
+
+        if (isNaN(index)) {
+            this.results.exceptionError = VM_ERROR.REVERT;
+            this.results.return[0] = 3;
+
+            return this.results;
+        }
+
+        if (index === 0) {
+            index = 1;
+        }
+
+        const slot = await this.milestoneSlots.getSlot(index);
 
         this.results.outputRoot = await this.milestoneSlots.merkleTree.getMerkleRoot();
         const buffer = hexStringToBuffer(slot.address);
 
         this.results.return = buffer;
+
+        return this.results;
+    }
+
+    private async getValidatorSlotLength(): Promise<Results> {
+        const length = this.milestoneSlots.length;
+
+        this.results.return = hexStringToBuffer(numberToHex(length));
 
         return this.results;
     }
@@ -88,16 +112,22 @@ class MilestoneInternalContract implements IInternalContract {
             return this.registerAsValidator();
         } else if (selectorHex === '0x00000002') {
             return this.getNextValidator();
+        } else if (selectorHex === '0x00000003') {
+            return this.getValidatorSlotLength();
         }
+
+        this.results.exceptionError = VM_ERROR.REVERT;
+        this.results.return[0] = 1;
 
         return this.results;
     }
 
-    async execute(callMessage: CallMessage, globalState: GlobalState, transaction: Transaction): Promise<Results> {
+    async execute(callMessage: CallMessage, globalState: GlobalState, transaction: Transaction, block: Block): Promise<Results> {
         const selector = callMessage.inputData.slice(0, 4);
 
         this.callMessage = callMessage;
         this.transaction = transaction;
+        this.block = block;
 
         // Just in case the contract failed we are going to set the input root as the new outputroot
         const toAccount = await globalState.findOrCreateAccount(callMessage.destination);

@@ -49,5 +49,7 @@ export default async function execute(params: VmParams): Promise<Results> {
     const controller = new WorkerMessageController(worker, context);
     const result = await controller.start(binary);
 
+    console.log('[WASMEXECUTe] result -> ', result);
+
     return result;
 }

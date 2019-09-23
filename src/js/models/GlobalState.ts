@@ -67,7 +67,9 @@ class GlobalState {
         const buffer: Buffer = await this.storage.get(address);
 
         if (!buffer) {
-            return Account.create(address, codeHash);
+            const newAccount = await Account.create(address, codeHash);
+            await this.update(newAccount);
+            return newAccount;
         }
 
         return Account.fromBuffer(buffer);

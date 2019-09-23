@@ -1,6 +1,7 @@
 import * as Logger from 'js-logger';
+import * as RLP from 'rlp';
 import Transaction from "./Transaction";
-import { numberToHex } from "../utils/hexUtils";
+import { numberToHex, hexStringToBuffer } from "../utils/hexUtils";
 import { rlpHash } from "../utils/keccak256";
 import { configuration } from "../Configuration";
 import { applyProofOfWork, isProofOfWorkValid } from "../services/transaction/ProofOfWork";
@@ -12,6 +13,7 @@ import BNtype from 'bn.js';
 import MerkleTree from './MerkleTree';
 import GlobalState from './GlobalState';
 import { VM_ERROR } from '../core/rvm/lib/exceptions';
+import KeyPair from './KeyPair';
 const BN = require('bn.js');
 
 const LATEST_BLOCK_ID = 'latestBlockNumber';
@@ -32,6 +34,9 @@ interface BlockParams {
     gasLimit?: number;
     coinbase?: string;
     id?: string;
+    s?: string;
+    r?: string;
+    v?: number;
 }
 
 class Block {
@@ -58,6 +63,11 @@ class Block {
     coinbase: string;
     id: string;
 
+    // Signatures
+    s?: string;
+    r?: string;
+    v?: number;
+
     constructor(params: BlockParams) {
         this.parent = params.parent;
         this.transactions = params.transactions || [];
@@ -73,6 +83,10 @@ class Block {
         this.gasLimit = params.gasLimit || 0;
         this.id = params.id || null;
         this.coinbase = params.coinbase || null;
+
+        this.s = params.s || null;
+        this.r = params.r || null;
+        this.v = params.v || null;
     }
 
     /**
@@ -180,6 +194,10 @@ class Block {
         return this.number === 1;
     }
 
+    sign(keyPair: KeyPair) {
+
+    }
+
     /**
      * Applyies the Proof of Work algorythm to find a nonce that complies to the configuration.
      *
@@ -220,6 +238,35 @@ class Block {
         }
 
         return this.generateBlockId();
+    }
+
+    toBuffer(includeSignature: boolean = true): Buffer {
+        const data: Buffer[] = [
+            hexStringToBuffer(this.parent),
+            ...this.transactions.map(tx => tx.toBuffer(true)),
+            this.gasUsed !== 0 ? hexStringToBuffer(numberToHex(this.gasUsed)): hexStringToBuffer('0x'),
+            Buffer.from(this.gasLimit.toString(16), 'hex'),
+            hexStringToBuffer(this.stateRoot),
+            hexStringToBuffer(this.transactionRoot),
+            hexStringToBuffer(this.receiptsRoot),
+            hexStringToBuffer(numberToHex(this.number)),
+            hexStringToBuffer(this.coinbase),
+            hexStringToBuffer(this.extraData),
+        ];
+
+        if (includeSignature) {
+            data.push(
+                hexStringToBuffer(this.r),
+                hexStringToBuffer(this.s),
+                hexStringToBuffer(numberToHex(this.v)),
+            );
+        }
+
+        data.push(hexStringToBuffer(numberToHex(configuration.genesis.config.chainId)));
+        data.push(Buffer.from(''));
+        data.push(Buffer.from(''));
+
+        return RLP.encode(data);
     }
 
     toString() {

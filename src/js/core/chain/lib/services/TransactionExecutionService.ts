@@ -8,6 +8,7 @@ import { hexStringToString } from "../../../../utils/hexUtils";
 import Ipfs from "../../../../services/wrappers/Ipfs";
 import { configuration } from "../../../../Configuration";
 import stringToByteArray from "../../../../utils/stringToByteArray";
+import isWasmBinary from "../../../rvm/lib/services/isWasmBinary";
 
 /**
  * Transfers the value from one address to the next
@@ -67,7 +68,15 @@ export async function deployContract(transaction: Transaction, globalState: Glob
         throw new Error(`Contract deploys should not have a 'to' property attached to it`);
     }
 
+    const ipfs = Ipfs.getInstance(configuration.ipfs);
+    console.log('Fetching from IPFS..');
+    const binary = await ipfs.cat(hexStringToString(transaction.data));
     const addresses = getAddressFromTransaction(transaction);
+    const wasm = isWasmBinary(stringToByteArray(binary));
+
+    if (!wasm) {
+        throw new Error('Deployed contract is not WebAssembly');
+    }
 
     // We derrive the new address from the account address with hash
     let newContractAddress = rlpHash([

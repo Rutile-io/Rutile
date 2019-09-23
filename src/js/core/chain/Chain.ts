@@ -17,6 +17,7 @@ import BNtype from 'bn.js';
 import TransactionPool from "./TransactionPool";
 import ChainSyncing from "./ChainSyncing";
 import GlobalState from "../../models/GlobalState";
+import Consensus from "../consensus/Consesus";
 
 const GENESIS_MILESTONE = 1;
 const MILESTONE_CONTRACT = '0x0200000000000000000000000000000000000000';
@@ -30,6 +31,7 @@ class Chain extends EventHandler {
     nextValidatorAddress: string;
     currentBlock: Block;
     isSyncing: boolean = false;
+    consensus: Consensus;
 
     constructor(network: Network) {
         super();
@@ -38,6 +40,7 @@ class Chain extends EventHandler {
         this.chainSyncing = new ChainSyncing(this.networkController);
         this.transactionPool = new TransactionPool(this);
         this.ipfs = Ipfs.getInstance(configuration.ipfs);
+        this.consensus = new Consensus();
     }
 
     /**
@@ -189,30 +192,12 @@ class Chain extends EventHandler {
     async nextBlockRound() {
         // We are asking the internal PoS contract to get the next block validator
         const wallet = new Wallet(configuration.privateKey);
-        wallet.getAccountInfo();
+        const blockProducer = await this.consensus.getNextValidator(this.currentBlock);
 
-        // We just create a temp block that is a continouation of the current block
-        const block = new Block({
-            stateRoot: this.currentBlock.stateRoot,
-            number: this.currentBlock.number + 1,
-            parent: this.currentBlock.id,
-        });
-
-        const transaction = new Transaction({
-            to: MILESTONE_CONTRACT,
-            data: '0x00000002',
-        });
-
-        transaction.sign(wallet.keyPair);
-        await block.addTransactions([transaction]);
-
-        const results = await block.execute();
-
-        // We give the current block as the context since we do not actually save the results
-        this.nextValidatorAddress = results[0].returnHex;
-
-        if (results[0].returnHex === wallet.address) {
+        if (blockProducer === wallet.address) {
             this.createNextBlock();
+        } else {
+            Logger.info(`⏳ Waiting for block producer ${blockProducer}`);
         }
     }
 

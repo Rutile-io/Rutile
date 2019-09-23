@@ -24,6 +24,7 @@ class MilestoneSlots {
     merkleTree: MerkleTree;
     transaction: Transaction;
     length: number;
+    validatorSetLength: number;
 
     constructor(transaction: Transaction) {
         this.transaction = transaction;
@@ -73,8 +74,7 @@ class MilestoneSlots {
         await this.merkleTree.put(SLOT_KEY + this.length.toString(), buffer);
     }
 
-    async getSlot(): Promise<Slot> {
-        const index = this.length;
+    async getSlot(index: number): Promise<Slot> {
         const buffer: Buffer = await this.merkleTree.get(`${SLOT_KEY}${index}`);
 
         if (!buffer) {

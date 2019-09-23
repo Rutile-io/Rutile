@@ -9,7 +9,6 @@ import createCallMessage from '../services/createCallMessage';
 import { hexStringToByte } from '../core/rvm/utils/hexUtils';
 import getInternalContract from '../services/getInternalContract';
 import { startDatabase, createOrUpdate } from '../services/DatabaseService';
-import { applyProofOfWork } from '../services/transaction/ProofOfWork';
 import { transferTransactionValue, deployContract, getContractBinary } from '../core/chain/lib/services/TransactionExecutionService';
 import Block from './Block';
 import GlobalState from './GlobalState';
@@ -143,7 +142,7 @@ class Transaction {
 
             // We are calling an internal JS contract
             if (internalContract) {
-                const executionResults = await internalContract.execute(callMessage, globalState, this);
+                const executionResults = await internalContract.execute(callMessage, globalState, this, block);
                 this.gasUsed += executionResults.gasUsed;
 
                 return {
