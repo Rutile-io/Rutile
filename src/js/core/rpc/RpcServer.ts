@@ -17,6 +17,16 @@ interface RpcRequest {
     method: string;
 }
 
+function writeOk(res: ServerResponse, result: any) {
+    res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': '*',
+    });
+
+    res.end(JSON.stringify(result));
+}
+
 class RpcServer {
     chain: Chain;
 
@@ -47,11 +57,7 @@ class RpcServer {
             result: numberToHex(block.number),
         };
 
-        res.writeHead(200, {
-            'Content-Type': 'application/json',
-        });
-
-        res.end(JSON.stringify(result));
+        writeOk(res, result);
     }
 
     async sendNetVersion(res: ServerResponse, data: RpcRequest) {
@@ -61,21 +67,13 @@ class RpcServer {
             result: configuration.genesis.config.chainId.toString(),
         };
 
-        res.writeHead(200, {
-            'Content-Type': 'application/json',
-        });
-
-        res.end(JSON.stringify(result));
+        writeOk(res, result);
     }
 
     async sendGetBlockByNumber(res: ServerResponse, data: RpcRequest) {
         const blockNumber = parseInt(data.params[0]);
         const block = await Block.getByNumber(blockNumber);
         let resultData: any = block;
-
-        res.writeHead(200, {
-            'Content-Type': 'application/json',
-        });
 
         if (!block) {
             const result = {
@@ -111,7 +109,7 @@ class RpcServer {
             result: resultData,
         };
 
-        res.end(JSON.stringify(result));
+        writeOk(res, result);
     }
 
     async sendGetBalance(res: ServerResponse, data: RpcRequest) {
@@ -137,11 +135,7 @@ class RpcServer {
             result: '0x' + account.balance.toString('hex'),
         };
 
-        res.writeHead(200, {
-            'Content-Type': 'application/json',
-        });
-
-        res.end(JSON.stringify(result));
+        writeOk(res, result);
     }
 
     async sendGetTransactionCount(res: ServerResponse, data: RpcRequest) {
@@ -167,11 +161,7 @@ class RpcServer {
             result: '0x' + account.nonce.toString('hex'),
         };
 
-        res.writeHead(200, {
-            'Content-Type': 'application/json',
-        });
-
-        res.end(JSON.stringify(result));
+        writeOk(res, result);
     }
 
     async sendRawTransaction(res: ServerResponse, data: RpcRequest) {
@@ -185,11 +175,7 @@ class RpcServer {
             result: transaction.id,
         };
 
-        res.writeHead(200, {
-            'Content-Type': 'application/json',
-        });
-
-        res.end(JSON.stringify(result));
+        writeOk(res, result);
     }
 
     async sendGetCode(res: ServerResponse, data: RpcRequest) {
@@ -199,14 +185,11 @@ class RpcServer {
             result: '',
         };
 
-        res.writeHead(200, {
-            'Content-Type': 'application/json',
-        });
-
-        res.end(JSON.stringify(result));
+        writeOk(res, result);
     }
 
     async sendGetTransactionByHash(res: ServerResponse, data: RpcRequest) {
+
         const block = await Block.getByTransactionId(data.params[0]);
         let result = {
             id: data.id,
@@ -246,11 +229,7 @@ class RpcServer {
             result.result = null;
         }
 
-        res.writeHead(200, {
-            'Content-Type': 'application/json',
-        });
-
-        res.end(JSON.stringify(result));
+        writeOk(res, result);
     }
 
     async sendGetTransactionReceipt(res: ServerResponse, data: RpcRequest) {
@@ -286,11 +265,7 @@ class RpcServer {
             result.result = null;
         }
 
-        res.writeHead(200, {
-            'Content-Type': 'application/json',
-        });
-
-        res.end(JSON.stringify(result));
+        writeOk(res, result);
     }
 
     async sendGasPrice(res: ServerResponse, data: RpcRequest) {
@@ -300,50 +275,61 @@ class RpcServer {
             result: '0x09184e72a000',
         }
 
-        res.writeHead(200, {
-            'Content-Type': 'application/json',
-        });
-
-        res.end(JSON.stringify(result));
+        writeOk(res, result);
     }
 
     async handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
-        const data: RpcRequest = JSON.parse(await this.getAllChunkData(req));
+        try {
+            if (req.method === 'OPTIONS') {
+                writeOk(res, {});
+                return;
+            }
 
-        switch(data.method) {
-            case 'eth_blockNumber':
-                await this.sendBlockNumber(res, data);
-                break;
-            case 'net_version':
-                await this.sendNetVersion(res, data);
-                break;
-            case 'eth_getBlockByNumber':
-                await this.sendGetBlockByNumber(res, data);
-                break;
-            case 'eth_getBalance':
-                await this.sendGetBalance(res, data);
-                break;
-            case 'eth_getTransactionCount':
-                await this.sendGetTransactionCount(res, data);
-                break;
-            case 'eth_sendRawTransaction':
-                await this.sendRawTransaction(res, data);
-                break;
-            case 'eth_getCode':
-                await this.sendGetCode(res, data);
-                break;
-            case 'eth_getTransactionByHash':
-                await this.sendGetTransactionByHash(res, data);
-                break;
-            case 'eth_getTransactionReceipt':
-                await this.sendGetTransactionReceipt(res, data);
-                break;
-            case 'eth_gasPrice':
-                await this.sendGasPrice(res, data);
-                break;
-            default:
-                Logger.warn('Missing method ', data.method, data);
-                break;
+            const data: RpcRequest = JSON.parse(await this.getAllChunkData(req));
+
+            switch(data.method) {
+                case 'eth_blockNumber':
+                    await this.sendBlockNumber(res, data);
+                    break;
+                case 'net_version':
+                    await this.sendNetVersion(res, data);
+                    break;
+                case 'eth_getBlockByNumber':
+                    await this.sendGetBlockByNumber(res, data);
+                    break;
+                case 'eth_getBalance':
+                    await this.sendGetBalance(res, data);
+                    break;
+                case 'eth_getTransactionCount':
+                    await this.sendGetTransactionCount(res, data);
+                    break;
+                case 'eth_sendRawTransaction':
+                    await this.sendRawTransaction(res, data);
+                    break;
+                case 'eth_getCode':
+                    await this.sendGetCode(res, data);
+                    break;
+                case 'eth_getTransactionByHash':
+                    await this.sendGetTransactionByHash(res, data);
+                    break;
+                case 'eth_getTransactionReceipt':
+                    await this.sendGetTransactionReceipt(res, data);
+                    break;
+                case 'eth_gasPrice':
+                    await this.sendGasPrice(res, data);
+                    break;
+                default:
+                    Logger.warn('Missing method ', data.method, data);
+                    break;
+            }
+        } catch (error) {
+            res.writeHead(400, {
+                'Content-Type': 'application/json',
+            });
+
+            res.end(JSON.stringify({
+                message: 'Input should be JSON',
+            }));
         }
     }
 
