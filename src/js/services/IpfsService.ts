@@ -4,51 +4,32 @@ import * as Logger from 'js-logger';
 let node: any = null;
 
 /**
- * Starts the database
+ * Start a IPFS Client
  *
  * @export
  */
 export async function startIpfsClient() {
-    return new Promise(async (resolve, reject) => {
-        if (isNodeJs()) {
-            try {
-                await startIpfsDaemon();
-                resolve();
-              } catch (error) {
-                console.error('Node failed to start!', error)
-                reject(error);
-              }
-        } else {
-            const IPFS = require('ipfs-mini');
-            node = new IPFS({ host: 'localhost', port: 4002, protocol: 'https' });
-        }
-    });
+    if (isNodeJs()) {
+        await startIpfsDaemon();
+    } else {
+        const IPFS = require('ipfs-mini');
+        node = new IPFS({ host: 'localhost', port: 4002, protocol: 'https' });
+    }
 }
 
-function startIpfsDaemon() {
-    return new Promise((resolve, reject) => {
-        const IpfsFactory = __non_webpack_require__('ipfsd-ctl');
-
-        IpfsFactory.create({ type: 'go' }).spawn({
-            start:false,
-            defaultAddrs: true,
-        }, function (err: any, ipfsd: any) {
-            if (err) {
-                return reject(err);
-            }
-
-            ipfsd.start((err: any) => {
-                if (err) {
-                    Logger.error('Ipfs could not start: ' + err);
-                    return reject(err);
-                }
-
-                Logger.info('Ipfs endpoint is running')
-
-                resolve();
-            })
-        })
+/**
+ * Starts a IPFS Daemon up
+ *
+ */
+async function startIpfsDaemon() {
+    const IpfsFactory = __non_webpack_require__('ipfsd-ctl');
+    const ipfs = IpfsFactory.create({ type: 'go' });
+    const ipfsSpawnedNode = await ipfs.spawn({
+        start: false,
+        defaultAddrs: true,
     });
+
+    await ipfsSpawnedNode.start();
 }
 
 export async function addFileFromPath(){

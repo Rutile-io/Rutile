@@ -3,12 +3,19 @@ import * as Logger from 'js-logger';
 import { configuration } from "../../Configuration";
 import { IncomingMessage, ServerResponse } from "http";
 import Block from "../../models/Block";
-import { numberToHex } from "../../utils/hexUtils";
+import { numberToHex, hexStringToBuffer } from "../../utils/hexUtils";
 import GlobalState from "../../models/GlobalState";
 import Transaction from "../../models/Transaction";
 import Chain from "../chain/Chain";
 import { getAddressFromTransaction } from "../chain/lib/services/TransactionService";
 import { createZerosArray, toHex } from "../rvm/utils/hexUtils";
+import execute from "../rvm/execute";
+import { CallKind } from "../rvm/lib/CallMessage";
+import BN = require("bn.js");
+import { createMerkleTree } from "../../models/MerkleTree";
+import { decodeReceipt } from "../../models/Receipt";
+import { rlpHash } from "../../utils/keccak256";
+import VmParams from "../rvm/models/VmParams";
 
 interface RpcRequest {
     id: number;
@@ -17,14 +24,27 @@ interface RpcRequest {
     method: string;
 }
 
-function writeOk(res: ServerResponse, result: any) {
-    res.writeHead(200, {
+function writeOk(res: ServerResponse, result: any, status: number = 200) {
+    res.writeHead(status, {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': '*',
     });
 
     res.end(JSON.stringify(result));
+}
+
+function getBlockByTag(tag: string): Promise<Block> {
+    if (tag === 'latest') {
+        return Block.getLatest();
+    } else if (tag === 'earliest') {
+        return Block.getByNumber(0);
+    } else if (tag === 'pending') {
+        return Block.getLatest();
+    } else {
+        const number = parseInt(tag, 16);
+        return Block.getByNumber(number);
+    }
 }
 
 class RpcServer {
@@ -99,8 +119,8 @@ class RpcServer {
         resultData.hash = block.id;
         resultData.parentHash = block.parent;
         resultData.nonce = numberToHex(block.nonce);
-        resultData.sha3uncles = '0x00';
-        resultData.logsBloom = '0x00';
+        resultData.sha3uncles = '0x';
+        resultData.logsBloom = '0x';
         resultData.miner = block.coinbase;
 
         const result = {
@@ -113,17 +133,14 @@ class RpcServer {
     }
 
     async sendGetBalance(res: ServerResponse, data: RpcRequest) {
-        const blockNumber = data.params[1];
-        let block: Block = null;
-
-        if (blockNumber === 'latest') {
-            block = await Block.getLatest();
-        } else {
-            block = await Block.getByNumber(parseInt(blockNumber));
-        }
+        let block: Block = await getBlockByTag(data.params[1]);
 
         if (!block) {
-            Logger.error('RPC Api failed with block', blockNumber);
+            return writeOk(res, {
+                id: data.id,
+                jsonrpc: data.jsonrpc,
+                result: '0x',
+            }, 400);
         }
 
         const state = await GlobalState.create(block.stateRoot);
@@ -206,19 +223,16 @@ class RpcServer {
                 id: data.id,
                 jsonrpc: data.jsonrpc,
                 result: {
-                    // @ts-ignore
                     blockHash: block.id,
-                    // @ts-ignore
-                    blockNumber: block.number,
+                    blockNumber: numberToHex(block.number),
                     from: addresses.from,
-                    gas: txInBlock.gasLimit,
-                    gasPrice: txInBlock.gasPrice,
+                    gas: numberToHex(txInBlock.gasLimit),
+                    gasPrice: numberToHex(txInBlock.gasPrice),
                     hash: txInBlock.hash(true),
                     input: txInBlock.data,
-                    nonce: txInBlock.nonce,
+                    nonce: '0x' + txInBlock.nonce.toString('hex'),
                     to: txInBlock.to,
-                    // @ts-ignore
-                    transactionIndex: txInBlockIndex,
+                    transactionIndex: numberToHex(txInBlockIndex),
                     value: '0x' + txInBlock.value.toString('hex'),
                     v: numberToHex(txInBlock.v),
                     r: txInBlock.r,
@@ -245,21 +259,33 @@ class RpcServer {
             const txInBlockIndex = block.transactions.findIndex(tx => tx.id === data.params[0]);
             const txInBlock = block.transactions[txInBlockIndex];
             const addresses = getAddressFromTransaction(txInBlock);
+            const receiptMerkleTree = await createMerkleTree(block.receiptsRoot);
+            const receiptBuffer = await receiptMerkleTree.get(txInBlock.id);
+            const receipt = decodeReceipt(receiptBuffer);
+            let contractAddress: string = null;
+
+            if (!txInBlock.to) {
+                contractAddress = rlpHash([
+                    txInBlock.nonce,
+                    addresses.from,
+                ]);
+
+                contractAddress = '0x' + contractAddress.slice(24);
+            }
 
             result.result = {
                 transactionHash: txInBlock.id,
-                transactionIndex: txInBlockIndex,
+                transactionIndex: numberToHex(txInBlockIndex),
                 blockHash: block.id,
-                blockNumber: block.number,
+                blockNumber: numberToHex(block.number),
                 from: addresses.from,
                 to: addresses.to,
-                cumulativeGasUsed: block.gasUsed,
-                gasUsed: txInBlock.gasUsed,
-                // @ts-ignore
-                contractAddress: null,
+                cumulativeGasUsed: numberToHex(block.gasUsed),
+                gasUsed: numberToHex(receipt.gasUsed),
+                contractAddress,
                 logs: [],
-                logsBloom: '0x' + toHex(createZerosArray(32)),
-                status: 1,
+                logsBloom: '0x',
+                status: '0x1',
             };
         } else {
             result.result = null;
@@ -274,6 +300,46 @@ class RpcServer {
             jsonrpc: data.jsonrpc,
             result: '0x09184e72a000',
         }
+
+        writeOk(res, result);
+    }
+
+    async sendEstimateGas(res: ServerResponse, data: RpcRequest) {
+        let result = {
+            id: data.id,
+            jsonrpc: data.jsonrpc,
+            result: '0x7a1200',
+        }
+
+        writeOk(res, result);
+    }
+
+    async sendCall(res: ServerResponse, data: RpcRequest) {
+        const block = await getBlockByTag(data.params[1]);
+        const call = data.params[0];
+
+        const vmParams: VmParams = {
+            globalState: await GlobalState.create(block.stateRoot),
+            callMessage: {
+                depth: 1,
+                destination: call.to,
+                flags: 1,
+                gas: parseInt(call.gas),
+                inputData: hexStringToBuffer(call.data),
+                inputSize: (call.data.length - 2) / 2,
+                kind: CallKind.Call,
+                sender: call.from,
+                value: new BN(hexStringToBuffer(call.value)),
+            },
+        };
+
+        const results = await execute(vmParams);
+
+        const result = {
+            id: data.id,
+            jsonrpc: data.jsonrpc,
+            result: results.returnHex,
+        };
 
         writeOk(res, result);
     }
@@ -318,6 +384,12 @@ class RpcServer {
                 case 'eth_gasPrice':
                     await this.sendGasPrice(res, data);
                     break;
+                case 'eth_estimateGas':
+                    await this.sendEstimateGas(res, data);
+                    break;
+                case 'eth_call':
+                    await this.sendCall(res, data);
+                    break;
                 default:
                     Logger.warn('Missing method ', data.method, data);
                     break;
@@ -326,6 +398,8 @@ class RpcServer {
             res.writeHead(400, {
                 'Content-Type': 'application/json',
             });
+
+            console.log('[RPC] error -> ', error);
 
             res.end(JSON.stringify({
                 message: 'Input should be JSON',

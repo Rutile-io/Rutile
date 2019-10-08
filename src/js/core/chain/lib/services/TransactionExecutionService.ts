@@ -4,11 +4,15 @@ import { getAddressFromTransaction } from "./TransactionService";
 import GlobalState from "../../../../models/GlobalState";
 import { rlpHash } from "../../../../utils/keccak256";
 import getSystemContract from "../../../../services/getSystemContract";
-import { hexStringToString } from "../../../../utils/hexUtils";
+import { hexStringToString, hexStringToBuffer } from "../../../../utils/hexUtils";
 import Ipfs from "../../../../services/wrappers/Ipfs";
 import { configuration } from "../../../../Configuration";
 import stringToByteArray from "../../../../utils/stringToByteArray";
 import isWasmBinary from "../../../rvm/lib/services/isWasmBinary";
+import isIpfsHash from "../utils/isIpfsHash";
+import { executeEvmCode } from "../../../rvm/Evm";
+import createCallMessage from "../../../../services/createCallMessage";
+import { toHex } from "../../../rvm/utils/hexUtils";
 
 /**
  * Transfers the value from one address to the next
@@ -69,14 +73,31 @@ export async function deployContract(transaction: Transaction, globalState: Glob
     }
 
     const ipfs = Ipfs.getInstance(configuration.ipfs);
-    console.log('Fetching from IPFS..');
-    const binary = await ipfs.cat(hexStringToString(transaction.data));
-    const addresses = getAddressFromTransaction(transaction);
-    const wasm = isWasmBinary(stringToByteArray(binary));
+    const stringifiedData = hexStringToString(transaction.data);
 
-    if (!wasm) {
-        throw new Error('Deployed contract is not WebAssembly');
+    let codeToDeploy = transaction.data;
+    let storageRoot: string = null;
+
+    if (!isIpfsHash(stringifiedData)) {
+        // The deployment is EVM code. We should deploy it via the EVM way.
+        const results = await executeEvmCode({
+            callMessage: await createCallMessage(transaction),
+            globalState: globalState,
+            // bin: hexStringToBuffer(transaction.data),
+        });
+
+        codeToDeploy = results.returnHex;
+        storageRoot = results.outputRoot;
+    } else {
+        const binary = await ipfs.cat(stringifiedData);
+        const wasm = isWasmBinary(stringToByteArray(binary));
+
+        if (!wasm) {
+            throw new Error('Deployed contract is not WebAssembly');
+        }
     }
+
+    const addresses = getAddressFromTransaction(transaction);
 
     // We derrive the new address from the account address with hash
     let newContractAddress = rlpHash([
@@ -87,7 +108,12 @@ export async function deployContract(transaction: Transaction, globalState: Glob
     newContractAddress = '0x' + newContractAddress.slice(24);
 
     // The transaction.data includes the IPFS hash where the contract is located
-    const newContractAccount = await globalState.findOrCreateAccount(newContractAddress, transaction.data);
+    const newContractAccount = await globalState.findOrCreateAccount(newContractAddress, codeToDeploy);
+
+    if (storageRoot) {
+        newContractAccount.storageRoot = storageRoot;
+    }
+
     return newContractAccount;
 }
 
@@ -98,7 +124,7 @@ export async function deployContract(transaction: Transaction, globalState: Glob
  * @param {Account} account
  * @returns {Promise<Uint8Array>}
  */
-export async function getContractBinary(account: Account): Promise<Uint8Array> {
+export async function getContractBinary(account: Account, globalState: GlobalState): Promise<Uint8Array> {
     const systemBinary = getSystemContract(account.address);
 
     // We got a system contract call
@@ -112,8 +138,13 @@ export async function getContractBinary(account: Account): Promise<Uint8Array> {
     }
 
     const ipfs = Ipfs.getInstance(configuration.ipfs);
-    const ipfsHash = hexStringToString(account.codeHash);
-    const content = await ipfs.cat(ipfsHash);
+    const code = await account.getCode(globalState);
+    const stringifiedCode = hexStringToString(toHex(code));
 
-    return stringToByteArray(content);
+    if (isIpfsHash(stringifiedCode)) {
+        const content = await ipfs.cat(stringifiedCode);
+        return stringToByteArray(content);
+    } else {
+        return code;
+    }
 }
