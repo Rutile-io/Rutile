@@ -1,20 +1,14 @@
-import * as Logger from 'js-logger';
 import './context';
 import Context, { Results } from './context';
 import { configuration } from '../../Configuration'
 import { createWorker } from './utils/workerUtils';
 import WorkerMessageController from './controller/WorkerMessageController';
 import isWasmBinary from './lib/services/isWasmBinary';
-import CallMessage from './lib/CallMessage';
 import Ipfs from '../../services/wrappers/Ipfs';
 import { getContractBinary } from '../chain/lib/services/TransactionExecutionService';
-import GlobalState from '../../models/GlobalState';
+import VmParams from './models/VmParams';
+import { executeEvmCode } from './Evm';
 
-interface VmParams {
-    callMessage: CallMessage;
-    globalState: GlobalState;
-    bin?: Uint8Array;
-}
 
 /**
  * Executes code in a virtual machine
@@ -32,11 +26,12 @@ export default async function execute(params: VmParams): Promise<Results> {
     // The address is not a system contract, we'll forward it to IPFS.
     if (!binary) {
         const toAccount = await params.globalState.findOrCreateAccount(params.callMessage.destination);
-        binary = await getContractBinary(toAccount);
+        binary = await getContractBinary(toAccount, params.globalState);
+        params.bin = binary;
     }
 
     if (!isWasmBinary(binary)) {
-        throw new Error('Binary is not a WebAssembly file.');
+        return executeEvmCode(params);
     }
 
     const worker = createWorker(configuration.vmUrl);
@@ -48,8 +43,6 @@ export default async function execute(params: VmParams): Promise<Results> {
     const context = new Context(params.callMessage, params.globalState);
     const controller = new WorkerMessageController(worker, context);
     const result = await controller.start(binary);
-
-    console.log('[WASMEXECUTe] result -> ', result);
 
     return result;
 }

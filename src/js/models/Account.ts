@@ -6,12 +6,13 @@ import { toHex } from "../core/rvm/utils/hexUtils";
 import { numberToHex, hexStringToBuffer } from "../utils/hexUtils";
 import BNtype from 'bn.js';
 import GlobalState from "./GlobalState";
+import keccak256 from '../utils/keccak256';
 const BN = require('bn.js');
 
 interface AccountParams {
     address: string;
     nonce: BNtype;
-    codeHash: string;
+    codeHash?: string;
     balance: BNtype;
     storageRoot: string;
 }
@@ -23,8 +24,6 @@ class Account {
     nonce: BNtype;
     codeHash: string;
     storageRoot: string;
-
-
     storage: MerkleTree;
     alias: string;
     isFilled: boolean;
@@ -43,6 +42,18 @@ class Account {
         this.storageRoot = params.storageRoot;
     }
 
+    async setCode(globalState: GlobalState, code: string) {
+        this.codeHash = '0x' + keccak256(code);
+        console.log('[] this.codeHash -> ', this.codeHash);
+        console.log('[] hexStringToBuffer(this.codeHash) -> ', hexStringToBuffer(this.codeHash));
+        await globalState.storage.put(hexStringToBuffer(this.codeHash), hexStringToBuffer(code));
+    }
+
+    async getCode(globalState: GlobalState): Promise<Buffer> {
+        const code = await globalState.storage.get(this.codeHash);
+        return code;
+    }
+
     /**
      * Converts the Account to a buffer using RLP
      *
@@ -51,17 +62,16 @@ class Account {
      */
     async toBuffer(): Promise<Buffer> {
         const data = [
-            this.address,
-            '0x' + this.balance.toString('hex'),
             this.nonce,
-            this.codeHash,
+            '0x' + this.balance.toString('hex'),
             this.storageRoot,
+            this.codeHash,
         ];
 
         return RLP.encode(data);
     }
 
-    static async fromBuffer(accountBuffer: Buffer): Promise<Account> {
+    static async fromBuffer(address: string, accountBuffer: Buffer, globalState: GlobalState): Promise<Account> {
         // Sometimes Typescript get's annoying.. (The input is Buffer but the output is Buffer[])
         // which the overload does not support
         const decodedData: any = RLP.decode(accountBuffer);
@@ -69,19 +79,20 @@ class Account {
 
         // It's best to compare it with the data from toBuffer().
         // index 0 equals to index 0 on that array
-        const address = '0x' + toHex(decodedDataBuffer[0]);
+        const nonce: BNtype = new BN(decodedDataBuffer[0]);
         const balance: BNtype = new BN(decodedDataBuffer[1]);
-        const nonce: BNtype = new BN(decodedDataBuffer[2]);
+        const storageRoot = '0x' + toHex(decodedDataBuffer[2]);
         const codeHash = '0x' + toHex(decodedDataBuffer[3])
-        const storageRoot = '0x' + toHex(decodedDataBuffer[4]);
 
-        return new Account({
+        const account = new Account({
             address,
             balance,
             codeHash,
             nonce,
             storageRoot,
         });
+
+        return account;
     }
 
     /**
@@ -119,14 +130,14 @@ class Account {
      * @returns {Promise<Account>}
      * @memberof Account
      */
-    static async findOrCreate(address: string, codeHash?: string): Promise<Account> {
+    static async findOrCreate(address: string, globalState: GlobalState, code?: string): Promise<Account> {
         const account = await Account.getFromAddress(address);
 
         if (account) {
             return account;
         }
 
-        return Account.create(address, codeHash);
+        return Account.create(address, globalState, code);
     }
 
     /**
@@ -139,8 +150,10 @@ class Account {
      * @returns
      * @memberof Account
      */
-    static async create(address: string, codeHash?: string): Promise<Account> {
+    static async create(address: string, globalState: GlobalState, code?: string): Promise<Account> {
         const dbMapping = await Database.getDatabaseLevelDbMapping();
+
+        // Creating a new state root for the account
         const merkleTree = new MerkleTree(dbMapping);
         const storageRoot = await merkleTree.getMerkleRoot();
 
@@ -148,9 +161,12 @@ class Account {
             address: address,
             storageRoot,
             balance: new BN(0),
-            codeHash: codeHash || null,
             nonce: new BN(1),
         });
+
+        if (code) {
+            await newAccount.setCode(globalState, code);
+        }
 
         return newAccount;
     }

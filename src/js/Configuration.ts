@@ -66,7 +66,7 @@ let configuration: IConfig = {
 
         config: {
             // The chain unique identification, use this to create your own blockchain
-            chainId: 101,
+            chainId: 868,
         }
     }
 }
