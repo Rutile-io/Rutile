@@ -116,8 +116,6 @@ class Transaction {
             if (!this.to || this.to === '0x') {
                 const createdContractAccount = await deployContract(this, globalState);
 
-                console.log('[] createdContractAccount.address -> ', createdContractAccount.address);
-
                 return {
                     result: {
                         exception: 0,
@@ -126,7 +124,7 @@ class Transaction {
                         returnHex: createdContractAccount.address,
                         return: hexStringToByte(createdContractAccount.address),
                         outputRoot: createdContractAccount.storageRoot,
-                        createdAddress: true,
+                        createdAddress: createdContractAccount.address,
                     },
                     globalState,
                 };
@@ -151,7 +149,7 @@ class Transaction {
                 };
             }
 
-            const contractBinary = await getContractBinary(toAccount);
+            const contractBinary = await getContractBinary(toAccount, globalState);
 
             // No binary found, so we should treat this just as a value transfer
             if (!contractBinary) {
@@ -163,7 +161,7 @@ class Transaction {
                         outputRoot: toAccount.storageRoot,
                         return: new Uint8Array(),
                         returnHex: '0x',
-                        createdAddress: false,
+                        createdAddress: null,
                     },
                     globalState,
                 };
@@ -177,8 +175,6 @@ class Transaction {
             });
 
             this.gasUsed += executionResults.gasUsed;
-
-            console.log('[] executionResults -> ', executionResults);
 
             return {
                 result: executionResults,

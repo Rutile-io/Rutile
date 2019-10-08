@@ -22,11 +22,6 @@ class Wallet {
         this.address = KeyPair.computeAddress(this.keyPair.publicKey);
     }
 
-    async getAccountInfo() {
-        this.account = await Account.findOrCreate(KeyPair.computeAddress(this.keyPair.publicKey));
-        return this.account;
-    }
-
     saveToLocalStorage() {
         if (!localStorage) {
             throw new Error('Local storage must be available');

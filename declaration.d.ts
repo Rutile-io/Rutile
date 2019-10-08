@@ -10,11 +10,6 @@ declare module 'ethereumjs-vm' {
     export = content;
 }
 
-declare module 'level-js' {
-    const content: any;
-    export = content;
-}
-
 declare module 'peerjs' {
     const content: any;
     export = content;

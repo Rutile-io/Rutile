@@ -47,7 +47,7 @@ class GlobalState {
         const buffer = await account.toBuffer();
 
         // Either overwrites the account address or creates a new one.
-        await this.storage.put(account.address, buffer);
+        await this.storage.put(account.address.toLowerCase(), buffer);
     }
 
     /**
@@ -55,24 +55,25 @@ class GlobalState {
      * Does not store anything
      *
      * @param {string} address
-     * @param {string} [codeHash]
+     * @param {string} [code]
      * @returns {Promise<Account>}
      * @memberof GlobalState
      */
-    async findOrCreateAccount(address: string, codeHash?: string): Promise<Account> {
+    async findOrCreateAccount(address: string, code?: string): Promise<Account> {
         if (!address) {
             throw new Error('Address should be given');
         }
 
-        const buffer: Buffer = await this.storage.get(address);
+        const lowerCaseAddress = address.toLowerCase();
+        const buffer: Buffer = await this.storage.get(lowerCaseAddress);
 
         if (!buffer) {
-            const newAccount = await Account.create(address, codeHash);
+            const newAccount = await Account.create(lowerCaseAddress, this, code);
             await this.update(newAccount);
             return newAccount;
         }
 
-        return Account.fromBuffer(buffer);
+        return Account.fromBuffer(address, buffer, this);
     }
 
     /**

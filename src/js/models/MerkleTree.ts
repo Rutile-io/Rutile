@@ -1,5 +1,6 @@
 import { LevelUp } from "levelup";
 import PouchDbLevelDbMapping from "./PouchDbLevelDbMapping";
+import { getDatabaseLevelDbMapping } from "../services/DatabaseService";
 
 const Trie = require('merkle-patricia-tree');
 
@@ -12,7 +13,7 @@ class MerkleTree {
         return Trie;
     }
 
-    constructor(db?: PouchDbLevelDbMapping, root?: string | Buffer) {
+    constructor(db: PouchDbLevelDbMapping, root?: string | Buffer) {
         this.trie = new Trie(db, root);
         this.cache = new Map();
         this.storagePromises = [];
@@ -122,7 +123,7 @@ class MerkleTree {
     async fill(): Promise<any> {
         return new Promise((resolve) => {
             this.createReadStream().on('data', (data: any) => {
-                this.cache.set(data.key.toString(), data.value);
+                this.cache.set(data.key, data.value);
             }).on('end', () => {
                 resolve(this.cache);
             })
@@ -139,3 +140,15 @@ class MerkleTree {
 }
 
 export default MerkleTree;
+
+/**
+ * Creates an instance of MerkleTree
+ *
+ * @export
+ * @param {string} [root]
+ * @returns
+ */
+export async function createMerkleTree(root?: string) {
+    const db = await getDatabaseLevelDbMapping();
+    return new MerkleTree(db, root);
+}

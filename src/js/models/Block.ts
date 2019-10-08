@@ -10,14 +10,15 @@ import { databaseCreate, startDatabase, databaseFind, databaseGetById, createOrU
 import { Results } from "../core/rvm/context";
 import Account from './Account';
 import BNtype from 'bn.js';
-import MerkleTree from './MerkleTree';
+import MerkleTree, { createMerkleTree } from './MerkleTree';
 import GlobalState from './GlobalState';
 import { VM_ERROR } from '../core/rvm/lib/exceptions';
 import KeyPair from './KeyPair';
+import { createReceipt } from './Receipt';
+import getParentGlobalStateByBlock from '../core/chain/lib/services/getParentGlobalStateByBlock';
 const BN = require('bn.js');
 
 const LATEST_BLOCK_ID = 'latestBlockNumber';
-
 
 interface BlockParams {
     parent?: string;
@@ -99,16 +100,8 @@ class Block {
         const results: Results[] = [];
 
         // The starting point of our global state
-        let globalStateStorage: GlobalState = null;
-
-        if (this.isGenesis()) {
-            // Starting from no state root since we are genesis
-            globalStateStorage = await GlobalState.create(null);
-        } else {
-            // Creating a continuation on the previous state root
-            const parentBlock = await Block.getById(this.parent);
-            globalStateStorage = await GlobalState.create(parentBlock.stateRoot);
-        }
+        let globalStateStorage: GlobalState = await getParentGlobalStateByBlock(this);
+        this.receiptsMerkleTree = await createMerkleTree();
 
         for (const transaction of this.transactions) {
             // Execute the transaction (transfer value/execute in VM)
@@ -121,9 +114,21 @@ class Block {
                 // Update our current view of the global state
                 globalStateStorage = transactionExecuteResult.globalState;
 
-                // Now update the toAccount with the latest storage root
                 if (transaction.to) {
+                    // Now update the toAccount with the latest storage root
                     const toAccount = await globalStateStorage.findOrCreateAccount(transaction.to);
+                    toAccount.storageRoot = transactionExecuteResult.result.outputRoot;
+                    await globalStateStorage.update(toAccount);
+                } else {
+                    const addresses = getAddressFromTransaction(transaction);
+
+                    // This was a account creation
+                    const toAddress = '0x' + rlpHash([
+                        transaction.nonce,
+                        addresses.from,
+                    ]).slice(24);
+
+                    const toAccount = await globalStateStorage.findOrCreateAccount(toAddress);
                     toAccount.storageRoot = transactionExecuteResult.result.outputRoot;
                     await globalStateStorage.update(toAccount);
                 }
@@ -140,6 +145,10 @@ class Block {
                 await globalStateStorage.update(fromAccount);
             }
 
+            // Create a receipt for each transaction
+            const receipt = createReceipt(transactionExecuteResult.result);
+            await this.receiptsMerkleTree.put(transaction.id, receipt);
+
             results.push(transactionExecuteResult.result);
         }
 
@@ -155,6 +164,7 @@ class Block {
 
         // Update the global state root of the blockchain
         this.stateRoot = await globalStateStorage.getMerkleRoot();
+        this.receiptsRoot = await this.receiptsMerkleTree.getMerkleRoot();
 
         return results;
     }
@@ -219,6 +229,7 @@ class Block {
             this.stateRoot,
             this.coinbase,
             this.transactionRoot,
+            this.receiptsRoot,
             numberToHex(this.gasUsed),
         ];
 
@@ -284,6 +295,7 @@ class Block {
             nonce: this.nonce,
             stateRoot: this.stateRoot,
             transactionRoot: this.transactionRoot,
+            receiptsRoot: this.receiptsRoot,
             gasUsed: this.gasUsed,
             gasLimit: this.gasLimit,
             number: this.number,
