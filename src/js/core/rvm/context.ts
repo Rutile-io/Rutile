@@ -12,6 +12,7 @@ import CallMessage, { CallKind } from './lib/CallMessage';
 import execute from './execute';
 import { configuration } from '../../Configuration';
 import GlobalState from '../../models/GlobalState';
+import Transaction from '../../models/Transaction';
 const ethUtil = require('ethereumjs-util');
 const BN = require('bn.js');
 

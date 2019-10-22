@@ -16,6 +16,8 @@ import keccak256, { rlpHash } from './utils/keccak256';
 import { getAddressFromTransaction } from './core/chain/lib/services/TransactionService';
 import KeyPair from './models/KeyPair';
 import GlobalState from './models/GlobalState';
+import stringToByteArray from './utils/stringToByteArray';
+import { toHex } from './core/rvm/utils/hexUtils';
 const BN = require('bn.js');
 const ethUtil = require('ethereumjs-util');
 // import RutileContext from './models/RutileContext';
@@ -119,11 +121,45 @@ async function evmRun() {
 }
 
 async function run() {
+
     Logger.info(`🖥 Rutile is booting up..`);
     applyArgv();
     let db = await startDatabase();
 
     wallet = new Wallet('C0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE');
+
+    const block = await Block.getLatest();
+    const bin = `
+        async function main() {
+            log("Hello world");
+
+            const result = await storageStore('Key', 'Value');
+
+            log("storageStore message: ", result);
+
+            return 123;
+        }
+    `;
+
+    const b = stringToByteArray(bin);
+
+    await execute({
+        globalState: await GlobalState.create(block.stateRoot),
+        callMessage: {
+            depth: 1,
+            destination: '0x',
+            flags: 1,
+            gas: 100000,
+            inputData: new Uint8Array(),
+            inputSize: 0,
+            kind: CallKind.Call,
+            sender: '0x0000',
+            value: new BN(9),
+        },
+        bin: b,
+    })
+
+    return;
 
     try {
         Logger.info(`📦 Booting up IPFS node..`);

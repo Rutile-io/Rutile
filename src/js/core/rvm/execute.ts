@@ -7,7 +7,9 @@ import isWasmBinary from './lib/services/isWasmBinary';
 import Ipfs from '../../services/wrappers/Ipfs';
 import { getContractBinary } from '../chain/lib/services/TransactionExecutionService';
 import VmParams from './models/VmParams';
-import { executeEvmCode } from './Evm';
+import isIpfsHash from '../chain/lib/utils/isIpfsHash';
+import stringToByteArray from '../../utils/stringToByteArray';
+import executeJsCode from './jsvm/Jsvm';
 
 
 /**
@@ -30,8 +32,15 @@ export default async function execute(params: VmParams): Promise<Results> {
         params.bin = binary;
     }
 
+    // We still have to fetch the binary since it came from IPFS
+    if (isIpfsHash(binary.toString())) {
+        const ipfsBinary = await ipfs.cat(binary.toString());
+        binary = stringToByteArray(ipfsBinary);
+    }
+
     if (!isWasmBinary(binary)) {
-        return executeEvmCode(params);
+        return executeJsCode(binary);
+        // return executeEvmCode(params);
     }
 
     const worker = createWorker(configuration.vmUrl);

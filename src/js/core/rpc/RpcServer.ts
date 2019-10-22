@@ -3,7 +3,7 @@ import * as Logger from 'js-logger';
 import { configuration } from "../../Configuration";
 import { IncomingMessage, ServerResponse } from "http";
 import Block from "../../models/Block";
-import { numberToHex, hexStringToBuffer } from "../../utils/hexUtils";
+import { numberToHex, hexStringToBuffer, hexStringToString } from "../../utils/hexUtils";
 import GlobalState from "../../models/GlobalState";
 import Transaction from "../../models/Transaction";
 import Chain from "../chain/Chain";
@@ -16,6 +16,8 @@ import { createMerkleTree } from "../../models/MerkleTree";
 import { decodeReceipt } from "../../models/Receipt";
 import { rlpHash } from "../../utils/keccak256";
 import VmParams from "../rvm/models/VmParams";
+import Ipfs from "../../services/wrappers/Ipfs";
+import stringToByteArray from "../../utils/stringToByteArray";
 
 interface RpcRequest {
     id: number;
@@ -196,10 +198,20 @@ class RpcServer {
     }
 
     async sendGetCode(res: ServerResponse, data: RpcRequest) {
+        const block = await getBlockByTag(data.params[1]);
+        const globalState = await GlobalState.create(block.stateRoot);
+        const account = await globalState.findOrCreateAccount(data.params[0]);
+        const ipfsBuffer = await account.getCode(globalState);
+        const ipfsHash = hexStringToString('0x' + ipfsBuffer.toString('hex'));
+
+        const ipfs = Ipfs.getInstance(configuration.ipfs);
+        const stringifiedCode = await ipfs.cat(ipfsHash);
+        const binary = stringToByteArray(stringifiedCode);
+
         const result = {
             id: data.id,
             jsonrpc: data.jsonrpc,
-            result: '',
+            result: '0x' + toHex(binary),
         };
 
         writeOk(res, result);

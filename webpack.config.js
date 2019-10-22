@@ -49,6 +49,7 @@ module.exports = {
                 test: /\.(js|jsx)$/,
                 exclude,
                 loader: 'babel-loader',
+
             },
         ],
     },

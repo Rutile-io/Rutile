@@ -114,19 +114,19 @@ class Transaction {
         try {
             // This is a contract creation because we do not have a receipient
             if (!this.to || this.to === '0x') {
-                const createdContractAccount = await deployContract(this, globalState);
+                const deploymentResult = await deployContract(this, globalState);
 
                 return {
                     result: {
                         exception: 0,
                         exceptionError: null,
                         gasUsed: this.gasUsed,
-                        returnHex: createdContractAccount.address,
-                        return: hexStringToByte(createdContractAccount.address),
-                        outputRoot: createdContractAccount.storageRoot,
-                        createdAddress: createdContractAccount.address,
+                        returnHex: deploymentResult.account.address,
+                        return: hexStringToByte(deploymentResult.account.address),
+                        outputRoot: deploymentResult.account.storageRoot,
+                        createdAddress: deploymentResult.account.address,
                     },
-                    globalState,
+                    globalState: deploymentResult.globalState,
                 };
             }
 
@@ -172,9 +172,12 @@ class Transaction {
                 callMessage,
                 globalState,
                 bin: contractBinary,
+                transaction: this,
             });
 
             this.gasUsed += executionResults.gasUsed;
+
+            console.log('[] executionResults -> ', executionResults);
 
             return {
                 result: executionResults,

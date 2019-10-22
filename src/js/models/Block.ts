@@ -119,18 +119,6 @@ class Block {
                     const toAccount = await globalStateStorage.findOrCreateAccount(transaction.to);
                     toAccount.storageRoot = transactionExecuteResult.result.outputRoot;
                     await globalStateStorage.update(toAccount);
-                } else {
-                    const addresses = getAddressFromTransaction(transaction);
-
-                    // This was a account creation
-                    const toAddress = '0x' + rlpHash([
-                        transaction.nonce,
-                        addresses.from,
-                    ]).slice(24);
-
-                    const toAccount = await globalStateStorage.findOrCreateAccount(toAddress);
-                    toAccount.storageRoot = transactionExecuteResult.result.outputRoot;
-                    await globalStateStorage.update(toAccount);
                 }
             }
 
