@@ -41,7 +41,7 @@ class MerkleTree {
      * @returns
      * @memberof MerkleTree
      */
-    async put(key: string | Buffer, value: Uint8Array) {
+    async put(key: string | Buffer | Uint8Array, value: Uint8Array) {
         let valueArr = Array.from(value);
 
         const promise = new Promise((resolve, reject) => {

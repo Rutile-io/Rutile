@@ -47,6 +47,10 @@ interface BlockConfig {
     coinbaseAmount: string;
 }
 
+interface VmConfig {
+    maximumMemory: number;
+}
+
 interface IConfig {
     nodeId: string;
     nodeType: NodeType;
@@ -61,6 +65,7 @@ interface IConfig {
     block: BlockConfig;
     privateKey: string;
     maximumNodes: number;
+    vm: VmConfig;
 }
 
 export default IConfig;

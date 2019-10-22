@@ -132,12 +132,17 @@ async function run() {
     const bin = `
         async function main() {
             log("Hello world");
+            log("From here");
 
-            const result = await storageStore('Key', 'Value');
+            while(true) {}
 
-            log("storageStore message: ", result);
+            await storageStore('Je', 'Moeder');
 
-            return 123;
+            const data = await storageLoad('Je');
+
+            log('This will not be called');
+
+            return 1444;
         }
     `;
 
