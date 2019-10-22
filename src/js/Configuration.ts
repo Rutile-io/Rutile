@@ -68,6 +68,10 @@ let configuration: IConfig = {
             // The chain unique identification, use this to create your own blockchain
             chainId: 866,
         }
+    },
+    vm: {
+        // Maximum amount of memory in MB's
+        maximumMemory: 8,
     }
 }
 

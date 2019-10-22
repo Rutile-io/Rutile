@@ -39,7 +39,7 @@ export default async function execute(params: VmParams): Promise<Results> {
     }
 
     if (!isWasmBinary(binary)) {
-        return executeJsCode(binary);
+        return executeJsCode(binary, params.callMessage, params.globalState);
         // return executeEvmCode(params);
     }
 
