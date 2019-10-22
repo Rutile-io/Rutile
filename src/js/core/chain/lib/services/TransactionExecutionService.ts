@@ -10,7 +10,6 @@ import { configuration } from "../../../../Configuration";
 import stringToByteArray from "../../../../utils/stringToByteArray";
 import isWasmBinary from "../../../rvm/lib/services/isWasmBinary";
 import isIpfsHash from "../utils/isIpfsHash";
-import { executeEvmCode } from "../../../rvm/Evm";
 import createCallMessage from "../../../../services/createCallMessage";
 import { toHex } from "../../../rvm/utils/hexUtils";
 
@@ -67,7 +66,7 @@ export async function transferTransactionValue(transaction: Transaction, globalS
  * @param {Transaction} transaction
  * @returns
  */
-export async function deployContract(transaction: Transaction, globalState: GlobalState): Promise<Account> {
+export async function deployContract(transaction: Transaction, globalState: GlobalState) {
     if (transaction.to) {
         throw new Error(`Contract deploys should not have a 'to' property attached to it`);
     }
@@ -76,18 +75,19 @@ export async function deployContract(transaction: Transaction, globalState: Glob
     const stringifiedData = hexStringToString(transaction.data);
 
     let codeToDeploy = transaction.data;
-    let storageRoot: string = null;
 
     if (!isIpfsHash(stringifiedData)) {
+        throw new Error('Hash should be a IPFS hash');
         // The deployment is EVM code. We should deploy it via the EVM way.
-        const results = await executeEvmCode({
-            callMessage: await createCallMessage(transaction),
-            globalState: globalState,
-            // bin: hexStringToBuffer(transaction.data),
-        });
+        // const results = await executeEvmCode({
+        //     callMessage: await createCallMessage(transaction),
+        //     globalState: globalState,
+        //     transaction,
+        //     // bin: hexStringToBuffer(transaction.data),
+        // });
 
-        codeToDeploy = results.returnHex;
-        storageRoot = results.outputRoot;
+        // codeToDeploy = results.returnHex;
+        // globalState = await GlobalState.create(results.outputRoot);
     } else {
         const binary = await ipfs.cat(stringifiedData);
         const wasm = isWasmBinary(stringToByteArray(binary));
@@ -110,11 +110,10 @@ export async function deployContract(transaction: Transaction, globalState: Glob
     // The transaction.data includes the IPFS hash where the contract is located
     const newContractAccount = await globalState.findOrCreateAccount(newContractAddress, codeToDeploy);
 
-    if (storageRoot) {
-        newContractAccount.storageRoot = storageRoot;
-    }
-
-    return newContractAccount;
+    return {
+        account: newContractAccount,
+        globalState,
+    };
 }
 
 /**

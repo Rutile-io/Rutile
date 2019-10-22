@@ -9,11 +9,11 @@
         "build:prod": "cross-env NODE_ENV=production webpack --config ./webpack.config.js",
         "docs": "documentation build ./src > ./docs/codebase.md --shallow false --format md --sort-order alpha",
         "release": "standard-version",
-        "start": "cross-env NODE_ENV=development webpack-dev-server --content-base ./ --config  ./webpack.config.js --open true --port 9001 --inline",
+        "start": "npm run build:watch:node & nodemon --experimental-worker ./build/rutile.js localhost 8932 --watch ./build/rutile.js",
         "test": "jest",
         "lint": "eslint ./src/ --cache --ignore-pattern .gitignore",
         "build:watch:node": "cross-env NODE_ENV=development webpack --watch --target node --config ./webpack.config.js",
-        "start:node": "npm run build:watch:node & nodemon --experimental-worker ./build/rutile.js localhost 8932 --watch ./build/rutile.js"
+        "start:node": "npm run start"
     },
     "author": "Franklin Waller",
     "license": "MIT",
@@ -78,6 +78,7 @@
         "go-ipfs-dep": "^0.4.20",
         "ipfs-mini": "^1.1.5",
         "ipfsd-ctl": "^0.47.2",
+        "isolated-vm": "^2.0.1",
         "js-logger": "^1.6.0",
         "js-sha3": "^0.8.0",
         "keccak": "^1.4.0",

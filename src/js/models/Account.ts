@@ -44,8 +44,6 @@ class Account {
 
     async setCode(globalState: GlobalState, code: string) {
         this.codeHash = '0x' + keccak256(code);
-        console.log('[] this.codeHash -> ', this.codeHash);
-        console.log('[] hexStringToBuffer(this.codeHash) -> ', hexStringToBuffer(this.codeHash));
         await globalState.storage.put(hexStringToBuffer(this.codeHash), hexStringToBuffer(code));
     }
 
