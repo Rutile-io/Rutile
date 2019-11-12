@@ -40,10 +40,20 @@ async function getJsvmMethods(isolate: Ivm.Isolate, callMessage: CallMessage, gl
 
     let executionCompleteCallback = (...args: any[]) => {};
 
+    /**
+     * Logs variables in the terminal
+     *
+     * @param {...any[]} args
+     */
     function log(...args: any[]) {
         console.log('[Log]: ', ...args);
     }
 
+    /**
+     * Uses gas
+     *
+     * @param {number} amount
+     */
     function useGas(amount: number) {
         result.gasUsed += amount;
     }
