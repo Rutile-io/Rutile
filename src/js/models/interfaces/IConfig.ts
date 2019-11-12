@@ -49,6 +49,7 @@ interface BlockConfig {
 
 interface VmConfig {
     maximumMemory: number;
+    executionTimeout: number;
 }
 
 interface IConfig {

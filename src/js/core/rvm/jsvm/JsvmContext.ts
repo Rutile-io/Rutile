@@ -55,13 +55,16 @@ async function getJsvmMethods(isolate: Ivm.Isolate, callMessage: CallMessage, gl
      * @param {Ivm.Reference<any>} resolve
      */
     async function storageLoad(key: string, resolve: Ivm.Reference<any>) {
-        useGas(200);
+        try {
+            useGas(200);
+            const value = await stateStorage.get(toHex(stringToByteArray(key)));
 
-        const value = await stateStorage.get(toHex(stringToByteArray(key)));
-
-        resolve.applyIgnored(undefined, [
-            new ivm.ExternalCopy(byteArrayToString(value)).copyInto(),
-        ]);
+            await resolve.apply(undefined, [
+                new ivm.ExternalCopy(byteArrayToString(value)).copyInto(),
+            ]);
+        } catch(error) {
+            console.error(error);
+        }
     }
 
     /**
@@ -96,8 +99,21 @@ async function getJsvmMethods(isolate: Ivm.Isolate, callMessage: CallMessage, gl
         isolate.dispose();
     }
 
+    /**
+     * Reverst the transaction
+     *
+     * @param {string} message
+     */
     function revert(message: string) {
+        result.return = stringToByteArray(message);
+        result.returnHex = '0x' + toHex(result.return);
+        result.exception = 1;
+        result.exceptionError = VM_ERROR.REVERT;
 
+        console.log('[] result -> ', result);
+
+        executionCompleteCallback(result);
+        isolate.dispose();
     }
 
 
@@ -123,7 +139,12 @@ async function getJsvmMethods(isolate: Ivm.Isolate, callMessage: CallMessage, gl
                 key: 'finish',
                 type: 'sync',
                 method: new ivm.Reference(finish),
-            }
+            },
+            {
+                key: 'revert',
+                type: 'sync',
+                method: new ivm.Reference(revert),
+            },
         ],
         setExecutionCompleteCallback: (callback: () => void) => {
             executionCompleteCallback = callback;
