@@ -67,7 +67,6 @@ class Context {
     mem: Memory;
     message: CallMessage;
     notifierBuffer: SharedArrayBuffer;
-    wasmInstance: WebAssembly.ResultObject;
 
     constructor(callMessage: CallMessage, globalState: GlobalState) {
         this.fromAddress = callMessage.sender;
