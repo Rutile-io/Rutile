@@ -16,7 +16,6 @@ export default async function executeJsCode(binary: Uint8Array, callMessage: Cal
             const isolate: Ivm.Isolate = new ivm.Isolate({ memoryLimit: configuration.vm.maximumMemory });
             const context: Ivm.Context = await isolate.createContext();
             const jsvmContext = await createJsvmContext(context, isolate, callMessage, globalState);
-            const jail = jsvmContext.jail;
 
             // Creates the bootstrap code that converts all jsvmContext methods to global methods
             // Preruns the code in the same isolation as the application code
@@ -27,7 +26,6 @@ export default async function executeJsCode(binary: Uint8Array, callMessage: Cal
             // later on. This does not execute "main" yet
             const script = await isolate.compileScript(code);
             await script.run(context);
-            const mainFunc = await jail.get('main');
 
             const executionPromise = new Promise<Results>(async (resolve) => {
                 // The application can throw an error or call finish() directly
@@ -37,7 +35,6 @@ export default async function executeJsCode(binary: Uint8Array, callMessage: Cal
                 // Executes the "main" entrypoint via the bootstrap code
                 // which can take a promise resolve and pass it along
                 await bootstrapScriptResult.apply(undefined, [
-                    mainFunc,
                     new ivm.Reference(resolve),
                 ]);
             });
