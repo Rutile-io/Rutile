@@ -16,7 +16,7 @@ const i64Transformer = require('../../../../wasm/i64-transformer');
 class VirtualContext {
     sharedMemory: SharedArrayBuffer;
     sharedNotifier: SharedArrayBuffer;
-    wasm: WebAssembly.ResultObject;
+    wasm: WebAssembly.WebAssemblyInstantiatedSource;
     transformer: WebAssembly.Instance;
 
     constructor() {
@@ -40,7 +40,8 @@ class VirtualContext {
         });
     }
 
-    async init(wasm: WebAssembly.ResultObject) {
+    async init(wasm: WebAssembly.WebAssemblyInstantiatedSource) {
+        // @ts-ignore
         const length = Uint8Array.BYTES_PER_ELEMENT * wasm.instance.exports.memory.buffer.byteLength;
         const sharedMemory = new SharedArrayBuffer(length);
 
@@ -64,6 +65,7 @@ class VirtualContext {
      * @memberof VirtualContext
      */
     growSharedMemory() {
+        // @ts-ignore
         const length = Uint8Array.BYTES_PER_ELEMENT * this.wasm.instance.exports.memory.buffer.byteLength;
         this.sharedMemory = new SharedArrayBuffer(length);
 
@@ -89,11 +91,13 @@ class VirtualContext {
         // It's possible that the WASM module called the memory.grow opcode
         // If this is the case we need to replace our shared buffer with a new one
         // Otherwise we would run in out of bounds errors
+        // @ts-ignore
         if (this.wasm.instance.exports.memory.buffer.byteLength !== this.sharedMemory.byteLength) {
             this.growSharedMemory();
         }
 
         // First synchronise the WebAssembly Memory with the SharedBuffer memory
+        // @ts-ignore
         synchroniseMemoryToBuffer(this.wasm.instance.exports.memory, this.sharedMemory);
 
         workerRequest({
@@ -106,6 +110,7 @@ class VirtualContext {
         reset(this.sharedNotifier, 0);
 
         // Now synchronise the changes made to the shared buffer back to memory
+        // @ts-ignore
         synchroniseBufferToMemory(this.wasm.instance.exports.memory, this.sharedMemory);
 
         return value;

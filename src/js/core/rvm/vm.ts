@@ -2,8 +2,6 @@ import { workerAddEventListener, workerPostMessage, workerRequest, extractMessag
 import VirtualContext from "./lib/VirtualContext";
 import Wasi from './lib/wasi/Wasi';
 import VirtualWasi from "./lib/wasi/VirtualWasi";
-
-const saferEval = require('safer-eval');
 const metering = require('wasm-metering');
 
 async function runWasm(wasmBinary: Uint8Array) {
@@ -28,6 +26,7 @@ async function runWasm(wasmBinary: Uint8Array) {
         });
 
         // Grow memory to 64Kib
+        // @ts-ignore
         wasm.instance.exports.memory.grow(1);
 
         // Get the context ready on the client side
@@ -40,7 +39,7 @@ async function runWasm(wasmBinary: Uint8Array) {
             throw new Error(`Could not find entry 'main' on WASM binary`);
         }
 
-        const main = exports.main || exports._main;
+        const main: any = exports.main || exports._main;
         main();
 
         // In WASM it's not required to use a extra layer of sandboxing
