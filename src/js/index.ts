@@ -128,43 +128,43 @@ async function run() {
 
     wallet = new Wallet('C0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DEC0DE');
 
-    const block = await Block.getLatest();
-    const bin = `
-        async function main() {
-            log("Hello world");
-            log("From here");
+    // const block = await Block.getLatest();
+    // const bin = `
+    //     async function main() {
+    //         log("Hello world");
+    //         log("From here");
 
-            while(true) {}
+    //         await storageStore('Je', 'Test');
 
-            await storageStore('Je', 'Moeder');
+    //         const data = await storageLoad('Je');
 
-            const data = await storageLoad('Je');
+    //         log('This will not be called');
 
-            log('This will not be called');
+    //         log('Test1');
+    //         await revert("Revert becuz");
 
-            return 1444;
-        }
-    `;
 
-    const b = stringToByteArray(bin);
+    //         return 1444;
+    //     }
+    // `;
 
-    await execute({
-        globalState: await GlobalState.create(block.stateRoot),
-        callMessage: {
-            depth: 1,
-            destination: '0x',
-            flags: 1,
-            gas: 100000,
-            inputData: new Uint8Array(),
-            inputSize: 0,
-            kind: CallKind.Call,
-            sender: '0x0000',
-            value: new BN(9),
-        },
-        bin: b,
-    })
+    // const b = stringToByteArray(bin);
 
-    return;
+    // await execute({
+    //     globalState: await GlobalState.create(block.stateRoot),
+    //     callMessage: {
+    //         depth: 1,
+    //         destination: '0x',
+    //         flags: 1,
+    //         gas: 100000,
+    //         inputData: new Uint8Array(),
+    //         inputSize: 0,
+    //         kind: CallKind.Call,
+    //         sender: '0x0000',
+    //         value: new BN(9),
+    //     },
+    //     bin: b,
+    // });
 
     try {
         Logger.info(`📦 Booting up IPFS node..`);
