@@ -138,7 +138,7 @@ export async function getContractBinary(account: Account, globalState: GlobalSta
 
     const ipfs = Ipfs.getInstance(configuration.ipfs);
     const code = await account.getCode(globalState);
-    const stringifiedCode = hexStringToString(toHex(code));
+    const stringifiedCode = hexStringToString('0x' + toHex(code));
 
     if (isIpfsHash(stringifiedCode)) {
         const content = await ipfs.cat(stringifiedCode);
