@@ -384,25 +384,30 @@ class Context {
         };
 
         // TODO: Should depending on the result throw the exception to above
-        const result = await execute({
-            callMessage,
-            globalState: this.globaState,
-        });
+        try {
+            const result = await execute({
+                callMessage,
+                globalState: this.globaState,
+            });
 
-        this.callResults = result;
+            this.callResults = result;
 
-        if (result.exceptionError === VM_ERROR.REVERT) {
+            if (result.exceptionError === VM_ERROR.REVERT) {
+                storeAndNotify(this.notifierBuffer, notifierIndex, 3);
+                return;
+            } else if (result.exceptionError == VM_ERROR.OUT_OF_GAS) {
+                // TODO: Out of gas error
+                storeAndNotify(this.notifierBuffer, notifierIndex, 3);
+                return;
+            }
+
+            // Finish execution should not be notified
+            // TODO: The logs should however
+            storeAndNotify(this.notifierBuffer, notifierIndex, 1);
+        } catch (error) {
+            Logger.error(`📟 call method failed:`, error);
             storeAndNotify(this.notifierBuffer, notifierIndex, 3);
-            return;
-        } else if (result.exceptionError == VM_ERROR.OUT_OF_GAS) {
-            // TODO: Out of gas error
-            storeAndNotify(this.notifierBuffer, notifierIndex, 3);
-            return;
         }
-
-        // Finish execution should not be notified
-        // TODO: The logs should however
-        storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }
 
     // ---------------------------------------------------------------------

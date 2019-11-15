@@ -1,28 +1,25 @@
-import { workerAddEventListener, workerPostMessage, workerRequest, extractMessageFromEvent } from "./utils/workerUtils";
+import { workerAddEventListener, extractMessageFromEvent } from "./utils/workerUtils";
 import VirtualContext from "./lib/VirtualContext";
-import Wasi from './lib/wasi/Wasi';
-import VirtualWasi from "./lib/wasi/VirtualWasi";
 const metering = require('wasm-metering');
 
 async function runWasm(wasmBinary: Uint8Array) {
     try {
         const context = new VirtualContext();
-        const wasi = new VirtualWasi();
 
         // Instantiate the WebAssembly module with metering included
-        const meteredWas = metering.meterWASM(wasmBinary, {
+        const meteredWasm = metering.meterWASM(wasmBinary, {
             meterType: 'i32',
         });
+
         // const meteredWas = wasmBinary;
 
-        const wasm = await WebAssembly.instantiate(meteredWas, {
+        const wasm = await WebAssembly.instantiate(meteredWasm, {
             metering: {
                 usegas: (gas: number) => {
                     context.useGas(gas);
                 }
             },
             ...context.getExposedFunctions(),
-            wasi_unstable: wasi.getExposedFunctions(),
         });
 
         // Grow memory to 64Kib

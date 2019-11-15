@@ -38,7 +38,7 @@ let configuration: IConfig = {
         blockGasLimit: 8000000,
 
         // The amount of time in ms that it takes before the next block round begins
-        blockTime: 10000,
+        blockTime: 5000,
 
         // The beneficiary address for block rewards
         coinbaseAddress: '0x53ae893e4b22d707943299a8d0c844df0e3d5557',

@@ -8,7 +8,6 @@ export interface RequestMessage {
     bufferIndex?: number;
 }
 
-
 /**
  * Creates a worker (NodeJS/Browser)
  *
