@@ -18,7 +18,7 @@ export default function getSystemContract(address: string): Uint8Array {
 
     // Keccak256
     if (address === '0x0000000000000000000000000000000000000009') {
-        return keccak;
+        return new Uint8Array(keccak);
     }
 
     return null;

@@ -96,6 +96,7 @@ class Account {
     /**
      * Gets an account using the address
      *
+     * @deprecated Use GlobalState instead
      * @static
      * @param {string} address
      * @returns {Promise<Account>}

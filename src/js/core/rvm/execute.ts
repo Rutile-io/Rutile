@@ -9,7 +9,6 @@ import { getContractBinary } from '../chain/lib/services/TransactionExecutionSer
 import VmParams from './models/VmParams';
 import isIpfsHash from '../chain/lib/utils/isIpfsHash';
 import stringToByteArray from '../../utils/stringToByteArray';
-import executeJsCode from './jsvm/Jsvm';
 
 
 /**
@@ -30,6 +29,11 @@ export default async function execute(params: VmParams): Promise<Results> {
         const toAccount = await params.globalState.findOrCreateAccount(params.callMessage.destination);
         binary = await getContractBinary(toAccount, params.globalState);
         params.bin = binary;
+
+        // Still no binary found (or IPFSHash)
+        if (!binary) {
+            throw new Error(`No binary found to match the address ${params.callMessage.destination}`);
+        }
     }
 
     // We still have to fetch the binary since it came from IPFS
@@ -39,11 +43,10 @@ export default async function execute(params: VmParams): Promise<Results> {
     }
 
     if (!isWasmBinary(binary)) {
-        return executeJsCode(binary, params.callMessage, params.globalState);
-        // return executeEvmCode(params);
+        throw new Error('Binary is not WASM');
     }
 
-    const worker = createWorker(configuration.vmUrl);
+    const worker = await createWorker(configuration.vmUrl);
 
     // This is the physical context it contains all functions and data
     // needed to execute a smart contract. It lives on the main thread
