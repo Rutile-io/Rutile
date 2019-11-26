@@ -219,6 +219,7 @@ class VirtualContext {
                 returnDataCopy: (...args: any[]) => this.callContext('returnDataCopy', args),
                 abort: (...args: any[]) => {
                     console.log('[Abort] args -> ', args);
+                    this.callContext('revert', [0, 0, 0, 0]);
                 }
             },
             debug: {

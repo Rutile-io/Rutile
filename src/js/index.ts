@@ -25,15 +25,6 @@ async function run() {
 
     const wallet = new Wallet(configuration.privateKey);
     Logger.info(`🖥 Rutile is booting up with address ${wallet.address}`);
-    await startDatabase();
-
-    try {
-        Logger.info(`📦 Booting up IPFS node..`);
-        await startIpfsClient();
-        Logger.info(`📦 IPFS is running`);
-    } catch (error) {
-        Logger.error(`📦 IPFS was not able to startup`);
-    }
 
     // Testing..
     if (isNodeJs()) {

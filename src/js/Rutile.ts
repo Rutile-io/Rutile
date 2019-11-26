@@ -17,6 +17,7 @@ import Block from './models/Block';
 import RpcServer from './core/rpc/RpcServer';
 import isNodeJs from './services/isNodeJs';
 import { getAddressFromTransaction } from './core/chain/lib/services/TransactionService';
+import { startIpfsClient } from './services/IpfsService';
 
 if (!isNodeJs()) {
     // @ts-ignore
@@ -70,11 +71,17 @@ class Rutile {
     }
 
     async start() {
+        let ipfsNode: any = null;
+
         try {
             Logger.info('🚀 Starting Rutile');
 
             // Start the database
             await Database.startDatabase();
+
+            Logger.info(`📦 Booting up IPFS node..`);
+            ipfsNode = await startIpfsClient();
+            Logger.info(`📦 IPFS is running`);
 
             // Boot up our peer to peer network
             this.network = new Network();
@@ -87,13 +94,10 @@ class Rutile {
         }
 
         this.chain = new Chain(this.network);
-
-        // if (configuration.nodeType !== NodeType.CLIENT) {
-            await this.chain.synchronise();
-        // }
+        await this.chain.synchronise();
 
         if (isNodeJs()) {
-            const rpcServer = new RpcServer(this.chain);
+            const rpcServer = new RpcServer(this.chain, ipfsNode);
             rpcServer.open(8545);
         }
 

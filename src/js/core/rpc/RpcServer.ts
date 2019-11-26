@@ -51,9 +51,11 @@ function getBlockByTag(tag: string): Promise<Block> {
 
 class RpcServer {
     chain: Chain;
+    ipfsNode: any;
 
-    constructor(chain: Chain) {
+    constructor(chain: Chain, ipfsNode: any) {
         this.chain = chain;
+        this.ipfsNode = ipfsNode;
     }
 
     getAllChunkData(message: IncomingMessage): Promise<string> {
@@ -356,10 +358,22 @@ class RpcServer {
         writeOk(res, result);
     }
 
+    async sendIpfsUpload(req: IncomingMessage, res: ServerResponse) {
+        const ipfsResponse = await this.ipfsNode.api.addFromStream(req);
+        await this.ipfsNode.api.pin.add(ipfsResponse[0].hash);
+
+        writeOk(res, ipfsResponse);
+    }
+
     async handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
         try {
             if (req.method === 'OPTIONS') {
                 writeOk(res, {});
+                return;
+            }
+
+            if (req.url === '/files/upload') {
+                this.sendIpfsUpload(req, res);
                 return;
             }
 

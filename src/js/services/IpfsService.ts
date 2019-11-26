@@ -1,5 +1,4 @@
 import isNodeJs from './isNodeJs';
-import * as Logger from 'js-logger';
 
 let node: any = null;
 
@@ -9,12 +8,7 @@ let node: any = null;
  * @export
  */
 export async function startIpfsClient() {
-    if (isNodeJs()) {
-        await startIpfsDaemon();
-    } else {
-        const IPFS = require('ipfs-mini');
-        node = new IPFS({ host: 'localhost', port: 4002, protocol: 'https' });
-    }
+    return startIpfsDaemon();
 }
 
 /**
@@ -30,6 +24,8 @@ async function startIpfsDaemon() {
     });
 
     await ipfsSpawnedNode.start();
+
+    return ipfsSpawnedNode;
 }
 
 export async function addFileFromPath(){
