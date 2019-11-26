@@ -16,13 +16,7 @@ import GlobalState from './models/GlobalState';
 import Block from './models/Block';
 import RpcServer from './core/rpc/RpcServer';
 import isNodeJs from './services/isNodeJs';
-import { getAddressFromTransaction } from './core/chain/lib/services/TransactionService';
 import { startIpfsClient } from './services/IpfsService';
-
-if (!isNodeJs()) {
-    // @ts-ignore
-    window.getAddressesFromTransaction = getAddressFromTransaction;
-}
 
 /**
  * Glue between all core modules.

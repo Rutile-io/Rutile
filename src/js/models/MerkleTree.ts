@@ -6,7 +6,6 @@ const Trie = require('merkle-patricia-tree');
 
 class MerkleTree {
     public trie: any;
-    private cache: Map<string | Buffer, Uint8Array | Buffer>;
     private storagePromises: Array<Promise<any>>;
 
     static get Trie(): any {
@@ -15,21 +14,7 @@ class MerkleTree {
 
     constructor(db: PouchDbLevelDbMapping, root?: string | Buffer) {
         this.trie = new Trie(db, root);
-        this.cache = new Map();
         this.storagePromises = [];
-    }
-
-    /**
-     * Puts the data in cache so it can be accessed synchronously
-     * It does however puts it in the database async.
-     *
-     * @param {(string | Buffer)} key
-     * @param {(string | Buffer)} value
-     * @memberof MerkleTree
-     */
-    putSync(key: string | Buffer, value: Uint8Array) {
-        this.cache.set(key, value);
-        this.put(key, value);
     }
 
     /**
@@ -54,17 +39,6 @@ class MerkleTree {
         this.storagePromises.push(promise);
 
         return promise;
-    }
-
-    /**
-     * Gets data synchronously from the cache.
-     *
-     * @param {(string | Buffer)} key
-     * @returns
-     * @memberof MerkleTree
-     */
-    getSync(key: string | Buffer) {
-        return this.cache.get(key);
     }
 
     /**
@@ -110,28 +84,6 @@ class MerkleTree {
         await Promise.all(this.storagePromises);
 
         return '0x' + this.trie.root.toString('hex');
-    }
-
-
-    /**
-     * Fills the cache based on the merkle root
-     * This is currently needed for WASM execution on JavaScript.
-     *
-     * @returns
-     * @memberof MerkleTree
-     */
-    async fill(): Promise<any> {
-        return new Promise((resolve) => {
-            this.createReadStream().on('data', (data: any) => {
-                this.cache.set(data.key, data.value);
-            }).on('end', () => {
-                resolve(this.cache);
-            })
-        });
-    }
-
-    flushCache() {
-        this.cache = new Map();
     }
 
     createReadStream() {

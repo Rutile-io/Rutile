@@ -9,7 +9,7 @@ module.exports = {
         extensions: ['.js', '.jsx', '.tsx', '.ts', '.wasm'],
     },
     entry: {
-        rutile: ['./index.js'],
+        rutile: ['./src/js/index.ts'],
         vm: ['./src/js/core/rvm/vm.ts'],
     },
     output: {

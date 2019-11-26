@@ -1,8 +1,5 @@
-import * as ethers from 'ethers';
 import KeyPair from './KeyPair';
 import Account from './Account';
-
-const WALLET_STORAGE_KEY = 'r_wallet';
 
 /**
  * Currently we replace our own wallet implementation with the one from Ethereum
@@ -16,41 +13,16 @@ class Wallet {
     account: Account;
     address: string;
 
+    /**
+     * Creates an instance of Wallet.
+     *
+     * @param {string} privateKey
+     * @memberof Wallet
+     */
     constructor(privateKey: string) {
         this.privateKey = privateKey;
         this.keyPair = new KeyPair(privateKey);
         this.address = KeyPair.computeAddress(this.keyPair.publicKey);
-    }
-
-    saveToLocalStorage() {
-        if (!localStorage) {
-            throw new Error('Local storage must be available');
-        }
-
-        localStorage.setItem(WALLET_STORAGE_KEY, JSON.stringify(this));
-    }
-
-    static createRandom() {
-        const randomWallet = ethers.Wallet.createRandom();
-
-        const privateKey = randomWallet.privateKey.substring(2);
-        return new Wallet(privateKey);
-    }
-
-    static fromStorage(): Wallet {
-        if (!localStorage) {
-            throw new Error('Local storage must be available');
-        }
-
-        const wallet = localStorage.getItem(WALLET_STORAGE_KEY);
-
-
-        if (wallet) {
-            const walletParsed = JSON.parse(wallet);
-            return new Wallet(walletParsed.privateKey);
-        }
-
-        return null;
     }
 }
 

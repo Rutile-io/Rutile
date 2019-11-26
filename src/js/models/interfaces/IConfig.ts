@@ -11,12 +11,6 @@ export {
 };
 
 interface GenesisConfig {
-    // transaction: {
-    //     to: string;
-    //     timestamp: number;
-    //     value: string;
-    // };
-
     alloc: {
         [address: string]: {
             balance: string;

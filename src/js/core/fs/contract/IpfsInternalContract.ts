@@ -128,8 +128,6 @@ class IpfsInteralContract implements IInternalContract {
         return this.results;
     }
 
-
-
     async execute(callMessage: CallMessage, globalState: GlobalState, transaction: Transaction): Promise<Results> {
         const selector = callMessage.inputData.slice(0, 4);
         this.callMessage = callMessage;
