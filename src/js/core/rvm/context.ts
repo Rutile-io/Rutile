@@ -436,14 +436,14 @@ class Context {
      * @memberof Context
      */
     private print64(notifierIndex: number, value: number) {
-        Logger.info(`vm.print64 ${value}`);
+        Logger.debug(`vm.print64 ${value}`);
         storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }
 
     private printString(notifierIndex: number, offset: number, length: number) {
         const value = this.mem.read(offset, length);
 
-        Logger.info(`vm.printString ${byteArrayToString(value)}`);
+        Logger.debug(`vm.printString ${byteArrayToString(value)}`);
 
         storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }
@@ -452,7 +452,7 @@ class Context {
         const value = this.mem.read(offset, length);
         const hexValue = toHex(value);
 
-        Logger.info(`vm.printMemHex 0x${hexValue}`);
+        Logger.debug(`vm.printMemHex 0x${hexValue}`);
 
         storeAndNotify(this.notifierBuffer, notifierIndex, 1);
     }

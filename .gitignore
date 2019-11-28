@@ -62,4 +62,5 @@ typings/
 
 build
 db_rutile*
+ipfs_repo
 mydbb

@@ -47,6 +47,34 @@ export class Memory {
     storeUint256(offset: number, value: ArrayLike<number>) {
         this.storeMemoryReverse(offset, 32, value);
     }
+
+    /**
+     * Gets the string from a pointer
+     * taken from https://github.com/AssemblyScript/assemblyscript/blob/c7740fe36590679c411e4de1c0865732f8050c03/lib/loader/index.js
+     *
+     * @param {number} ptr
+     * @returns
+     * @memberof Memory
+     */
+    getString(ptr: number) {
+        const U32 = new Uint32Array(this.buffer);
+        const U16 = new Uint16Array(this.buffer);
+
+        let length = U32[(ptr + -4) >>> 2] >>> 1;
+        let offset = ptr >>> 1;
+
+        if (length <= 1024) return String.fromCharCode.apply(String, U16.subarray(offset, offset + length));
+        const parts = [];
+
+        do {
+            const last = U16[offset + 1024 - 1];
+            const size = last >= 0xD800 && last < 0xDC00 ? 1024 - 1 : 1024;
+            parts.push(String.fromCharCode.apply(String, U16.subarray(offset, offset += size)));
+            length -= size;
+        } while (length > 1024);
+
+        return parts.join("") + String.fromCharCode.apply(String, U16.subarray(offset, offset + length));
+    }
 }
 
 export function synchroniseMemoryToBuffer(memory: WebAssembly.Memory, buffer: SharedArrayBuffer) {

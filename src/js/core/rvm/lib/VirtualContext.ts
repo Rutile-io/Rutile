@@ -1,5 +1,4 @@
 import { workerRequest } from "../utils/workerUtils";
-import Transaction from "../../../models/Transaction";
 import { waitAndLoad, reset } from "../utils/sharedBufferUtils";
 import { Memory, synchroniseBufferToMemory, synchroniseMemoryToBuffer } from "./memory";
 import { CallKind } from "./CallMessage";
@@ -217,8 +216,18 @@ class VirtualContext {
                 getAddress: (...args: any[]) => this.callContext('getAddress', args),
                 getReturnDataSize: (...args: any[]) => this.callContext('getReturnDataSize', args),
                 returnDataCopy: (...args: any[]) => this.callContext('returnDataCopy', args),
-                abort: (...args: any[]) => {
-                    console.log('[Abort] args -> ', args);
+                abort: (msgPtr: number, filePtr: number, line: number, column: number) => {
+                    const memory = new Memory(this.sharedMemory);
+
+                    console.log(
+                        `⛔️ An error occured while running the assembly:\n`,
+                        `msg: ${(msgPtr && memory.getString(msgPtr)) || msgPtr}\n`,
+                        `file: ${(filePtr && memory.getString(filePtr)) || filePtr}\n`,
+                        `line: ${line}\n`,
+                        `col: ${column}\n`
+                    );
+
+
                     this.callContext('revert', [0, 0, 0, 0]);
                 }
             },

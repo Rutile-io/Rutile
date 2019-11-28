@@ -68,7 +68,7 @@ class Rutile {
         let ipfsNode: any = null;
 
         try {
-            Logger.info('🚀 Starting Rutile');
+            Logger.info(`🚀 Starting Rutile in ${process.env.NODE_ENV} mode`);
 
             // Start the database
             await Database.startDatabase();
@@ -83,7 +83,7 @@ class Rutile {
 
         } catch (error) {
             if (error) {
-                console.error('Could not connect to peers: ', error);
+                Logger.error(`⛔️ An error occurred while starting Rutile`, error);
             }
         }
 
@@ -98,6 +98,17 @@ class Rutile {
         if (configuration.nodeType === NodeType.FULL) {
             this.validator = new Validator(this.chain);
             this.validator.start();
+        }
+
+        // We don't need to exit manually in development
+        // since nodemon takes care of restarting/closing
+        if (process.env.NODE_ENV === 'production') {
+            process.on('SIGINT', async () => {
+                Logger.info(`🚦 Stopping all services..`);
+                await ipfsNode.stop();
+                Logger.info(`👋 See you next time!`);
+                process.exit();
+            });
         }
     }
 
@@ -154,6 +165,7 @@ class Rutile {
 
         const state = await GlobalState.create(block.stateRoot);
         const account = await state.findOrCreateAccount(address);
+
         return account;
     }
 }

@@ -18,13 +18,21 @@ export async function startIpfsClient() {
 async function startIpfsDaemon() {
     const IpfsFactory = __non_webpack_require__('ipfsd-ctl');
     const ipfs = IpfsFactory.create({ type: 'go' });
-    const ipfsSpawnedNode = await ipfs.spawn({
-        start: false,
+
+    const ipfsConfig = {
+        start: true,
+        init: true,
+        repoPath: './ipfs_repo',
+        disposable: true,
         defaultAddrs: true,
-    });
+    }
 
-    await ipfsSpawnedNode.start();
+    // In production we want to keep our contracts and files.
+    if (process.env.NODE_ENV === 'production') {
+        ipfsConfig.disposable = false;
+    }
 
+    const ipfsSpawnedNode = await ipfs.spawn(ipfsConfig);
     return ipfsSpawnedNode;
 }
 
