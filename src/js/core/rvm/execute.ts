@@ -9,6 +9,7 @@ import { getContractBinary } from '../chain/lib/services/TransactionExecutionSer
 import VmParams from './models/VmParams';
 import isIpfsHash from '../chain/lib/utils/isIpfsHash';
 import stringToByteArray from '../../utils/stringToByteArray';
+import WasiContext from './lib/wasi/WasiContext';
 
 
 /**
@@ -47,14 +48,7 @@ export default async function execute(params: VmParams): Promise<Results> {
     }
 
     const worker = await createWorker(configuration.vmUrl);
+    const wasiContext = new WasiContext(params.callMessage, params.globalState, worker);
 
-    // This is the physical context it contains all functions and data
-    // needed to execute a smart contract. It lives on the main thread
-    // since database calls and asynchronous calls cannot be done on the
-    // worker thread.
-    const context = new Context(params.callMessage, params.globalState);
-    const controller = new WorkerMessageController(worker, context);
-    const result = await controller.start(binary);
-
-    return result;
+    return wasiContext.run(binary);
 }

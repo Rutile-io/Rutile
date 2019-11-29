@@ -10,7 +10,7 @@ module.exports = {
     },
     entry: {
         rutile: ['./src/js/index.ts'],
-        vm: ['./src/js/core/rvm/vm.ts'],
+        vm: ['./src/js/core/rvm/vmWorker.ts'],
     },
     output: {
         path: path.resolve(__dirname, './build/'),

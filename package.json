@@ -51,6 +51,9 @@
         "webpack-dev-server": "^3.9.0"
     },
     "dependencies": {
+        "@wasmer/wasi": "^0.5.0",
+        "@wasmer/wasm-transformer": "^0.5.0",
+        "@wasmer/wasmfs": "^0.5.0",
         "assert": "^2.0.0",
         "babel-polyfill": "6.26.0",
         "bn.js": "^5.0.0",
@@ -59,12 +62,10 @@
         "encoding": "^0.1.12",
         "ethereumjs-tx": "^2.1.1",
         "ethereumjs-util": "^6.2.0",
-        "ethereumjs-vm": "^4.1.0",
         "ethers": "^4.0.39",
         "go-ipfs-dep": "^0.4.22",
         "ipfs-mini": "^1.1.5",
         "ipfsd-ctl": "^0.47.4",
-        "isolated-vm": "^2.0.1",
         "js-logger": "^1.6.0",
         "keccak": "^1.4.0",
         "memorystream": "^0.3.1",

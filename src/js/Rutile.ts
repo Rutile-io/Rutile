@@ -102,14 +102,14 @@ class Rutile {
 
         // We don't need to exit manually in development
         // since nodemon takes care of restarting/closing
-        if (process.env.NODE_ENV === 'production') {
-            process.on('SIGINT', async () => {
-                Logger.info(`🚦 Stopping all services..`);
-                await ipfsNode.stop();
-                Logger.info(`👋 See you next time!`);
-                process.exit();
-            });
-        }
+        // if (process.env.NODE_ENV === 'production') {
+        //     process.on('SIGINT', async () => {
+        //         Logger.info(`🚦 Stopping all services..`);
+        //         await ipfsNode.stop();
+        //         Logger.info(`👋 See you next time!`);
+        //         process.exit();
+        //     });
+        // }
     }
 
     /**
