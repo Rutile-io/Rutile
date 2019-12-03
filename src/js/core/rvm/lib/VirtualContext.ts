@@ -3,6 +3,8 @@ import { waitAndLoad, reset } from "../utils/sharedBufferUtils";
 import { Memory, synchroniseBufferToMemory, synchroniseMemoryToBuffer } from "./memory";
 import { CallKind } from "./CallMessage";
 import fromI64 from "./services/fromI64";
+import Logger = require("js-logger");
+import { toHex } from "../utils/hexUtils";
 
 const i64Transformer = require('../../../../wasm/i64-transformer');
 
@@ -14,12 +16,14 @@ const i64Transformer = require('../../../../wasm/i64-transformer');
  */
 class VirtualContext {
     sharedMemory: SharedArrayBuffer;
+    sharedValues: SharedArrayBuffer;
     sharedNotifier: SharedArrayBuffer;
     wasm: WebAssembly.WebAssemblyInstantiatedSource;
     transformer: WebAssembly.Instance;
 
     constructor() {
         this.sharedNotifier = new SharedArrayBuffer(4);
+        this.sharedValues = new SharedArrayBuffer(4096);
         this.transformer = new WebAssembly.Instance(new WebAssembly.Module(i64Transformer), {
             interface: {
                 useGas: this._useGas.bind(this),
@@ -52,6 +56,7 @@ class VirtualContext {
             value: {
                 memory: sharedMemory,
                 notifier: this.sharedNotifier,
+                sharedValuesBuffer: this.sharedValues,
             },
         });
 
@@ -64,6 +69,7 @@ class VirtualContext {
      * @memberof VirtualContext
      */
     growSharedMemory() {
+        Logger.debug('Growing shared memory');
         // @ts-ignore
         const length = Uint8Array.BYTES_PER_ELEMENT * this.wasm.instance.exports.memory.buffer.byteLength;
         this.sharedMemory = new SharedArrayBuffer(length);
@@ -105,14 +111,20 @@ class VirtualContext {
             bufferIndex: 0,
         });
 
-        const value = waitAndLoad(this.sharedNotifier, 0);
+        waitAndLoad(this.sharedNotifier, 0);
         reset(this.sharedNotifier, 0);
+
+        // Fetch the value from the shared value buffer
+        const u8ValueBuffer = new Uint8Array(this.sharedValues);
+        const lengthHex = '0x' + toHex(u8ValueBuffer.slice(0, 4));
+        const length = parseInt(lengthHex);
+        const valueBuffer = Buffer.from(u8ValueBuffer.slice(4, length));
 
         // Now synchronise the changes made to the shared buffer back to memory
         // @ts-ignore
         synchroniseBufferToMemory(this.wasm.instance.exports.memory, this.sharedMemory);
 
-        return value;
+        return valueBuffer;
     }
 
     call(gas: number, addressOffset: number, valueOffset: number, dataOffset: number, dataLength: number){
@@ -124,7 +136,8 @@ class VirtualContext {
         // Since 0 is not supported for the sharedbuffer synchronisation
         // we chose to just add 1 to the execution statuses
         // Now we just subtract with 1 to go to the original statuses where 0 = success
-        return (executionResult - 1);
+        // return (executionResult - 1);
+        return 2;
     }
 
     useGas(gas: number) {

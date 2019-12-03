@@ -9,7 +9,7 @@
         "build:prod": "cross-env NODE_ENV=production webpack --config ./webpack.config.js",
         "docs": "documentation build ./src > ./docs/codebase.md --shallow false --format md --sort-order alpha",
         "release": "standard-version",
-        "start": "npm run build:watch:node & nodemon --experimental-worker ./build/rutile.js localhost 8932 --watch ./build/rutile.js",
+        "start": "npm run build:watch:node & nodemon --experimental-worker ./build/*.js localhost 8932 --watch ./build/rutile.js",
         "test": "jest",
         "lint": "eslint ./src/ --cache --ignore-pattern .gitignore",
         "build:watch:node": "cross-env NODE_ENV=development webpack --watch --target node --config ./webpack.config.js",

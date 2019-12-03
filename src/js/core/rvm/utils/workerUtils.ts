@@ -1,5 +1,6 @@
 import isNodeJs from "../../../services/isNodeJs";
 const uuid = require('uuid/v4');
+const workerThreads =  __non_webpack_require__('worker_threads');
 
 export interface RequestMessage {
     type: string,
@@ -20,7 +21,7 @@ export function createWorker(stringUrl: string, options?: any): Worker {
     let WorkerConstructor: any = null;
 
     if (isNodeJs()) {
-        WorkerConstructor = __non_webpack_require__('worker_threads').Worker;
+        WorkerConstructor = workerThreads.Worker;
     } else {
         WorkerConstructor = Worker;
     }
@@ -30,7 +31,7 @@ export function createWorker(stringUrl: string, options?: any): Worker {
 
 export function workerPostMessage(message: RequestMessage) {
     if (isNodeJs()) {
-        __non_webpack_require__('worker_threads').parentPort.postMessage(message);
+        workerThreads.parentPort.postMessage(message);
     } else {
         // @ts-ignore
         self.postMessage(message);
@@ -57,7 +58,7 @@ export function workerRequest(message: RequestMessage): Promise<RequestMessage> 
 
 export function workerRemoveEventListener(eventType: string, callback: (event: any) => void) {
     if (isNodeJs()) {
-        __non_webpack_require__('worker_threads').parentPort.off(eventType, callback);
+        workerThreads.parentPort.off(eventType, callback);
     } else {
         self.removeEventListener(eventType, callback);
     }
@@ -65,7 +66,7 @@ export function workerRemoveEventListener(eventType: string, callback: (event: a
 
 export function workerAddEventListener(eventType: string, callback: (event: any) => void) {
     if (isNodeJs()) {
-        __non_webpack_require__('worker_threads').parentPort.on(eventType, callback);
+        workerThreads.parentPort.on(eventType, callback);
     } else {
         self.addEventListener(eventType, callback);
     }

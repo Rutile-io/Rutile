@@ -3,9 +3,20 @@ import { WasmFs } from '@wasmer/wasmfs';
 import { workerAddEventListener, extractMessageFromEvent, RequestMessage, workerPostMessage } from "./utils/workerUtils";
 import VirtualContext from "./lib/VirtualContext";
 import WasiFileSystem from './lib/wasi/WasiFileSystem';
+import Logger = require('js-logger');
 const metering = require('wasm-metering');
 const WASI = require('@wasmer/wasi/lib/index.cjs').WASI;
 const wasmTransformer = __non_webpack_require__("@wasmer/wasm-transformer");
+
+Logger.setLevel(Logger.DEBUG);
+const loggerHandler = Logger.createDefaultHandler({
+    formatter: function(message, context) {
+        message.unshift(`[${context.level.name.toLowerCase()}]:`);
+        message.unshift(new Date().toLocaleString());
+    }
+});
+
+Logger.setHandler(loggerHandler);
 
 /**
  * This code is run inside the worker module.
@@ -18,16 +29,10 @@ async function runWasm(wasmBinary: Uint8Array, env: any, args: string[] = []) {
     try {
         const context = new VirtualContext();
 
-        // Instantiate the WebAssembly module with metering included
-        const meteredWasm = metering.meterWASM(wasmBinary, {
-            meterType: 'i32',
-        });
-
         // Couple the WASI to the WASM
-        const wasiFileSystem = new WasiFileSystem(env);
+        Logger.debug('Initialising virtual file system');
+        const wasiFileSystem = new WasiFileSystem(env, context);
         wasmFs = await wasiFileSystem.create();
-
-        console.log('[] wasmFs.fs -> ', wasmFs.fs);
 
         const wasi: WasiType = new WASI({
             args,
@@ -39,11 +44,35 @@ async function runWasm(wasmBinary: Uint8Array, env: any, args: string[] = []) {
             preopenDirectories: wasiFileSystem.preopenDirectories,
         });
 
+        let isExitCalled = false;
+
+        // Set up the process exit to a post message
+        wasi.wasiImport.proc_exit = async (status: number) => {
+            // Proc_exit should only be called once.
+            if (isExitCalled) {
+                return;
+            }
+
+            isExitCalled = true;
+
+            const output = await wasmFs.getStdOut();
+            context.callContext('exit', [
+                status,
+                output,
+            ]);
+        };
+
+        Logger.debug('Booting up WASM');
+        // Instantiate the WebAssembly module with metering included
+        const meteredWasm = metering.meterWASM(wasmBinary, {
+            meterType: 'i32',
+        });
+
         const loweredBinary = await wasmTransformer.lowerI64Imports(meteredWasm);
         const wasm = await WebAssembly.instantiate(loweredBinary, {
             metering: {
                 usegas: (gas: number) => {
-                    context.useGas(gas);
+                    // context.useGas(gas);
                 }
             },
             wasi_unstable: wasi.wasiImport,
@@ -56,26 +85,14 @@ async function runWasm(wasmBinary: Uint8Array, env: any, args: string[] = []) {
 
         // Get the context ready on the client side
         // It is responsible of actually executing tasks.
+        Logger.debug('Initialising VirtualContext');
         await context.init(wasm);
 
         // Now boot it up through WASI
+        Logger.debug('Starting WASI');
+        wasiFileSystem.isExecuting = true;
         wasi.start(wasm.instance);
-
-        const output = wasmFs.fs.readdirSync(env['$HOME']);
-
-        console.log('================Debug===============');
-        console.log(await wasmFs.getStdOut());
-        console.log('====================================');
-
-        console.log('[] output -> ', output);
-
-        workerPostMessage({
-            type: 'EXIT',
-            value: {
-                status: 0,
-            },
-        });
-
+        wasi.wasiImport.proc_exit(0);
         // In WASM it's not required to use a extra layer of sandboxing
         // // Since we cannot trust the environment we have to sandbox the code.
         // // This code cannot access anything outside it's environment.
@@ -93,16 +110,18 @@ async function runWasm(wasmBinary: Uint8Array, env: any, args: string[] = []) {
         // so it's safe to assume we can close the VM.
         // context.getExposedFunctions().finish(0, 0);
     } catch (error) {
-        workerPostMessage({
-            type: 'EXIT',
-            value: {
-                status: 0,
-            },
-        });
-
-        console.log('================Debug===============');
+        console.log('=============Error Debug============');
         console.log(await wasmFs.getStdOut());
         console.log('====================================');
+
+        console.error(error);
+
+        // workerPostMessage({
+        //     type: 'EXIT',
+        //     value: {
+        //         status: 1,
+        //     },
+        // });
 
         if (error.errorType !== 'VmError' && error.errorType !== 'FinishExecution') {
             console.error('[VM] Error:', error);
