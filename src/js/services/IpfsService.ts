@@ -1,4 +1,5 @@
 import isNodeJs from './isNodeJs';
+import Logger = require('js-logger');
 
 let node: any = null;
 
@@ -20,10 +21,10 @@ async function startIpfsDaemon() {
     const ipfs = IpfsFactory.create({ type: 'go' });
 
     const ipfsConfig = {
-        start: true,
-        init: true,
+        // start: true,
+        // init: true,
         repoPath: './ipfs_repo',
-        disposable: true,
+        disposable: false,
         defaultAddrs: true,
     }
 
@@ -33,6 +34,12 @@ async function startIpfsDaemon() {
     }
 
     const ipfsSpawnedNode = await ipfs.spawn(ipfsConfig);
+    await ipfsSpawnedNode.init();
+    await ipfsSpawnedNode.start();
+
+    Logger.info(`📦 API located at ${ipfsSpawnedNode.api.apiHost}:${ipfsSpawnedNode.api.apiPort}`);
+    Logger.info(`📦 Gateway located at ${ipfsSpawnedNode.api.gatewayHost}:${ipfsSpawnedNode.api.gatewayPort}`);
+
     return ipfsSpawnedNode;
 }
 

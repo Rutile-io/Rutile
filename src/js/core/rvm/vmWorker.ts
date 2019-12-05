@@ -30,7 +30,6 @@ async function runWasm(wasmBinary: Uint8Array, env: any, args: string[] = []) {
         const context = new VirtualContext();
 
         // Couple the WASI to the WASM
-        Logger.debug('Initialising virtual file system');
         const wasiFileSystem = new WasiFileSystem(env, context);
         wasmFs = await wasiFileSystem.create();
 
@@ -62,7 +61,6 @@ async function runWasm(wasmBinary: Uint8Array, env: any, args: string[] = []) {
             ]);
         };
 
-        Logger.debug('Booting up WASM');
         // Instantiate the WebAssembly module with metering included
         const meteredWasm = metering.meterWASM(wasmBinary, {
             meterType: 'i32',
@@ -85,11 +83,9 @@ async function runWasm(wasmBinary: Uint8Array, env: any, args: string[] = []) {
 
         // Get the context ready on the client side
         // It is responsible of actually executing tasks.
-        Logger.debug('Initialising VirtualContext');
         await context.init(wasm);
 
         // Now boot it up through WASI
-        Logger.debug('Starting WASI');
         wasiFileSystem.isExecuting = true;
         wasi.start(wasm.instance);
         wasi.wasiImport.proc_exit(0);

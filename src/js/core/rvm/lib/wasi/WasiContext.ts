@@ -83,8 +83,8 @@ class WasiContext {
         } else if (method === 'exit') {
             this.vmWorker.terminate();
 
-            Logger.debug('=============== Debug ==============\n\n' + message.value[1]);
-            Logger.debug('====================================');
+            // Logger.debug('=============== Debug ==============\n\n' + message.value[1]);
+            // Logger.debug('====================================');
 
             if (message.value[1].startsWith('0x')) {
                 this.result.return = Buffer.from(message.value[1].replace('0x', ''), 'hex');

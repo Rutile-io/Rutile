@@ -365,6 +365,30 @@ class RpcServer {
         writeOk(res, ipfsResponse);
     }
 
+    async getIpfsFile(req: IncomingMessage, res: ServerResponse) {
+        const url = new URL('http://rutile.com' + req.url);
+        const id = url.searchParams.get('id');
+        const ipfsresponse = this.ipfsNode.api.getReadableStream(id);
+
+        res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': '*',
+        });
+
+        ipfsresponse.on('data', (file: any) => {
+            if (file.type !== 'dir') {
+                file.content.pipe(res, { end: false });
+
+                file.content.on('end', () => {
+                    res.end();
+                });
+
+                file.content.resume();
+            }
+        });
+    }
+
     async handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
         try {
             if (req.method === 'OPTIONS') {
@@ -374,6 +398,9 @@ class RpcServer {
 
             if (req.url === '/files/upload') {
                 this.sendIpfsUpload(req, res);
+                return;
+            } else if (req.url.includes('/files/get')) {
+                this.getIpfsFile(req, res);
                 return;
             }
 
