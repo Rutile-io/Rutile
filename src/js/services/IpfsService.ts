@@ -34,7 +34,7 @@ async function startIpfsDaemon() {
     }
 
     const ipfsSpawnedNode = await ipfs.spawn(ipfsConfig);
-    await ipfsSpawnedNode.init();
+    // await ipfsSpawnedNode.init();
     await ipfsSpawnedNode.start();
 
     Logger.info(`📦 API located at ${ipfsSpawnedNode.api.apiHost}:${ipfsSpawnedNode.api.apiPort}`);

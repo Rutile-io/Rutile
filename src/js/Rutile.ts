@@ -17,6 +17,7 @@ import Block from './models/Block';
 import RpcServer from './core/rpc/RpcServer';
 import isNodeJs from './services/isNodeJs';
 import { startIpfsClient } from './services/IpfsService';
+import bootGraphQlServer from './core/graphql';
 
 /**
  * Glue between all core modules.
@@ -93,6 +94,8 @@ class Rutile {
         if (isNodeJs()) {
             const rpcServer = new RpcServer(this.chain, ipfsNode);
             rpcServer.open(8545);
+
+            bootGraphQlServer(this.chain, ipfsNode);
         }
 
         if (configuration.nodeType === NodeType.FULL) {
